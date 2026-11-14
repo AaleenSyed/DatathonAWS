@@ -7,6 +7,15 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 You build and maintain `workers/risk_analyst.py` and `tests/test_risk_analyst.py` for AlphaForge AI.
 Read `CLAUDE.md` and `AGENT_GUARDRAILS.md` (section 3.2) first. They override anything below if they conflict.
 
+## No facts from memory
+Every value (return, volatility, drawdown, weight, date, ticker, sector, source) must come from
+`workers/data_retriever.py` output or from a script you run (pytest, a pandas computation). Never type a
+number, ticker, threshold or source from your own knowledge into code, tests or reports (e.g. "SPY fell about
+X% in 2022"). The only exceptions are the rules and thresholds written in `CLAUDE.md` / `AGENT_GUARDRAILS.md`;
+cite them. If a value cannot be computed from the data, return "not available" with the reason; do not
+guess. Sanity tests compare computed values with each other (e.g. vol(XBB.TO) < vol(SPY)) or with a
+hand-computed synthetic series, never with numbers remembered from elsewhere.
+
 ## What the worker is
 A plain Python module (NOT an LLM). Later it is wrapped as a Strands `@tool`. It gets prices ONLY through
 `workers/data_retriever.py`. Never read the CSVs directly and never fetch data from the internet.
@@ -39,17 +48,29 @@ If max_drawdown is worse than −30%, bump the label up one level (Very High sta
 Return the reason, e.g. `"vol 18.2% → Moderate; drawdown −34% → bumped to High"`.
 
 ## Sectors
-- A sector is an **equal-weight basket** of the universe assets with that `sector` value, rebalanced daily
-  (mean of member daily returns on common dates). Document this in the output `warnings` / notes.
+- A sector is a basket of the universe assets with that `sector` value, rebalanced daily
+  (weighted mean of member daily returns on common dates). Return the weights used in `data`.
 - Grouping: sector labels with a parenthesis are grouped by the text before ` (`:
   `Bonds` = XBB.TO, ZST.TO, AGG, TLT; `Broad market` = XIU.TO, SPY, QQQ, ESGV. Also accept the exact label.
+- Weights:
+  - **Bonds and Broad market (ETF groups): fund-size (AUM) weights**, from
+    `data_retriever.get_fund_weights(tickers)` (weight = AUM in CAD / sum of AUM in CAD). Put the AUM source and
+    `retrieved_date` in `source` / `period`, and add the warning "weights = fund size on <retrieved_date>, held
+    constant over the whole period (today's weights applied to past data)".
+  - If `get_fund_weights` returns an error or misses a ticker → fall back to equal weight, with a warning.
+  - **All other sectors: equal weight** (as CLAUDE.md says).
 - Single-asset sectors (Communication Services, Health Care, Industrials, Utilities, Gold) → warning
   "sector = 1 asset, not diversified".
 - Mixed calendars (crypto + stocks): align on common business days and annualize with 252; say so in warnings.
 
 ## Return contract
 Same as every worker: `{"status", "data", "source", "period", "currency", "warnings"}`; on bad input
-`{"status": "error", "error": ...}`. Never raise. `period` is the date range actually used. `source` names
+`{"status": "error", "error": ...}`. Never raise.
+
+**JSON-safe output** (results are sent to Bedrock as JSON once wrapped as tools): the whole returned dict may
+contain only dict, list, str, int, float, bool and None. No DataFrame/Series, numpy types, `Timestamp` or
+`NaN`: convert with `float()` / `.to_dict()`, dates as `"YYYY-MM-DD"` strings, NaN → None.
+Test: `json.dumps(result, allow_nan=False)` succeeds for every function, including error dicts. `period` is the date range actually used. `source` names
 the upstream data (Yahoo Finance via yfinance, FX from Bank of Canada, per sources_metadata.csv).
 
 ## Rules
@@ -62,7 +83,9 @@ the upstream data (Yahoo Finance via yfinance, FX from Bank of Canada, per sourc
 - Hand check: compute annualized vol and max drawdown for one ticker on a tiny synthetic series by hand in
   the test, and compare.
 - Sanity: XBB.TO and AGG vol well below SPY; BTC-USD vol far above SPY; 2022 return negative for SPY, QQQ, TLT;
-  sector weights sum to 1.
+  sector weights sum to 1 (AUM weights and equal-weight fallback).
+- AUM weights: with a stubbed `get_fund_weights` (e.g. 3:1 AUM), the basket return equals the hand-computed
+  0.75·r1 + 0.25·r2; a missing ticker triggers equal-weight fallback + warning.
 - Labels: boundary values (9.99%, 10%, 20%, 35%) and the drawdown bump.
 - Crypto uses 365, others 252.
 - Edge cases: unknown ticker/sector, empty range, single-asset sector, one-day range (not enough data → error).
