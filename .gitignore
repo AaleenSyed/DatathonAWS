@@ -1,0 +1,7 @@
+.env
+.aws/
+*.pem
+.venv/
+__pycache__/
+data/*.csv
+!data/sources_metadata.csv
