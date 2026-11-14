@@ -1,21 +1,21 @@
-# AlphaForge AI: PolyFinances Datathon 2026 prototype
 
+# AlphaForge AI: PolyFinances Datathon 2026 prototype
+ 
 Self-explaining agentic decision-support tool. A user picks a fictional investor persona
 (Amira, Mateo, Robert), makes a request or asks a question, and the system analyzes public
 financial data, checks the request against the persona's constraints, and explains its
 conclusion with sources, assumptions, and limitations.
-
+ 
 Simulation only. No real transactions. Never presented as personalized financial advice.
-
+ 
 ## Deadlines
 - Repo + README due Sunday Nov 15, 23:59. AWS account is deleted Monday Nov 16, 13:59.
 - Deliverables: prototype, repo/README, ~5 min video, technical doc, one-pager.
-
 ## Judging grid (optimize for this)
 Solution quality/innovation 20% · Agentic + explainability 20% · Data rigour/validation/viz 20% ·
 UX/UI 10% · AWS integration 15% (ELIGIBILITY REQUIREMENT: AWS must play a real, demonstrable role) ·
 Pitch/business value 15%. Complexity and number of agents are NOT rewarded for their own sake.
-
+ 
 ## Personas (from the official brief; numeric limits are our team's assumptions, document them)
 - **Amira**, 26, software engineer. Risk HIGH, horizon 15+ yrs. Long-term growth; likes AI,
   emerging tech, crypto; still wants diversification, not 100% tech.
@@ -33,9 +33,8 @@ Pitch/business value 15%. Complexity and number of agents are NOT rewarded for t
   Test: challenge a request that conflicts with his profile, explain the risk, don't just agree.
   Assumed limits: crypto 0%, single stock ≤ 10%, annualized vol ≤ 10%, bonds/cash ≥ 50%,
   max drawdown in 2022 stress ≤ 15%.
-
 All persona data lives in `personas.py`. Profiles are fictional.
-
+ 
 ## Goal (current)
 A CHATBOT. The user picks the persona that best fits their investment profile (Amira, Mateo,
 Robert), then chats with it: asks questions in plain language, follow-ups included. For each
@@ -45,7 +44,7 @@ sector risk numbers, example assets from the universe, how it fits the persona's
 risk tolerance and preferences, and what could go wrong. If the question conflicts with the
 persona (e.g. Robert asking about crypto), the bot says so and explains why.
 Everything is framed as an educational simulation for a fictional persona, never personal advice.
-
+ 
 ## User flow
 1. Pick a persona (Amira, Mateo, Robert).
 2. Chat: ask a question ("Where should I look for growth?", "Is tech too risky for me?",
@@ -53,10 +52,8 @@ Everything is framed as an educational simulation for a fictional persona, never
 3. Each answer: recommended industry/sector + reasons (facts with sources, assumptions,
    risks/limitations) + example assets in that sector + any profile conflicts flagged.
    The full trace (who did what, with which data) is available for every answer.
-
 ## Agent pipeline (boss → workers → reviewer → presenter)
-
-```text
+```
 User (persona + request)
   → BOSS (LLM, Sonnet 5): builds a plan (tickers, checks, order), dispatches workers
   → WORKERS (deterministic Python scripts, NOT LLMs):
@@ -74,7 +71,6 @@ User (persona + request)
        (max 2 retries, then proceed with an explicit "incomplete" note)
   → PRESENTER (LLM, Sonnet 5): writes the final answer using ONLY worker outputs
 ```
-
 - Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the
   chat history (multi-turn) for the session.
 - Workers live in `workers/` (one file each). Each returns a dict with `status`, `data`,
@@ -90,16 +86,14 @@ User (persona + request)
   JSON locally and to `s3://$DATA_BUCKET/runs/`. The trace is the explainability evidence.
 - Bedrock Guardrail on user input and LLM output (personalized advice to the real user, real
   trades, PII). Persona-fit rules stay in `suitability`, not the guardrail.
-
 ## Risk labels (team assumption, document in README)
 Annualized volatility (adj_close daily returns; 252 days, crypto 365):
 < 10% Low · 10–20% Moderate · 20–35% High · > 35% Very High.
 Max drawdown is a second check: if max drawdown is worse than -30%, bump the label up one level.
-
+ 
 ## Data plan (by tier)
 Every source must be documented in the README: origin, URL, retrieval date, processing,
 license/terms, limitations.
-
 **Tier 1 (now, phases 1–3)**
 - Starter CSVs (prices, FX, macro, dividends, universe). Core of all risk numbers.
 - Extra FRED series via `data/fetch_fred_extra.py` → `data/macro_extra.csv` (same long format
@@ -111,20 +105,17 @@ license/terms, limitations.
   ~3 weeks after the reference month unless the source gives a release date).
 - Price-derived sector signals (no new data): 6- and 12-month momentum, relative strength vs
   XIU.TO (Canada) / SPY (U.S.), price vs 200-day average, current drawdown from peak.
-
 **Tier 2 (after the chatbot works, phases 4–5)**
 - AgentCore Web Search for news (URLs + dates must be displayed) + Claude Haiku sentiment.
 - yfinance `Ticker.news` as a small "current headlines" bonus (current only, Yahoo terms).
 - Curated `data/esg_evidence.csv` (ticker, issue, category, summary, source_name, url,
   published_date, retrieved_date), hand-verified, committed to git.
-
 **Tier 3 (if time allows)**
 - SEC EDGAR fundamentals via `fetch_fundamentals.py` (already written; keeps filing dates).
 - GDELT news tone (free API) as an extra fear/hope signal.
-
 **Do not use**: Kaggle datasets without a clear license and provenance; Twitter/X (paid,
 restricted API); CNN Fear & Greed (proprietary). Scraping news sites (terms of use).
-
+ 
 ## Market context rules (team assumptions, document; historical tendencies, NOT predictions)
 Business-cycle phase from FRED (use only values published by the analysis date):
 - **Recession risk** if SAHMREALTIME ≥ 0.5 or RECPROUSM156N ≥ 30%.
@@ -132,21 +123,19 @@ Business-cycle phase from FRED (use only values published by the analysis date):
   recession signal.
 - **Early cycle** if a recession signal was active in the past 12 months and INDPRO is rising.
 - **Mid cycle** otherwise.
-
 Sector rotation tendencies: Early → Financials, Consumer Discretionary, Industrials;
 Mid → Information Technology, Industrials, Communication Services; Late → Energy,
 Health Care, Consumer Staples; Recession → Utilities, Consumer Staples, Health Care, Bonds.
 Fear vs hope: VIX < 15 calm/hope, 15–25 normal, > 25 fear; rising credit spreads = stress.
 Always present the phase and sector tilt as "historically, sectors like X have tended to…",
 labelled `assumption`, with the signal values and dates that triggered it.
-
 ## Ethics data
 The starter dataset has NO ESG/ethics data (only the ESGV ticker and `sector`). Energy-sector
 names (ENB.TO, CNQ.TO, XOM) are candidates for review. Ethics worker comes later (Tier 2).
-
+ 
 ## UI
 Not now. For now the chatbot runs in the terminal (`chat.py`). Streamlit comes in phase 6.
-
+ 
 ## Testing (required for EVERY phase, before moving on)
 Each phase is only done when its tests pass and the results are sanity-checked:
 - **Unit tests** (pytest) for every worker function: normal cases, edge cases (unknown ticker,
@@ -159,7 +148,6 @@ Each phase is only done when its tests pass and the results are sanity-checked:
   catches a deliberately incomplete worker output and triggers a retry; check the answer
   only cites numbers that appear in the trace.
 - Print a short test report at the end of each phase. Then commit, push, and STOP.
-
 ## Build phases (one phase at a time: build → test extensively → commit → stop and wait)
 1. **Foundations**: requirements.txt, README skeleton, personas.py, workers/data_retriever.py,
    workers/risk_analyst.py (asset + sector metrics, 2022 stress test, risk labels), tests.
@@ -177,16 +165,13 @@ Each phase is only done when its tests pass and the results are sanity-checked:
    + web search, flags Energy-sector names for Mateo with cited evidence.
 6. **UI**: Streamlit chat UI on top of the pipeline (persona picker, chat, charts, trace panel).
 7. **Docs**: README (sources, licenses, assumptions, limitations), technical doc, one-pager.
-
-### Demo questions (must work by the end of phase 3)
-
+Demo questions (must work by the end of phase 3):
 - Robert: "I want to put a big part of my savings in NVDA, good idea?" → challenged with numbers;
   steered toward sectors that fit (e.g. Consumer Staples, Utilities, bonds) with reasons.
 - Amira: "I only want AI and crypto, which industry should I focus on?" → tech recommended but
   diversification enforced; explains crypto limits.
 - Mateo: "Which industry gives balanced growth for me?" → balanced recommendation; Energy
   flagged for ESG review.
-
 ## Data (starter dataset, in `data/`, gitignored; do not commit CSVs)
 Files: assets_universe.csv, prices_daily.csv, corporate_actions.csv, fx_usdcad_daily.csv,
 macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
@@ -203,9 +188,13 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
   revised vintages, CNQ.TO 1.021 "split" on 2022-08-22 is likely a special distribution,
   no ESG/news/fundamentals in the starter set.
 - Data also uploaded to S3 (bucket name in `.env` as `DATA_BUCKET`); app can load from S3 or local.
-
+ 
 ## AWS conventions
 - Region: `us-east-1`, always.
+- **All LLM calls in the app go through Amazon Bedrock** (AWS integration is an eligibility
+  requirement). Never call the Anthropic API, OpenAI API or any other model provider directly,
+  never use an `ANTHROPIC_API_KEY`, and never hard-code a model the datathon account can't call
+  (Fable, Sonnet 5.5, Haiku 5.5). This applies no matter which AI assistant writes the code.
 - Bedrock via boto3 Converse API (never InvokeModel). Use `global.` inference profile IDs.
 - Models: default `global.amazon.nova-2-lite-v1:0` for cheap tests;
   `global.anthropic.claude-sonnet-5` for the agent; `global.anthropic.claude-haiku-4-5-20251001-v1:0`
@@ -217,20 +206,28 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
   (`json.dumps`), `additionalProperties: false` required. Nova 2 Lite does not support it.
 - boto3 client config: `Config(retries={"max_attempts": 5, "mode": "adaptive"})`.
 - Strands: always pass the model explicitly; cap loops with `agent(..., limits={"turns": 8})`.
-  Tool names must match `^[a-zA-Z0-9_-]+$`. Tools return `{"status": "error", "error": ...}` dicts on failure,
+  Tool names must match `^[a-zA-Z0-9_-]+$`. Tools return `{"erreur": ...}`-style dicts on failure,
   never raise.
 - No Bedrock Agents Classic, no Bedrock Flows, no AgentCore deploy unless everything else works.
 - Credentials come from the environment (Workshop Studio temp creds or CloudShell/Kiro).
   NEVER write AWS keys into code, `.env` committed files, or the repo.
-
 ## Code conventions
 - Python 3.11+. Keep it simple: a working demo beats abstractions.
 - Every number shown to the user carries its source, period, and currency.
 - Every tool result includes a `source` field and the date range actually used.
 - Prompts and system prompts live in `prompts/` as text files, not inline strings.
-
+## Team workflow (git)
+- Each person works in their own folder and their own branch (e.g. `aaleen`, `frontend`).
+  Never commit on someone else's branch; check `git branch` before committing.
+- Merge into `main` only when a phase passes its tests, via pull request on GitHub
+  (or `git checkout main && git pull && git merge <branch> && git push`). One person merges at a time.
+- `git pull origin main` before starting work; commit and push small and often.
+- Before every commit, `git status`: no `.env`, no data CSVs (except sources_metadata.csv /
+  esg_evidence.csv), no build output (`dist/`, `node_modules/`), no credentials.
+- Split work by file/phase so two people never edit the same file at the same time.
 ## Commands
 - Install: `pip install -r requirements.txt`
 - Chat (terminal, phases 3–5): `python chat.py`
 - UI (phase 6): `streamlit run app.py --server.address localhost`
 - Test: `python -m pytest -q`
+ 
