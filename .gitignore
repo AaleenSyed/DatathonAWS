@@ -5,3 +5,10 @@
 __pycache__/
 data/*.csv
 !data/sources_metadata.csv
+
+# JavaScript
+node_modules/
+dist/
+.expo/
+*.tsbuildinfo
+!data/esg_evidence.csv

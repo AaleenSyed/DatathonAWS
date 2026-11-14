@@ -1,0 +1,13 @@
+{
+  "name": "alphaforge-ai",
+  "private": true,
+  "scripts": {
+    "contracts:lint": "spectral lint contracts/openapi.yaml",
+    "client:generate": "pnpm --filter @alphaforge/api-client generate",
+    "client:build": "pnpm --filter @alphaforge/api-client build",
+    "client:test": "pnpm --filter @alphaforge/api-client test"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "^6.14.0"
+  }
+}
