@@ -22,7 +22,7 @@ possible; prompts are the second line, not the only one.
 | All LLM calls go through Amazon Bedrock (Converse API, `us-east-1`, `global.` profiles). No other provider, no `ANTHROPIC_API_KEY`. | Code review; single Bedrock client module |
 | No look-ahead: no data dated after the analysis date; monthly macro only after its publication date. | Workers filter by date; reviewer re-checks |
 | Every number carries `source`, `period`, `currency`. | Worker return contract; reviewer check |
-| **No facts from memory.** Every value (price, return, rate, fund size, date, ticker, sector, source, URL) comes from `data/` files or a script/worker that was run, never from an agent's own knowledge. Only exception: rules and thresholds written in `CLAUDE.md` / this file, cited. Missing value → "not available" + reason, never a guess. | Workers read only data/scripts; presenter uses only trace numbers; reviewer checks every number exists in the trace; tests compute expectations from data or synthetic series |
+| **No facts from memory.** Every value (price, return, rate, date, ticker, sector, source, URL) comes from `data/` files or a script/worker that was run, never from an agent's own knowledge. Only exception: rules and thresholds written in `CLAUDE.md` / this file, cited. Missing value → "not available" + reason, never a guess. | Workers read only data/scripts; presenter uses only trace numbers; reviewer checks every number exists in the trace; tests compute expectations from data or synthetic series |
 | Every step is logged to the run trace (step, actor, input, output summary, timestamp). | Pipeline code; trace saved locally + `s3://$DATA_BUCKET/runs/` |
 | No credentials in code, prompts, traces, or logs. | `.gitignore`, `git status` before commit; traces never include env vars |
 | Bounded execution: Strands `limits={"turns": 8}`, reviewer max 2 retries, boto3 adaptive retries (5). | Code |
@@ -99,7 +99,8 @@ Shared contract for all workers:
 
 ### 3.2 risk_analyst
 - **May:** compute return, annualized vol (252 days; 365 for crypto), max drawdown, correlation,
-  2022 stress test, risk label; sector metrics as an equal-weight basket of universe assets.
+  2022 stress test, risk label. Industries (all-equity groups): equal-weight basket. Building blocks (ETFs,
+  crypto): per-member metrics + min–max range, no blended figure. USD assets also report vol in USD.
 - **Must not:** change the risk-label thresholds (< 10% Low · 10–20% Moderate · 20–35% High ·
   > 35% Very High; drawdown worse than −30% bumps one level) without updating README.
 - **Checks / sanity:** bond ETF vol < equity vol; BTC vol > SPY vol; weights sum to 1; warn if fewer
@@ -177,6 +178,7 @@ with an explicit "incomplete analysis" note shown to the user and logged in the 
 - Promise or predict returns ("will go up", "guaranteed", "safe bet").
 - Give position sizes or trade instructions beyond the persona's documented limits.
 - Hide the reviewer's "incomplete" note.
+- Drop worker warnings the user needs, e.g. "sector = 1 asset, not diversified".
 
 **Enforced by:** `prompts/presenter_system.txt`, reviewer number-check, output Bedrock Guardrail.
 

@@ -43,42 +43,43 @@ def test_risk_label_boundaries(vol, mdd, label):
     assert ra.risk_label(vol, mdd)[0] == label
 
 
-# ---------- AUM-weighted basket with stubbed data ----------
+# ---------- groups with stubbed data ----------
+
+A, B = [100, 102, 101, 104], [50, 49, 50, 51]
+
 
 @pytest.fixture
-def two_etf_sector(monkeypatch):
+def stub_two(monkeypatch):
+    """Two stub assets A, B in one group; asset_class set by the test."""
     dates = pd.date_range("2024-01-01", periods=4).strftime("%Y-%m-%d")
-    a, b = [100, 102, 101, 104], [50, 49, 50, 51]
-    monkeypatch.setattr(dr, "get_universe", lambda: {"status": "ok", "data": [
-        {"ticker": "A", "asset_class": "etf_bond", "sector": "Test (a)"},
-        {"ticker": "B", "asset_class": "etf_bond", "sector": "Test (b)"}]})
-    monkeypatch.setattr(dr, "get_prices", lambda t, s, e, c="CAD": {
-        "status": "ok", "source": "stub", "warnings": [], "currency": c,
-        "data": {"A": [{"date": d, "adj_close": v} for d, v in zip(dates, a)],
-                 "B": [{"date": d, "adj_close": v} for d, v in zip(dates, b)]}})
-    return a, b
+
+    def setup(asset_class):
+        monkeypatch.setattr(dr, "get_universe", lambda: {"status": "ok", "data": [
+            {"ticker": t, "name": t, "asset_class": asset_class, "sector": f"Test ({t})", "currency": "CAD"}
+            for t in "AB"]})
+        monkeypatch.setattr(dr, "get_prices", lambda t, s, e, c="CAD": {
+            "status": "ok", "source": "stub", "warnings": [], "currency": c, "period": {},
+            "data": {k: [{"date": d, "adj_close": v} for d, v in zip(dates, vals)]
+                     for k, vals in {"A": A, "B": B}.items() if k in ([t] if isinstance(t, str) else t)}})
+    return setup
 
 
-def test_aum_weighted_basket(monkeypatch, two_etf_sector):
-    a, b = two_etf_sector
-    monkeypatch.setattr(dr, "get_fund_weights", lambda t: {
-        "status": "ok", "source": "stub AUM", "warnings": [],
-        "data": {"weights": {"A": 0.75, "B": 0.25}, "retrieved_date": "2026-11-14"}})
+def test_industry_is_equal_weight_basket(stub_two):
+    stub_two("equity")
     d = ok(ra.analyze_sector("Test", "2024-01-01", "2024-01-04"))
     idx = 1.0
     for i in range(1, 4):
-        idx *= 1 + 0.75 * (a[i] / a[i - 1] - 1) + 0.25 * (b[i] / b[i - 1] - 1)
-    assert d["total_return"] == pytest.approx(idx - 1)
-    assert d["weighting"] == "fund size (AUM)" and sum(d["weights"].values()) == pytest.approx(1)
+        idx *= 1 + 0.5 * (A[i] / A[i - 1] - 1) + 0.5 * (B[i] / B[i - 1] - 1)
+    assert d["kind"] == "industry" and d["total_return"] == pytest.approx(idx - 1)
+    assert d["weights"] == {"A": 0.5, "B": 0.5}
 
 
-def test_aum_missing_falls_back_to_equal(monkeypatch, two_etf_sector):
-    monkeypatch.setattr(dr, "get_fund_weights", lambda t: {
-        "status": "ok", "source": "stub", "warnings": ["B: no AUM"],
-        "data": {"weights": {"A": 1.0}, "retrieved_date": "2026-11-14"}})
-    r = ra.analyze_sector("Test", "2024-01-01", "2024-01-04")
-    assert r["data"]["weights"] == {"A": 0.5, "B": 0.5}
-    assert any("fell back to equal weight" in w for w in r["warnings"])
+def test_building_block_has_no_blended_figure(stub_two):
+    stub_two("etf_bond")
+    d = ok(ra.analyze_sector("Test", "2024-01-01", "2024-01-04"))
+    assert d["kind"] == "building_block" and "annualized_vol" not in d and "weights" not in d
+    assert d["range"]["total_return"] == {"min": B[-1] / B[0] - 1, "min_ticker": "B",
+                                          "max": A[-1] / A[0] - 1, "max_ticker": "A"}
 
 
 # ---------- sanity on real data ----------
@@ -100,22 +101,38 @@ def test_2022_negative_for_spy_qqq_tlt():
 def test_crypto_uses_365_others_252():
     assert ok(ra.analyze_asset("BTC-USD", *FULL))["days_per_year"] == 365
     assert ok(ra.analyze_asset("SPY", *FULL))["days_per_year"] == 252
-    assert ok(ra.analyze_sector("Crypto asset", *FULL))["days_per_year"] == 365
+    assert all(m["days_per_year"] == 365 for m in ok(ra.analyze_sector("Crypto asset", *FULL))["member_metrics"].values())
 
 
 @has_data
-@pytest.mark.parametrize("sector,n", [("Bonds", 4), ("Broad market", 4), ("Information Technology", 5),
-                                      ("Bonds (U.S. long Treasury)", 1)])
-def test_sector_weights_sum_to_one(sector, n):
+@pytest.mark.parametrize("sector,n,kind", [
+    ("Bonds", 4, "building_block"), ("Broad market", 4, "building_block"), ("Gold", 1, "building_block"),
+    ("Crypto asset", 2, "building_block"), ("Bonds (U.S. long Treasury)", 1, "building_block"),
+    ("Information Technology", 5, "industry"), ("Energy", 3, "industry"), ("Utilities", 1, "industry")])
+def test_group_kind_and_members(sector, n, kind):
     d = ok(ra.analyze_sector(sector, *FULL))
-    assert len(d["members"]) == n and sum(d["weights"].values()) == pytest.approx(1)
+    assert len(d["members"]) == n and d["kind"] == kind
+    if kind == "industry":
+        assert sum(d["weights"].values()) == pytest.approx(1)
 
 
 @has_data
-def test_bonds_basket_uses_aum_when_available():
+def test_bonds_range_spans_members():
     d = ok(ra.analyze_sector("Bonds", *FULL))
-    expected = "fund size (AUM)" if (dr.DATA_DIR / "fund_aum.csv").exists() else "equal weight"
-    assert d["weighting"] == expected
+    vols = {t: m["annualized_vol"] for t, m in d["member_metrics"].items()}
+    assert d["range"]["annualized_vol"]["min"] == min(vols.values())
+    assert d["range"]["annualized_vol"]["max_ticker"] == max(vols, key=vols.get)
+
+
+@has_data
+def test_usd_asset_reports_listing_currency_vol():
+    d = ok(ra.analyze_asset("AGG", *FULL))
+    p = dr._load("prices_daily.csv")
+    usd = p[p.ticker == "AGG"].set_index("date").adj_close
+    hand = usd.pct_change().dropna().std(ddof=1) * math.sqrt(252)  # hand check from raw USD prices
+    assert d["listing_currency_vol"]["currency"] == "USD"
+    assert d["listing_currency_vol"]["annualized_vol"] == pytest.approx(hand)
+    assert "listing_currency_vol" not in ok(ra.analyze_asset("XBB.TO", *FULL))
 
 
 @has_data

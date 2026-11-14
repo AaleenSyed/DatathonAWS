@@ -130,34 +130,3 @@ def test_macro_daily_series_dated_same_day():
 def test_fx_ok():
     r = json_safe(dr.get_fx("2022-01-01", "2022-01-31"))
     assert r["status"] == "ok" and all(1 < x["usdcad"] < 2 for x in r["data"])
-
-
-# ---------- fund weights ----------
-
-ETFS = ["XBB.TO", "ZST.TO", "AGG", "TLT"]
-
-
-@pytest.mark.skipif(not (dr.DATA_DIR / "fund_aum.csv").exists(), reason="fund_aum.csv not fetched")
-def test_fund_weights_sum_to_one_and_convert_usd():
-    r = json_safe(dr.get_fund_weights(ETFS))
-    assert sum(r["data"]["weights"].values()) == pytest.approx(1)
-    aum = raw("fund_aum.csv").set_index("ticker")
-    assert r["data"]["aum_cad"]["AGG"] > aum.loc["AGG", "aum"]  # USD -> CAD multiplies by usdcad > 1
-    assert r["data"]["aum_cad"]["XBB.TO"] == pytest.approx(aum.loc["XBB.TO", "aum"])
-
-
-def test_fund_weights_missing_file(monkeypatch):
-    real = dr._load
-
-    def no_aum(n):
-        if n == "fund_aum.csv":
-            raise FileNotFoundError(n)
-        return real(n)
-    monkeypatch.setattr(dr, "_load", no_aum)
-    assert json_safe(dr.get_fund_weights(ETFS))["status"] == "error"
-
-
-@pytest.mark.skipif(not (dr.DATA_DIR / "fund_aum.csv").exists(), reason="fund_aum.csv not fetched")
-def test_fund_weights_missing_ticker_warns():
-    r = dr.get_fund_weights(["AGG", "NOPE"])
-    assert list(r["data"]["weights"]) == ["AGG"] and any("NOPE" in w for w in r["warnings"])

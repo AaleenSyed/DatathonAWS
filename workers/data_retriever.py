@@ -1,4 +1,4 @@
-"""data_retriever worker: loads prices, FX, macro, asset info and fund sizes from data/ (or S3).
+"""data_retriever worker: loads prices, FX, macro and asset info from data/ (or S3).
 
 Deterministic, no LLM. Every public function returns a JSON-safe dict:
   {"status": "ok", "data", "source", "period": {"start", "end"}, "currency", "warnings"}
@@ -35,7 +35,7 @@ def _load(name: str) -> pd.DataFrame:
         bucket = os.environ["DATA_BUCKET"]
         body = boto3.client("s3", region_name="us-east-1").get_object(Bucket=bucket, Key=f"data/{name}")["Body"]
         df = pd.read_csv(io.BytesIO(body.read()))
-    for col in ("date", "ex_date", "aum_date", "retrieved_date"):
+    for col in ("date", "ex_date"):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col])
     return df
@@ -226,34 +226,3 @@ def get_macro(series_ids, start: str, end: str, as_of: str | None = None) -> dic
         return res
     except Exception as e:
         return _err(f"get_macro failed: {e}")
-
-
-def get_fund_weights(tickers) -> dict:
-    """Fund-size (AUM) weights from data/fund_aum.csv, AUM converted to CAD at aum_date. Weights sum to 1."""
-    try:
-        if isinstance(tickers, str):
-            tickers = [tickers]
-        try:
-            aum = _load("fund_aum.csv")
-        except Exception:
-            return _err("fund_aum.csv not available (run data/fetch_fund_aum.py)")
-        warnings, rows = [], []
-        for t in tickers:
-            r = aum[aum["ticker"] == t]
-            if r.empty or pd.isna(r["aum"].iloc[0]):
-                warnings.append(f"{t}: no AUM in fund_aum.csv")
-                continue
-            r = r.iloc[[0]].rename(columns={"aum_date": "date"})
-            r = _convert(r, "aum", str(r["currency"].iloc[0]), "CAD", warnings, t)
-            rows.append(r)
-        if not rows:
-            return _err("; ".join(warnings) or "no AUM data")
-        df = pd.concat(rows)
-        total = float(df["aum"].sum())
-        data = {"weights": {t: float(a) / total for t, a in zip(df["ticker"], df["aum"])},
-                "aum_cad": {t: float(a) for t, a in zip(df["ticker"], df["aum"])},
-                "retrieved_date": df["retrieved_date"].max().strftime("%Y-%m-%d")}
-        src = "; ".join(sorted(set(df["source"]))) + "; FX: " + _source("fx_usdcad_daily.csv")
-        return _ok(data, src, df["date"].min(), df["date"].max(), "CAD", warnings)
-    except Exception as e:
-        return _err(f"get_fund_weights failed: {e}")

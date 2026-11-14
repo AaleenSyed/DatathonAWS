@@ -29,7 +29,7 @@ Do not edit `workers/data_retriever.py`. If you need something from it, report w
 - `analyze_asset(ticker, start, end, currency="CAD") -> dict`
 - `analyze_sector(sector, start, end, currency="CAD") -> dict`
 - `correlation(tickers, start, end) -> dict`
-- `stress_test_2022(tickers_or_sector) -> dict`: period 2022-01-01 → 2022-12-31.
+- `stress_test_2022(tickers_or_sector) -> dict`: last 2021 close (2021-12-31) → last 2022 close.
 
 ## Metrics (daily returns from `adj_close`, in CAD by default)
 | Metric | Definition |
@@ -47,21 +47,20 @@ annualized_vol < 10% Low · 10–20% Moderate · 20–35% High · > 35% Very Hig
 If max_drawdown is worse than −30%, bump the label up one level (Very High stays Very High).
 Return the reason, e.g. `"vol 18.2% → Moderate; drawdown −34% → bumped to High"`.
 
-## Sectors
-- A sector is a basket of the universe assets with that `sector` value, rebalanced daily
-  (weighted mean of member daily returns on common dates). Return the weights used in `data`.
-- Grouping: sector labels with a parenthesis are grouped by the text before ` (`:
-  `Bonds` = XBB.TO, ZST.TO, AGG, TLT; `Broad market` = XIU.TO, SPY, QQQ, ESGV. Also accept the exact label.
-- Weights:
-  - **Bonds and Broad market (ETF groups): fund-size (AUM) weights**, from
-    `data_retriever.get_fund_weights(tickers)` (weight = AUM in CAD / sum of AUM in CAD). Put the AUM source and
-    `retrieved_date` in `source` / `period`, and add the warning "weights = fund size on <retrieved_date>, held
-    constant over the whole period (today's weights applied to past data)".
-  - If `get_fund_weights` returns an error or misses a ticker → fall back to equal weight, with a warning.
-  - **All other sectors: equal weight** (as CLAUDE.md says).
+## Sectors (groups from the `sector` column of assets_universe.csv)
+- Grouping: exact label first; otherwise labels are grouped by the text before ` (`:
+  `Bonds` = XBB.TO, ZST.TO, AGG, TLT; `Broad market` = XIU.TO, SPY, QQQ, ESGV.
+- Kind, from the existing `asset_class` column (no new classification):
+  - **industry** = every member is `equity` (Financials, Energy, Information Technology, ...). This is what the
+    chatbot recommends. Metrics = **equal-weight basket**, rebalanced daily, on common dates, plus per-member metrics.
+  - **building_block** = `etf_*` or `crypto` (Bonds, Broad market, Gold, Crypto asset). Paired with an industry in
+    the answer. **No blended figure**: return each member's metrics plus the min–max range (vol, drawdown, return).
+    Near-cash ZST.TO and long-Treasury TLT are too different to average.
+- No fund-size or other outside weights (they would be today's data applied to the past).
 - Single-asset sectors (Communication Services, Health Care, Industrials, Utilities, Gold) → warning
-  "sector = 1 asset, not diversified".
-- Mixed calendars (crypto + stocks): align on common business days and annualize with 252; say so in warnings.
+  "sector = 1 asset, not diversified". The presenter must repeat it to the user.
+- USD-listed assets: also report vol in the listing currency (`listing_currency_vol`, with `fx_effect` = CAD vol −
+  USD vol) so the answer can say how much of the risk is the exchange rate.
 
 ## Return contract
 Same as every worker: `{"status", "data", "source", "period", "currency", "warnings"}`; on bad input
@@ -83,9 +82,10 @@ the upstream data (Yahoo Finance via yfinance, FX from Bank of Canada, per sourc
 - Hand check: compute annualized vol and max drawdown for one ticker on a tiny synthetic series by hand in
   the test, and compare.
 - Sanity: XBB.TO and AGG vol well below SPY; BTC-USD vol far above SPY; 2022 return negative for SPY, QQQ, TLT;
-  sector weights sum to 1 (AUM weights and equal-weight fallback).
-- AUM weights: with a stubbed `get_fund_weights` (e.g. 3:1 AUM), the basket return equals the hand-computed
-  0.75·r1 + 0.25·r2; a missing ticker triggers equal-weight fallback + warning.
+  industry weights sum to 1.
+- Industry basket: with stubbed prices, basket return equals the hand-computed 0.5·r1 + 0.5·r2 compounded.
+- Building block: no blended vol/weights; range min/max match the members.
+- USD asset: listing-currency vol equals a hand computation from raw USD prices.
 - Labels: boundary values (9.99%, 10%, 20%, 35%) and the drawdown bump.
 - Crypto uses 365, others 252.
 - Edge cases: unknown ticker/sector, empty range, single-asset sector, one-day range (not enough data → error).
