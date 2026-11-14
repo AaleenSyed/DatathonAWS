@@ -1,0 +1,208 @@
+"""risk_analyst worker: per-asset and per-sector return, volatility, drawdown, correlation, 2022 stress test,
+risk labels. Deterministic, no LLM. Prices come only from workers.data_retriever.
+
+Return contract and JSON-safety: see AGENT_GUARDRAILS.md / agents/risk_analyst.agent.md. Never raises.
+Risk label thresholds are team assumptions from CLAUDE.md.
+"""
+import math
+
+import pandas as pd
+
+from workers import data_retriever as dr
+
+DAYS_STOCK, DAYS_CRYPTO = 252, 365
+# 2022 return measured from the last 2021 close (2021-12-31) to the last 2022 close
+STRESS_START, STRESS_END = "2021-12-31", "2022-12-31"
+LABELS = ["Low", "Moderate", "High", "Very High"]
+ETF_WEIGHTING_NOTE = ("weights = fund size (AUM) on {d}, held constant over the whole period "
+                      "(today's weights applied to past data)")
+
+
+# ---------- pure helpers ----------
+
+def risk_label(vol: float, max_drawdown: float) -> tuple[str, str]:
+    """Vol < 10% Low, 10-20% Moderate, 20-35% High, > 35% Very High; drawdown worse than -30% bumps one level."""
+    i = 0 if vol < 0.10 else 1 if vol < 0.20 else 2 if vol <= 0.35 else 3
+    reason = f"vol {vol:.1%} -> {LABELS[i]}"
+    if max_drawdown < -0.30 and i < 3:
+        i += 1
+        reason += f"; max drawdown {max_drawdown:.1%} worse than -30% -> bumped to {LABELS[i]}"
+    return LABELS[i], reason
+
+
+def metrics(prices: pd.Series, days_per_year: int) -> dict:
+    """Metrics from a price (or index) series sorted by date. Needs at least 2 prices."""
+    rets = prices.pct_change().dropna()
+    total = prices.iloc[-1] / prices.iloc[0] - 1
+    vol = rets.std(ddof=1) * math.sqrt(days_per_year)
+    mdd = (prices / prices.cummax() - 1).min()
+    label, reason = risk_label(vol, mdd)
+    return {"total_return": float(total),
+            "annualized_return": float((1 + total) ** (days_per_year / len(rets)) - 1),
+            "annualized_vol": float(vol),
+            "max_drawdown": float(mdd),
+            "current_drawdown": float(prices.iloc[-1] / prices.max() - 1),
+            "n_returns": int(len(rets)),
+            "days_per_year": days_per_year,
+            "risk_label": label,
+            "risk_label_reason": reason}
+
+
+def _err(msg):
+    return {"status": "error", "error": msg}
+
+
+def _ok(data, src, period, ccy, warnings):
+    return {"status": "ok", "data": data, "source": src, "period": period, "currency": ccy, "warnings": warnings}
+
+
+def _price_frame(tickers, start, end, currency):
+    """Wide DataFrame (date x ticker) of adj_close from data_retriever, plus the retriever result."""
+    res = dr.get_prices(tickers, start, end, currency)
+    if res["status"] != "ok":
+        return None, res
+    cols = {t: pd.Series({pd.Timestamp(r["date"]): r["adj_close"] for r in rows}) for t, rows in res["data"].items()}
+    return pd.DataFrame(cols).sort_index(), res
+
+
+def _crypto(tickers) -> set:
+    u = dr.get_universe()
+    return {r["ticker"] for r in u.get("data", []) if r["asset_class"] == "crypto" and r["ticker"] in tickers}
+
+
+def _period(idx) -> dict:
+    return {"start": idx.min().strftime("%Y-%m-%d"), "end": idx.max().strftime("%Y-%m-%d")}
+
+
+def sector_members(sector: str) -> list[dict]:
+    """Universe rows for a sector: exact label, or group = label text before ' (' (e.g. 'Bonds')."""
+    u = dr.get_universe().get("data", [])
+    exact = [r for r in u if r["sector"] == sector]
+    return exact or [r for r in u if r["sector"].split(" (")[0] == sector]
+
+
+# ---------- public functions ----------
+
+def analyze_asset(ticker: str, start: str, end: str, currency: str = "CAD") -> dict:
+    """Return, annualized vol, max/current drawdown and risk label for one asset over [start, end]."""
+    try:
+        df, res = _price_frame([ticker], start, end, currency)
+        if df is None:
+            return res
+        p = df[ticker].dropna()
+        if len(p) < 2:
+            return _err(f"{ticker}: fewer than 2 prices between {start} and {end}")
+        dpy = DAYS_CRYPTO if _crypto([ticker]) else DAYS_STOCK
+        warnings = list(res["warnings"])
+        if len(p) - 1 < 252:
+            warnings.append(f"{ticker}: only {len(p) - 1} daily returns (< 252), metrics less reliable")
+        data = {"ticker": ticker, **metrics(p, dpy)}
+        return _ok(data, res["source"], _period(p.index), currency, warnings)
+    except Exception as e:
+        return _err(f"analyze_asset failed: {e}")
+
+
+def analyze_sector(sector: str, start: str, end: str, currency: str = "CAD") -> dict:
+    """Metrics for a sector basket (daily-rebalanced weighted mean of member daily returns on common dates).
+
+    Weights: fund-size (AUM) for multi-ETF groups (e.g. Bonds, Broad market), equal weight otherwise.
+    Also returns per-member metrics.
+    """
+    try:
+        members = sector_members(sector)
+        if not members:
+            return _err(f"unknown sector '{sector}'")
+        tickers = [m["ticker"] for m in members]
+        df, res = _price_frame(tickers, start, end, currency)
+        if df is None:
+            return res
+        warnings, src = list(res["warnings"]), res["source"]
+        missing = [t for t in tickers if t not in df.columns]
+        tickers = [t for t in tickers if t in df.columns]
+        df = df[tickers].dropna()  # common dates only
+        if len(df) < 2:
+            return _err(f"sector '{sector}': fewer than 2 common dates between {start} and {end}")
+
+        crypto = _crypto(tickers)
+        if crypto and len(crypto) < len(tickers):
+            dpy = DAYS_STOCK
+            warnings.append("mixed crypto and non-crypto: aligned on common business days, annualized with 252")
+        else:
+            dpy = DAYS_CRYPTO if crypto else DAYS_STOCK
+
+        all_etf = all(m["asset_class"].startswith("etf") for m in members)
+        weights, method = None, "equal weight"
+        if all_etf and len(tickers) > 1:
+            fw = dr.get_fund_weights(tickers)
+            if fw["status"] == "ok" and set(fw["data"]["weights"]) == set(tickers):
+                weights, method = fw["data"]["weights"], "fund size (AUM)"
+                warnings.append(ETF_WEIGHTING_NOTE.format(d=fw["data"]["retrieved_date"]))
+                src += "; weights: " + fw["source"]
+            else:
+                why = fw.get("error") or "; ".join(fw.get("warnings", []))
+                warnings.append(f"fund-size weights unavailable ({why}); fell back to equal weight")
+        if weights is None:
+            weights = {t: 1 / len(tickers) for t in tickers}
+        if len(tickers) == 1:
+            warnings.append("sector = 1 asset, not diversified")
+        if missing:
+            warnings.append(f"members without data excluded: {missing}")
+        warnings.append(f"sector = {method} basket of universe assets, rebalanced daily")
+
+        w = pd.Series(weights)[tickers]
+        basket_ret = (df.pct_change().dropna() * w).sum(axis=1)
+        index = pd.concat([pd.Series([1.0], index=[df.index[0]]), (1 + basket_ret).cumprod()])
+        if len(basket_ret) < 252:
+            warnings.append(f"only {len(basket_ret)} daily returns (< 252), metrics less reliable")
+        member_metrics = {t: metrics(df[t], dpy) for t in tickers}
+        data = {"sector": sector, "members": tickers, "weights": {t: float(v) for t, v in w.items()},
+                "weighting": method, **metrics(index, dpy), "member_metrics": member_metrics}
+        return _ok(data, src, _period(df.index), currency, warnings)
+    except Exception as e:
+        return _err(f"analyze_sector failed: {e}")
+
+
+def correlation(tickers, start: str, end: str) -> dict:
+    """Pearson correlation of daily returns (CAD), on common dates only."""
+    try:
+        df, res = _price_frame(tickers, start, end, "CAD")
+        if df is None:
+            return res
+        rets = df.dropna().pct_change().dropna()
+        if len(rets) < 2 or rets.shape[1] < 2:
+            return _err("need at least 2 tickers with at least 3 common dates")
+        c = rets.corr()
+        data = {"matrix": {a: {b: float(c.loc[a, b]) for b in c.columns} for a in c.index},
+                "n_common_returns": int(len(rets))}
+        return _ok(data, res["source"], _period(rets.index), "CAD", res["warnings"] + ["computed on common dates only"])
+    except Exception as e:
+        return _err(f"correlation failed: {e}")
+
+
+def stress_test_2022(tickers_or_sector, currency: str = "CAD") -> dict:
+    """Total return and max drawdown in calendar 2022 for a sector name, a ticker, or a list of tickers."""
+    try:
+        def summary(r):
+            d = r["data"]
+            return {"total_return": d["total_return"], "max_drawdown": d["max_drawdown"],
+                    "annualized_vol": d["annualized_vol"], "risk_label": d["risk_label"]}
+
+        if isinstance(tickers_or_sector, str) and sector_members(tickers_or_sector):
+            r = analyze_sector(tickers_or_sector, STRESS_START, STRESS_END, currency)
+            if r["status"] != "ok":
+                return r
+            return _ok({tickers_or_sector: summary(r)}, r["source"], r["period"], currency, r["warnings"])
+        items = [tickers_or_sector] if isinstance(tickers_or_sector, str) else list(tickers_or_sector)
+        data, warnings, src, period = {}, [], None, None
+        for t in items:
+            r = analyze_asset(t, STRESS_START, STRESS_END, currency)
+            if r["status"] != "ok":
+                warnings.append(f"{t}: {r['error']}")
+                continue
+            data[t], src, period = summary(r), r["source"], r["period"]
+            warnings += r["warnings"]
+        if not data:
+            return _err("; ".join(warnings) or "nothing to test")
+        return _ok(data, src, period, currency, warnings)
+    except Exception as e:
+        return _err(f"stress_test_2022 failed: {e}")
