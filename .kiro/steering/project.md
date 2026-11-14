@@ -55,7 +55,8 @@ Everything is framed as an educational simulation for a fictional persona, never
    The full trace (who did what, with which data) is available for every answer.
 
 ## Agent pipeline (boss → workers → reviewer → presenter)
-```
+
+```text
 User (persona + request)
   → BOSS (LLM, Sonnet 5): builds a plan (tickers, checks, order), dispatches workers
   → WORKERS (deterministic Python scripts, NOT LLMs):
@@ -73,6 +74,7 @@ User (persona + request)
        (max 2 retries, then proceed with an explicit "incomplete" note)
   → PRESENTER (LLM, Sonnet 5): writes the final answer using ONLY worker outputs
 ```
+
 - Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the
   chat history (multi-turn) for the session.
 - Workers live in `workers/` (one file each). Each returns a dict with `status`, `data`,
@@ -176,7 +178,8 @@ Each phase is only done when its tests pass and the results are sanity-checked:
 6. **UI**: Streamlit chat UI on top of the pipeline (persona picker, chat, charts, trace panel).
 7. **Docs**: README (sources, licenses, assumptions, limitations), technical doc, one-pager.
 
-Demo questions (must work by the end of phase 3):
+### Demo questions (must work by the end of phase 3)
+
 - Robert: "I want to put a big part of my savings in NVDA, good idea?" → challenged with numbers;
   steered toward sectors that fit (e.g. Consumer Staples, Utilities, bonds) with reasons.
 - Amira: "I only want AI and crypto, which industry should I focus on?" → tech recommended but
@@ -214,7 +217,7 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
   (`json.dumps`), `additionalProperties: false` required. Nova 2 Lite does not support it.
 - boto3 client config: `Config(retries={"max_attempts": 5, "mode": "adaptive"})`.
 - Strands: always pass the model explicitly; cap loops with `agent(..., limits={"turns": 8})`.
-  Tool names must match `^[a-zA-Z0-9_-]+$`. Tools return `{"erreur": ...}`-style dicts on failure,
+  Tool names must match `^[a-zA-Z0-9_-]+$`. Tools return `{"status": "error", "error": ...}` dicts on failure,
   never raise.
 - No Bedrock Agents Classic, no Bedrock Flows, no AgentCore deploy unless everything else works.
 - Credentials come from the environment (Workshop Studio temp creds or CloudShell/Kiro).
