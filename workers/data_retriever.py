@@ -149,12 +149,15 @@ def get_prices(tickers, start: str, end: str, currency: str = "CAD") -> dict:
         prices = _load("prices_daily.csv")
         known = set(_load("assets_universe.csv")["ticker"])
         data, warnings, dmin, dmax = {}, [], None, None
+        dropped_after = False
         for t in tickers:
             if t not in known:
                 warnings.append(f"unknown ticker '{t}' (not in assets_universe.csv)")
                 continue
             df = prices.loc[(prices["ticker"] == t) & (prices["date"] >= s) & (prices["date"] <= e),
                             ["date", "adj_close"]]
+            if ((prices["ticker"] == t) & (prices["date"] > e)).any():
+                dropped_after = True
             if df.empty:
                 warnings.append(f"{t}: no prices between {s.date()} and {e.date()}")
                 continue
@@ -165,6 +168,9 @@ def get_prices(tickers, start: str, end: str, currency: str = "CAD") -> dict:
             dmax = df["date"].max() if dmax is None else max(dmax, df["date"].max())
         if not data:
             return _err("; ".join(warnings) or "no data")
+        if dropped_after:  # guardrails/03_workers_contract.md: look-ahead rows are reported, not hidden.
+            # No row count: it would change when newer data is appended, and results must not (no look-ahead).
+            warnings.append(f"rows dated after the end date {e.date()} were excluded (no look-ahead)")
         return _ok(data, _source("prices_daily.csv") + "; FX: " + _source("fx_usdcad_daily.csv"),
                    dmin, dmax, currency, warnings)
     except Exception as e:

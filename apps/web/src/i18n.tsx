@@ -386,6 +386,7 @@ const CODES: Record<string, CodeMap> = {
   },
   actor: {
     user: { en: "User", fr: "Utilisateur" },
+    guardrail: { en: "Bedrock Guardrail", fr: "Garde-fou Bedrock" },
     boss: { en: "Boss agent (LLM)", fr: "Agent principal (LLM)" },
     "worker:data_retriever": { en: "Data retriever", fr: "Collecte des données" },
     "worker:risk_analyst": { en: "Risk analyst", fr: "Analyse du risque" },

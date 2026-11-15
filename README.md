@@ -26,9 +26,12 @@ python chat.py                     # terminal chatbot (needs AWS credentials for
 Live demo questions on Bedrock (costs a few cents): `RUN_LIVE=1 python -m pytest -q -s tests/test_live_demo.py`
 Data CSVs go in `data/` (gitignored) or are read from `s3://$DATA_BUCKET/data/` (set `DATA_BUCKET` in `.env`).
 AWS credentials come from the environment / `~/.aws/credentials`, never from the repo.
+Bedrock Guardrail: set `GUARDRAIL_ID` (and `GUARDRAIL_VERSION`, default `DRAFT`) in `.env` to filter the question and
+the final answer; unset (or `AGENT_MODE=demo`) = off. See `guardrails/01_bedrock_guardrail.md`.
 
 ## Architecture
-See `CLAUDE.md` (pipeline) and `AGENT_GUARDRAILS.md` (guardrails per agent). Agent definitions: `agents/`.
+See `CLAUDE.md` (pipeline) and `AGENT_GUARDRAILS.md` (guardrails summary; details per agent in `guardrails/`).
+Agent definitions: `agents/`.
 
 | File | Role |
 |---|---|
@@ -39,7 +42,8 @@ See `CLAUDE.md` (pipeline) and `AGENT_GUARDRAILS.md` (guardrails per agent). Age
 | `workers/suitability.py` | Checks a ticker or sector against a persona's limits: pass/info/flag/conflict per rule |
 | `pipeline.py` | ChatSession: boss (Strands agent, Haiku 4.5 on Bedrock, 2 turns) → worker tools → reviewer (max 2 retries) → presenter (streamed) → answer check (max 1 retry) → trace with per-step durations |
 | `agent_tools.py` | Workers wrapped as Strands `@tool` (coarse `assess_target`, `rank_sectors_for_persona`, `market_snapshot` + the fine tools); the boss gets compact results, the trace keeps the full output; persona and dates fixed by the session |
-| `reviewer.py` | Deterministic checks: work coverage, sources, periods, persona limits, ESG check, no look-ahead; every answer number must be in the worker results |
+| `reviewer.py` | Deterministic checks: work coverage, sources, periods, persona limits, ESG check, no look-ahead; every answer number must be in the worker results; no promised or predicted returns |
+| `guardrail.py` | Bedrock Guardrail (ApplyGuardrail) on the question and the final answer; PII redaction before anything is written to the trace |
 | `presenter.py` | Final answer with Sonnet 4.6 (Bedrock ConverseStream, text streamed to the UI), claims tagged `[fact: step N]` / `[assumption]` / `[scenario]` |
 | `run_trace.py` | Run trace saved to `runs/` and `s3://$DATA_BUCKET/runs/` |
 | `chat.py` | Terminal chat: pick a persona, multi-turn Q&A, `/trace` shows the steps |

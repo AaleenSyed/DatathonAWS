@@ -111,6 +111,15 @@ def test_no_dates_after_end(patched_load):
     assert max(x["date"] for x in r["data"]["SPY"]) <= "2022-06-30"
 
 
+def test_rows_after_end_are_reported_not_hidden():
+    """guardrails/03_workers_contract.md: dropped look-ahead rows are noted in warnings (no count, so appending
+    more future data does not change the result)."""
+    r = dr.get_prices("SPY", "2022-01-01", "2022-06-30")
+    assert any("after the end date 2022-06-30" in w and "excluded" in w for w in r["warnings"])
+    last = dr.get_prices("SPY", "2021-11-12", "2026-11-12")  # end of the dataset: nothing dropped
+    assert not any("after the end date" in w for w in last["warnings"])
+
+
 def test_macro_only_published_values():
     r = json_safe(dr.get_macro("CPIAUCSL", "2025-01-01", "2026-11-12", as_of="2026-11-12"))
     rows = r["data"]["CPIAUCSL"]
