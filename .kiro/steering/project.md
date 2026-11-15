@@ -59,8 +59,7 @@ User (persona + request)
   → WORKERS (deterministic Python scripts, NOT LLMs):
        data_retriever   → prices in CAD, FX, macro, asset info + source + period
        risk_analyst     → per asset AND per sector: return, vol, max drawdown, correlation,
-                          2022 stress test, risk label (sector = equal-weight basket of the
-                          sector's assets in assets_universe.csv; document this)
+                          2022 stress test, risk label (sector grouping rules below; document this)
        market_context   → business-cycle phase (FRED rules), sector momentum/trend/relative
                           strength (from prices), fear vs hope (VIX, credit spreads, sentiment)
        suitability      → compare results to persona limits, flag conflicts with numbers
@@ -90,6 +89,20 @@ User (persona + request)
 Annualized volatility (adj_close daily returns; 252 days, crypto 365):
 < 10% Low · 10–20% Moderate · 20–35% High · > 35% Very High.
 Max drawdown is a second check: if max drawdown is worse than -30%, bump the label up one level.
+
+## Sector grouping (team assumption, document in README)
+Groups come from the organizers' `sector` column in assets_universe.csv: exact label first, otherwise the
+text before " (" (e.g. "Bonds" = XBB.TO, ZST.TO, AGG, TLT; "Broad market" = XIU.TO, SPY, QQQ, ESGV).
+The kind comes from the existing `asset_class` column (no new classification):
+- **Industry** = every member is `equity` (Financials, Energy, Information Technology, ...). This is what the
+  chatbot recommends. Metrics = equal-weight basket, rebalanced daily, on common dates, plus per-member metrics.
+- **Building block** = `etf_*` or `crypto` (Bonds, Broad market, Gold, Crypto asset). Paired with an industry
+  in the answer. No blended figure: each member's metrics plus the min–max range (e.g. near-cash ZST.TO and
+  long-Treasury TLT are too different to average).
+- No fund-size (AUM) or other outside weights: today's snapshot applied to 2021–2026 would be look-ahead.
+- One-asset groups get the warning "sector = 1 asset, not diversified"; the presenter must repeat it.
+- USD-listed assets also report vol in USD (`listing_currency_vol`, `fx_effect`) so the answer can say how much
+  of the CAD risk is the exchange rate.
  
 ## Data plan (by tier)
 Every source must be documented in the README: origin, URL, retrieval date, processing,
