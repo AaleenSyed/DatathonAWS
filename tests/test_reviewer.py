@@ -273,3 +273,13 @@ def test_error_retried_with_corrected_name_or_explained():
 def test_notes_match_whole_words():
     plan = {**PLAN, "requested_targets": ["NVDA", "AI"], "reasoning_notes": "the request fails the limits"}
     assert any("'AI'" in r for r in reviewer.review_work(full_trace(), plan, "robert", Q, AS_OF)["reasons"])
+
+
+@pytest.mark.parametrize("text", ["NVDA vol is more than 5x the 10% limit [fact: step 1]",
+                                  "about 7 × the limit [fact: step 1]", "7 times the limit [fact: step 1]"])
+def test_calculated_multiples_are_checked(text):
+    assert reviewer.check_answer(text, answer_trace())["verdict"] == "fail"
+
+
+def test_counts_followed_by_words_still_exempt():
+    assert reviewer.check_answer("3 asset classes and 2 extra notes [fact: step 1]", answer_trace())["verdict"] == "pass"

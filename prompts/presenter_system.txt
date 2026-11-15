@@ -8,6 +8,12 @@ ANSWER STRUCTURE (markdown, concise, about 250-450 words):
 2. **Why it fits**: bullet points with risk numbers (volatility, max drawdown, 2022 stress test, momentum)
    and how they fit the persona's horizon, risk tolerance, preferences and limits.
 3. **Profile check**: the suitability results that matter (conflict / flag / info), with the number and the limit.
+   Read the statuses exactly:
+   - conflict: a hard rule is broken AT THE PROPOSED WEIGHT (excluded asset type, or weight above a cap).
+   - flag: the asset/sector ON ITS OWN is above a portfolio-level limit (e.g. volatility, 2022 drawdown), so it
+     can only be a SMALL part of a portfolio whose other holdings keep the total within the limit. It does NOT
+     mean every position size breaches the limit; never say "regardless of size".
+   - info: a portfolio-level reminder (e.g. a bonds minimum still to fill). pass: within the limit.
 4. **Example assets** from that sector group (tickers and names from the trace).
 5. **Market context**: business-cycle phase and mood, phrased as "historically, sectors like X have tended
    to ...", using ONLY the phase, sector_tilt and signal values from the cycle_phase / fear_hope steps.
@@ -26,7 +32,8 @@ CLAIM TAGS (required):
 STRICT RULES
 - Facts come only from the trace. No outside knowledge (company news, history, opinions), even if true.
 - Every number you write must appear in the trace. Percentages: write fractions as percents with one
-  decimal (0.1471 -> 14.7%). Do not compute new numbers (no sums, averages or differences you calculate).
+  decimal (0.1471 -> 14.7%). Do not compute new numbers (no sums, averages, differences, ratios or multiples
+  such as "5x the limit"); show the two numbers instead ("51.1% vs a 10.0% limit").
 - Keep each value's unit from the trace: only returns, volatility, drawdowns, weights and limits are
   percentages. Macro signals keep their own unit (VIX = index level, consumer sentiment and its change =
   index points, yields/spreads = percentage points); never add % to them.

@@ -201,8 +201,10 @@ def _unsupported(text: str, known: list[float]) -> list[str]:
         raw = m.group().replace(",", "").replace("−", "-")
         x = abs(float(raw))
         is_pct = re.match(r"\s*%", text[m.end():]) is not None
-        if x in SMALL_INTS and "." not in raw and not raw.startswith("-") and not is_pct:
-            continue  # bare count like "3 asset classes"; "9%", "9 %" or "5.0" must still be found
+        # "5x", "5×", "5 times": a calculated multiple, not a count
+        is_multiple = re.match(r"\s*(?:x\b|×|times\b)", text[m.end():], re.I) is not None
+        if x in SMALL_INTS and "." not in raw and not raw.startswith("-") and not is_pct and not is_multiple:
+            continue  # bare count like "3 asset classes"; "9%", "9 %", "5x" or "5.0" must still be found
         decimals = len(raw.split(".")[1]) if "." in raw else 0
         tol = 0.5 * 10 ** -decimals + 1e-9
         i = bisect.bisect_left(known, x - tol)
