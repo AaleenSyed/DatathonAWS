@@ -6,6 +6,7 @@ import { ViewModeProvider } from "./view";
 // Self-hosted fonts (SIL Open Font License), bundled by Vite: no request to a font CDN.
 import "@fontsource-variable/inter";
 import "@fontsource-variable/source-serif-4";
+import "@fontsource-variable/source-serif-4/wght-italic.css";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(

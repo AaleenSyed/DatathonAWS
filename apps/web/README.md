@@ -133,12 +133,17 @@ French key is missing.
 
 ## Look and colours
 
-An original "clean and calm" theme (no real brand's colours, fonts or logo), defined as CSS variables at the top
-of `src/styles.css`, with a matching warm dark theme (follows the system; switch in the top bar). Light: warm
-off-white background `#F7F5F0`, white cards, near-black text `#1C1C1C`, one green accent `#1F6F50`; caution amber
-and conflict red are used only for statuses. Every text/background pair meets WCAG AA (4.5:1). Headings use
-Georgia where installed, else the bundled Source Serif 4; body text uses the bundled Inter (both SIL Open Font
-License, served by Vite, no font CDN). Numbers use tabular figures.
+An original "noir" theme (no real brand's colours, fonts, logo or imagery), defined as CSS variables at the top of
+`src/styles.css`. Dark is the default; the top-bar switch gives an off-white light version of the same system
+(saved as `localStorage.colorTheme`). Noir: background `#0A0A0A` with a soft white glow behind the header, cards
+`#1A1A1A` to `#141414` with a 1px `rgb(255 255 255 / 8%)` border and a light top edge, headings and numbers
+`#FAFAFA`, body `#B5B5B5`, muted `#8A8A8A`. Primary buttons are white pills with black text; secondary buttons
+are transparent with a light border. Colour only carries meaning: pass `#3FBF7F`, caution `#D9A441`, conflict
+`#E0605A` (text `#E87570` on its tint), each on a 12% tint. Charts use grey bars, the persona limit as a dashed
+white line, and amber for a bar above the limit. Every text/background pair meets WCAG AA (4.5:1). Headings use
+Georgia where installed, else the bundled Source Serif 4 (with italics, e.g. "Who is *investing* today?"); body
+text uses the bundled Inter (both SIL Open Font License, served by Vite, no font CDN). Numbers use tabular figures.
+The logo is an original monochrome spark in an outlined rounded square.
 
 - Status pills (`src/Status.tsx`): Pass (green check), Caution (amber, = `flag`), Conflict (red cross), Info, N/A,
   the same in cards, tables and the review.

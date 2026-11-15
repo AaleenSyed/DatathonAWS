@@ -7,6 +7,11 @@ import { useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
 import { PERSONAS } from "./personas";
 
+/** "Who is *investing* today?" -> the word between asterisks in italics. */
+function withEmphasis(text: string) {
+  return text.split(/\*([^*]+)\*/).map((part, i) => (i % 2 ? <em key={i}>{part}</em> : part));
+}
+
 // Risk and horizon come from GET /personas (personas.py); the fallbacks keep the cards complete without it.
 const FALLBACK: Record<PersonaId, { risk: string; horizon: string }> = {
   amira: { risk: "high", horizon: "15+" },
@@ -42,7 +47,7 @@ export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
       {health?.agentMode === "demo" && <p className="banner">{t("app.demo")}</p>}
       <main className="picker">
         <p className="eyebrow">{t("picker.step")}</p>
-        <h1>{t("picker.title")}</h1>
+        <h1>{withEmphasis(t("picker.title"))}</h1>
         <p className="lead">{t("picker.lead")}</p>
         <div className="cards">
           {PERSONAS.map((fallback) => {

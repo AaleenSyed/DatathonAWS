@@ -8,8 +8,9 @@
     <script>
       // Set the theme and the page language before first paint. src/i18n.tsx keeps `lang` in sync after that.
       try {
-        var t = localStorage.getItem("theme");
-        if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        // Dark ("noir") is the default; the top-bar switch saves "light" or "dark" under "colorTheme".
+        var t = localStorage.getItem("colorTheme");
+        if (t !== "light" && t !== "dark") t = "dark";
         document.documentElement.dataset.theme = t;
       } catch (e) {}
       try {

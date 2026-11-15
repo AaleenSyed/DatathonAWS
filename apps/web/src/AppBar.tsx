@@ -2,15 +2,18 @@ import { useState, type ReactNode } from "react";
 import { useI18n } from "./i18n";
 import { useViewMode, type ViewMode } from "./view";
 
+// Must match index.html. Dark ("noir") is the default; "light" is the off-white version of the same system.
+const THEME_KEY = "colorTheme";
+
 /** Original mark: a four-point spark over a rising line (no real brand's logo). */
 export function Wordmark() {
   return (
     <span className="wordmark">
       <svg className="wordmark-mark" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
-        <rect width="32" height="32" rx="9" fill="currentColor" />
-        <path d="M16 6.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z"
-          fill="var(--on-accent)" />
-        <path d="M7.5 25.5h17" stroke="var(--on-accent)" strokeWidth="1.8" strokeLinecap="round" opacity=".7" />
+        <rect x=".75" y=".75" width="30.5" height="30.5" rx="9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M16 7c.6 4.2 2.6 6.2 6.8 6.8-4.2.6-6.2 2.6-6.8 6.8-.6-4.2-2.6-6.2-6.8-6.8 4.2-.6 6.2-2.6 6.8-6.8z"
+          fill="currentColor" />
+        <path d="M9 25h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".55" />
       </svg>
       <span className="wordmark-text">
         AlphaForge <span className="wordmark-ai">AI</span>
@@ -27,7 +30,7 @@ export function Footer() {
 
 function ThemeToggle() {
   const { t } = useI18n();
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "light");
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "dark");
   const next = theme === "dark" ? "light" : "dark";
   const label = next === "dark" ? t("theme.toDark") : t("theme.toLight");
   return (
@@ -39,7 +42,7 @@ function ThemeToggle() {
       onClick={() => {
         document.documentElement.dataset.theme = next;
         try {
-          localStorage.setItem("theme", next);
+          localStorage.setItem(THEME_KEY, next);
         } catch {
           /* storage unavailable: theme still applies for this visit */
         }

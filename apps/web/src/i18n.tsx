@@ -49,7 +49,7 @@ const EN = {
   "view.detailedHint": "Open the full analysis and the evidence for every answer",
 
   "picker.step": "Step 1 of 2",
-  "picker.title": "Who is investing today?",
+  "picker.title": "Who is *investing* today?",
   "picker.lead":
     "Pick the fictional investor profile closest to yours, then ask questions about markets and sectors in plain language.",
   "picker.cta": "Start",
@@ -231,7 +231,7 @@ const FR: Record<Key, string> = {
   "view.detailedHint": "Ouvrir l’analyse complète et les preuves de chaque réponse",
 
   "picker.step": "Étape 1 de 2",
-  "picker.title": "Qui investit aujourd’hui?",
+  "picker.title": "Qui *investit* aujourd’hui?",
   "picker.lead":
     "Choisissez le profil d’investisseur fictif qui vous ressemble, puis posez vos questions sur les marchés et les secteurs en langage clair.",
   "picker.cta": "Commencer",
