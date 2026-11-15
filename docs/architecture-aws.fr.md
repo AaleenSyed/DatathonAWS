@@ -1,5 +1,7 @@
 # AlphaForge AI — Architecture AWS
 
+*English version: [architecture-aws.en.md](architecture-aws.en.md)*
+
 Région : **us-east-1**. Tous les appels LLM passent par **Amazon Bedrock** ; aucun autre fournisseur de
 modèles n'est appelé. Les identifiants AWS viennent de l'environnement, jamais du dépôt.
 
