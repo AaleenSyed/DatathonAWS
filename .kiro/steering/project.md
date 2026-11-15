@@ -90,68 +90,6 @@ Annualized volatility (adj_close daily returns; 252 days, crypto 365):
 < 10% Low · 10–20% Moderate · 20–35% High · > 35% Very High.
 Max drawdown is a second check: if max drawdown is worse than -30%, bump the label up one level.
 
-## Goal (current)
-A CHATBOT. The user picks the persona that best fits their investment profile (Amira, Mateo,
-Robert), then chats with it: asks questions in plain language, follow-ups included. For each
-question the system recommends a SPECIFIC INDUSTRY/SECTOR (e.g. Utilities, Consumer Staples,
-Information Technology, Bonds) that fits the persona, with detailed reasons backed by data:
-sector risk numbers, example assets from the universe, how it fits the persona's horizon,
-risk tolerance and preferences, and what could go wrong. If the question conflicts with the
-persona (e.g. Robert asking about crypto), the bot says so and explains why.
-Everything is framed as an educational simulation for a fictional persona, never personal advice.
-
-## User flow
-1. Pick a persona (Amira, Mateo, Robert).
-2. Chat: ask a question ("Where should I look for growth?", "Is tech too risky for me?",
-   "Can I put money in NVDA?"). The conversation keeps context across turns.
-3. Each answer: recommended industry/sector + reasons (facts with sources, assumptions,
-   risks/limitations) + example assets in that sector + any profile conflicts flagged.
-   The full trace (who did what, with which data) is available for every answer.
-
-## Agent pipeline (boss → workers → reviewer → presenter)
-```
-User (persona + request)
-  → BOSS (LLM, Sonnet 5): builds a plan (tickers, checks, order), dispatches workers
-  → WORKERS (deterministic Python scripts, NOT LLMs):
-       data_retriever   → prices in CAD, FX, macro, asset info + source + period
-       risk_analyst     → per asset AND per sector: return, vol, max drawdown, correlation,
-                          2022 stress test, risk label (sector = equal-weight basket of the
-                          sector's assets in assets_universe.csv; document this)
-       market_context   → business-cycle phase (FRED rules), sector momentum/trend/relative
-                          strength (from prices), fear vs hope (VIX, credit spreads, sentiment)
-       suitability      → compare results to persona limits, flag conflicts with numbers
-       news_sentiment (LATER) → headlines (AgentCore Web Search / yfinance) scored fear/neutral/
-                          hope by Claude Haiku 4.5 structured output, per sector, cited URLs
-       ethics (LATER)   → curated esg_evidence.csv + AgentCore Web Search, cited URLs
-  → REVIEWER: checks the work; on FAIL sends the task back to the worker/boss with reasons
-       (max 2 retries, then proceed with an explicit "incomplete" note)
-  → PRESENTER (LLM, Sonnet 5): writes the final answer using ONLY worker outputs
-```
-- Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the
-  chat history (multi-turn) for the session.
-- Workers live in `workers/` (one file each). Each returns a dict with `status`, `data`,
-  `source`, `period`, `currency`, and `warnings`; on bad input `{"status": "error", "error": ...}`,
-  never raise.
-- Reviewer (`reviewer.py`): mostly deterministic checks: every requested ticker analyzed,
-  every number has source + period, all persona limits evaluated, no data dated after the
-  analysis date. Optional small LLM check (Haiku 4.5) that the presenter text matches the
-  numbers. Returns `{"verdict": "pass"|"fail", "reasons": [...]}`.
-- Presenter: tags each claim `fact` (source + trace step), `assumption`, or `scenario`;
-  includes limitations and the simulation/no-advice disclaimer.
-- Every step appends to a run trace (step, actor, input, output summary, timestamp), saved as
-  JSON locally and to `s3://$DATA_BUCKET/runs/`. The trace is the explainability evidence.
-- Bedrock Guardrail on user input and LLM output (personalized advice to the real user, real
-  trades, PII). Persona-fit rules stay in `suitability`, not the guardrail.
-
-## Risk labels (team assumption, document in README)
-Annualized volatility (adj_close daily returns; 252 days, crypto 365):
-< 10% Low · 10–20% Moderate · 20–35% High · > 35% Very High.
-Max drawdown is a second check: if max drawdown is worse than -30%, bump the label up one level.
-
-## Data plan (by tier)
-Every source must be documented in the README: origin, URL, retrieval date, processing,
-license/terms, limitations.
-
 ## Sector grouping (team assumption, document in README)
 Groups come from the organizers' `sector` column in assets_universe.csv: exact label first, otherwise the
 text before " (" (e.g. "Bonds" = XBB.TO, ZST.TO, AGG, TLT; "Broad market" = XIU.TO, SPY, QQQ, ESGV).
