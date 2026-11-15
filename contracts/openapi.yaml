@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AlphaForge AI Chat API
-  version: 0.2.1
+  version: 0.3.0
   description: |
     REST API for the AlphaForge AI chat assistant (personas, conversations, history, auth helpers).
     Streaming chat runs over WebSocket and is described in `asyncapi.yaml`.
@@ -26,6 +26,7 @@ security:
 tags:
   - name: Session
   - name: Personas
+  - name: Profiles
   - name: Conversations
   - name: Messages
 
@@ -85,6 +86,50 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PersonaList" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /profiles:
+    post:
+      tags: [Profiles]
+      operationId: createProfile
+      summary: Build a fictional profile from the 7-question questionnaire (profile_builder.py, no LLM)
+      description: |
+        Deterministic: questions 1-4 give a risk level (low, low-moderate, moderate, high), a fixed table gives
+        its limits, then questions 5-7 adjust them (crypto cap, ESG review, preferences); a horizon under 3 years
+        raises the bonds/cash minimum to 60%. No personal data is asked. The profile is registered under
+        `custom-<8 chars>` and can be used as a `personaId` by the user who created it. Profiles live in server
+        memory. `limitReasons` sentences are written in `language`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProfileRequest" }
+      responses:
+        "201":
+          description: Profile created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Persona" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /profiles/{profileId}:
+    parameters:
+      - name: profileId
+        in: path
+        required: true
+        schema: { type: string, pattern: "^custom-[a-z0-9]{8}$" }
+    get:
+      tags: [Profiles]
+      operationId: getProfile
+      summary: One of the caller's custom profiles
+      responses:
+        "200":
+          description: The profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Persona" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /conversations:
     get:
@@ -261,20 +306,27 @@ components:
 
     PersonaId:
       type: string
-      enum: [amira, mateo, robert]
-      description: Fictional investor persona the conversation is about.
+      pattern: "^(amira|mateo|robert|custom-[a-z0-9]{8})$"
+      description: |
+        Fictional investor persona the conversation is about: a built-in persona (amira, mateo, robert) or a
+        profile the user built with POST /profiles (custom-<8 chars>, usable only by that user).
 
     Persona:
       type: object
-      description: One persona from personas.py. Profiles are fictional; numeric limits are team assumptions.
+      description: |
+        One persona from personas.py, or a custom profile from POST /profiles (same fields, plus `limitReasons`;
+        `age` and `occupation` are null because the questionnaire asks no personal data). Profiles are fictional;
+        numeric limits are team assumptions.
       required: [id, name, age, occupation, riskTolerance, horizonYears, goal, preferences, limits, esgReviewTickers, source]
       properties:
         id: { $ref: "#/components/schemas/PersonaId" }
         name: { type: string }
-        age: { type: integer }
-        occupation: { type: string }
-        riskTolerance: { type: string, examples: [high, moderate, low-moderate] }
-        horizonYears: { type: string, examples: ["15+", "8-12", "3-5"] }
+        age: { type: [integer, "null"] }
+        occupation: { type: [string, "null"] }
+        riskTolerance:
+          type: string
+          examples: [high, moderate, low-moderate, low]
+        horizonYears: { type: string, examples: ["15+", "8-12", "3-5", "<3"] }
         goal: { type: string }
         preferences:
           type: array
@@ -290,6 +342,45 @@ components:
           type: array
           items: { type: string }
         source: { type: string }
+        limitReasons:
+          type: object
+          description: Custom profiles only. Rule code (as in `limits`, plus `esg_review`) -> why, and which questions caused it.
+          additionalProperties: { $ref: "#/components/schemas/LimitReason" }
+
+    LimitReason:
+      type: object
+      required: [text, questions]
+      additionalProperties: false
+      properties:
+        text: { type: string, description: One sentence, in the language of the request }
+        questions:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 7 }
+
+    ProfileAnswers:
+      type: object
+      description: The 7 questionnaire answers. Multiple choice only; no name, age or amounts.
+      required: [goal, horizon, drop25, liquidity, crypto, esg, industries]
+      additionalProperties: false
+      properties:
+        goal: { type: string, enum: [preserve, income, balanced, growth], description: "Q1 main goal" }
+        horizon: { type: string, enum: [lt3, 3to5, 5to10, 10plus], description: "Q2 years before the money is needed" }
+        drop25: { type: string, enum: [sell_all, sell_some, hold, buy_more], description: "Q3 reaction to a 25% drop" }
+        liquidity: { type: string, enum: [high, some, low, none], description: "Q4 need for cash in the next 2 years" }
+        crypto: { type: string, enum: [none, small, significant], description: "Q5 interest in crypto" }
+        esg: { type: string, enum: [not_important, prefer, strict], description: "Q6 importance of ESG" }
+        industries:
+          type: array
+          description: "Q7 industries of interest (industry sector groups of the universe; may be empty)"
+          items: { type: string }
+
+    CreateProfileRequest:
+      type: object
+      required: [answers]
+      additionalProperties: false
+      properties:
+        answers: { $ref: "#/components/schemas/ProfileAnswers" }
+        language: { $ref: "#/components/schemas/Language" }
 
     PersonaList:
       type: object

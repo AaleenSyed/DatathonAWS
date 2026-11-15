@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   GenerationStage,
   Message,
+  Persona,
   PersonaId,
   SocketStatus,
   TraceStep,
@@ -14,7 +15,8 @@ import { AppBar, Footer } from "./AppBar";
 import { Evidence, Recommended } from "./Explainer";
 import { refreshHealth, useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
-import { personaById } from "./personas";
+import { isCustomId, personaById } from "./personas";
+import { ProfileCard, SparkAvatar } from "./ProfileBuilder";
 import { answerTone } from "./Status";
 import { Trace } from "./Trace";
 import { useViewMode } from "./view";
@@ -58,7 +60,21 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
   const { mode } = useViewMode();
   const detailed = mode === "detailed";
   const persona = personaById(personaId);
-  const name = persona?.name ?? personaId;
+  const custom = isCustomId(personaId);
+  const [profile, setProfile] = useState<Persona | null>(null);
+  const name = persona?.name ?? profile?.name ?? t("pf.name");
+
+  // A custom profile lives in the server's memory: load it for the header and the profile card.
+  useEffect(() => {
+    if (!custom) return;
+    let live = true;
+    void api.GET("/profiles/{profileId}", { params: { path: { profileId: personaId } } }).then(({ data }) => {
+      if (live && data) setProfile(data);
+    });
+    return () => {
+      live = false;
+    };
+  }, [custom, personaId]);
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]); // every branch
@@ -104,7 +120,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
       const { data, error: err } = await api.POST("/conversations", {
         body: { personaId, language: langRef.current },
       });
-      if (err || !data) return setError({ key: "chat.errCreate" });
+      if (err || !data) return setError({ key: custom ? "pf.lost" : "chat.errCreate" });
       setConversationId(data.id);
       await s.connect();
     })().catch((e) => setError({ key: "chat.errCreate", detail: String(e) }));
@@ -233,11 +249,16 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
         <section className="messages" aria-live="polite">
           {path.length === 0 && (
             <div className="empty">
-              <span className={`avatar avatar-lg avatar-${personaId}`} aria-hidden="true">
-                {name[0]}
-              </span>
-              <h2>{t("chat.emptyTitle", { name })}</h2>
-              <p>{t("chat.emptyHint", { name })}</p>
+              {custom ? (
+                <SparkAvatar large />
+              ) : (
+                <span className={`avatar avatar-lg avatar-${personaId}`} aria-hidden="true">
+                  {name[0]}
+                </span>
+              )}
+              <h2>{t(custom ? "pf.emptyTitle" : "chat.emptyTitle", { name })}</h2>
+              <p>{t(custom ? "pf.emptyHint" : "chat.emptyHint", { name })}</p>
+              {profile && <ProfileCard p={profile} compact />}
             </div>
           )}
           {path.map((m) => {
@@ -411,7 +432,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
         </form>
         <div className="suggestions" role="group" aria-label={t("sug.label")}>
           {SUGGESTIONS.map((i) => {
-            const q = t(`sug.${personaId}.${i}` as Key);
+            const q = t(`sug.${custom ? "custom" : personaId}.${i}` as Key);
             return (
               <button key={i} type="button" className="suggestion" disabled={!canAct} onClick={() => sendMessage(q)}>
                 {q}

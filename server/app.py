@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 from starlette.exceptions import HTTPException
 
+import profile_builder
 from personas import PERSONAS, SOURCE as PERSONA_SOURCE
 from server import agent, explainer
 from server.auth import Authenticator, AuthError, TicketStore, bearer_token
@@ -28,7 +29,6 @@ from texts import lang_or_default
 
 log = logging.getLogger("alphaforge.server")
 Lang = Literal["en", "fr"]
-PersonaKey = Literal["amira", "mateo", "robert"]
 TEXT_MAX = 8000
 
 
@@ -57,10 +57,13 @@ def to_trace_step(step: dict) -> dict:
 
 def persona_out(key: str) -> dict:
     p = PERSONAS[key]
-    return {"id": key, "name": p["name"], "age": p["age"], "occupation": p["occupation"],
-            "riskTolerance": p["risk_tolerance"], "horizonYears": p["horizon_years"], "goal": p["goal"],
-            "preferences": list(p["preferences"]), "limits": p["limits"],
-            "esgReviewTickers": list(p["esg_review_tickers"]), "source": PERSONA_SOURCE}
+    out = {"id": key, "name": p["name"], "age": p["age"], "occupation": p["occupation"],
+           "riskTolerance": p["risk_tolerance"], "horizonYears": p["horizon_years"], "goal": p["goal"],
+           "preferences": list(p["preferences"]), "limits": p["limits"],
+           "esgReviewTickers": list(p["esg_review_tickers"]), "source": p.get("source", PERSONA_SOURCE)}
+    if "limit_reasons" in p:  # custom profiles: why each limit, linked to the questions that caused it
+        out["limitReasons"] = p["limit_reasons"]
+    return out
 
 
 def api_error(status: int, code: str, message: str):
@@ -71,8 +74,14 @@ def api_error(status: int, code: str, message: str):
 
 class CreateConversation(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    personaId: PersonaKey
+    personaId: str = Field(max_length=40)  # a built-in persona or the caller's own custom-<id> profile
     title: str | None = Field(default=None, min_length=1, max_length=120)
+    language: Lang | None = None
+
+
+class CreateProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answers: dict  # validated by profile_builder.validate (7 multiple-choice answers, no personal data)
     language: Lang | None = None
 
 
@@ -189,7 +198,7 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
             threading.Thread(target=agent.warm_up, daemon=True, name="warm-up").start()
         yield
 
-    app = FastAPI(title="AlphaForge AI Chat API", version="0.2.1", lifespan=lifespan)
+    app = FastAPI(title="AlphaForge AI Chat API", version="0.3.0", lifespan=lifespan)
     app.state.store, app.state.running, app.state.tickets = store, running, tickets
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"],
                        allow_headers=["*"], allow_credentials=False)
@@ -236,7 +245,23 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
     @app.get("/personas")
     async def personas(request: Request):
         user_of(request)
-        return {"items": [persona_out(k) for k in PERSONAS]}
+        return {"items": [persona_out(k) for k in profile_builder.BUILTIN]}
+
+    @app.post("/profiles", status_code=201)
+    async def create_profile(request: Request, body: CreateProfile):
+        user = user_of(request)
+        try:
+            key = profile_builder.register(body.answers, user["id"], body.language or "en")
+        except profile_builder.ProfileError as e:
+            api_error(400, "invalid_request", str(e))
+        return persona_out(key)
+
+    @app.get("/profiles/{profile_id}")
+    async def get_profile(request: Request, profile_id: str):
+        user = user_of(request)
+        if profile_builder.get(profile_id, owner=user["id"]) is None:
+            api_error(404, "not_found", "profile not found")
+        return persona_out(profile_id)
 
     @app.get("/conversations")
     async def list_conversations(request: Request, limit: int = Query(25, ge=1, le=100), cursor: str | None = None):
@@ -254,6 +279,8 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
     @app.post("/conversations", status_code=201)
     async def create_conversation(request: Request, body: CreateConversation):
         user = user_of(request)
+        if body.personaId not in profile_builder.BUILTIN and profile_builder.get(body.personaId, owner=user["id"]) is None:
+            api_error(400, "invalid_request", "personaId: unknown persona or profile")
         conv = store.create_conversation(user["id"], body.personaId, body.title, body.language or "en")
         return public(conv)
 
