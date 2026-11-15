@@ -75,7 +75,7 @@ T["fr"].update({
     "s_fit": "Cela convient à une tolérance au risque {risk} et à un horizon de {horizon} ans; les rendements "
              "passés ne prédisent pas des gains rapides.",
 })
-RISK_FR = {"high": "élevée", "moderate": "modérée", "low-moderate": "faible à modérée"}
+RISK_FR = {"low": "faible", "high": "élevée", "moderate": "modérée", "low-moderate": "faible à modérée"}
 # Plain-language rule names (never show the code names in an answer)
 RULE = {
     "en": {"crypto_max": "crypto cap", "single_stock_max": "single-stock cap", "sector_max": "sector cap",
@@ -100,6 +100,13 @@ def proposed_weight(question: str) -> float | None:
     return 0.5 if BIG_SHARE.search(question) else None
 
 
+def ranked_recommendation() -> list[str]:
+    """Custom profiles have no scripted pick: the first ranked industry, plus the building block to pair with."""
+    r = at.rank_sectors_for_persona()
+    industries = [c["group"] for c in r.get("candidates", []) if c["kind"] == "industry"]
+    return industries[:1] + ([r["pair_with"]] if r.get("pair_with") else [])
+
+
 def make(persona_key: str, question: str, lang: str):
     """(boss, presenter) callables for pipeline.ChatSession."""
     persona = PERSONAS[persona_key]
@@ -115,7 +122,7 @@ def make(persona_key: str, question: str, lang: str):
             (at.analyze_asset if t in tickers else at.analyze_sector)(t)
             at.stress_test_2022(t)
             at.check_suitability(t, weight)
-        recs = RECOMMEND[persona_key]
+        recs = RECOMMEND.get(persona_key) or ranked_recommendation()
         for r in recs:
             at.analyze_sector(r)
             at.sector_momentum(r)
@@ -256,7 +263,7 @@ def write(trace, plan: dict, persona: dict, lang: str) -> str:
         lines += ["", f"**{t['market']}**",
                   t["phase"].format(phase=d["phase"], tilt=", ".join(d["sector_tilt"])) + " [assumption]"]
 
-    flagged = [n for s in trace.steps if s["actor"] == "worker:suitability" and s["output"].get("status") == "ok"
+    flagged = [n for s in trace.steps if s["action"] == "check_suitability" and s["output"].get("status") == "ok"
                for c in s["output"]["data"]["checks"] if c["rule"] == "esg_review" and c["status"] == "flag"
                for n in c["value"]]
     if flagged:

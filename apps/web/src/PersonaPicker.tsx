@@ -19,7 +19,7 @@ const FALLBACK: Record<PersonaId, { risk: string; horizon: string }> = {
   robert: { risk: "low-moderate", horizon: "3-5" },
 };
 
-export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
+export function PersonaPicker({ onPick, onBuild }: { onPick: (id: PersonaId) => void; onBuild: () => void }) {
   const { t, code, locale } = useI18n();
   const health = useHealth();
   // Limits come from personas.py through GET /personas. Without the backend the cards still work, without limits.
@@ -104,6 +104,24 @@ export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
             );
           })}
         </div>
+        <section className="build-section" aria-labelledby="build-heading">
+          <h2 id="build-heading" className="build-divider">
+            <span>{t("pf.barHeading")}</span>
+          </h2>
+          {/* Secondary to the 3 personas: one compact row, the whole bar is the button */}
+          <button type="button" className="build-bar" onClick={onBuild}>
+            <span className="avatar avatar-build" aria-hidden="true">
+              +
+            </span>
+            <span className="build-text">
+              <strong>{t("pf.cardTitle")}</strong>
+              <span>{t("pf.barSub")}</span>
+            </span>
+            <span className="card-cta build-cta">
+              {t("pf.cardCta")} <span aria-hidden="true">→</span>
+            </span>
+          </button>
+        </section>
         {loaded && <p className="disclaimer">{t("picker.limitsNote")}</p>}
       </main>
       <Footer />

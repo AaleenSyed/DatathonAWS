@@ -77,6 +77,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build a fictional profile from the 7-question questionnaire (profile_builder.py, no LLM)
+         * @description Deterministic: questions 1-4 give a risk level (low, low-moderate, moderate, high), a fixed table gives
+         *     its limits, then questions 5-7 adjust them (crypto cap, ESG review, preferences); a horizon under 3 years
+         *     raises the bonds/cash minimum to 60%. No personal data is asked. The profile is registered under
+         *     `custom-<8 chars>` and can be used as a `personaId` by the user who created it. Profiles live in server
+         *     memory. `limitReasons` sentences are written in `language`.
+         */
+        post: operations["createProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        /** One of the caller's custom profiles */
+        get: operations["getProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/conversations": {
         parameters: {
             query?: never;
@@ -182,26 +225,32 @@ export interface components {
          */
         Language: "en" | "fr";
         /**
-         * @description Fictional investor persona the conversation is about.
-         * @enum {string}
+         * @description Fictional investor persona the conversation is about: a built-in persona (amira, mateo, robert) or a
+         *     profile the user built with POST /profiles (custom-<8 chars>, usable only by that user).
          */
-        PersonaId: "amira" | "mateo" | "robert";
-        /** @description One persona from personas.py. Profiles are fictional; numeric limits are team assumptions. */
+        PersonaId: string;
+        /**
+         * @description One persona from personas.py, or a custom profile from POST /profiles (same fields, plus `limitReasons`;
+         *     `age` and `occupation` are null because the questionnaire asks no personal data). Profiles are fictional;
+         *     numeric limits are team assumptions.
+         */
         Persona: {
             id: components["schemas"]["PersonaId"];
             name: string;
-            age: number;
-            occupation: string;
+            age: number | null;
+            occupation: string | null;
             /**
              * @example high
              * @example moderate
              * @example low-moderate
+             * @example low
              */
             riskTolerance: string;
             /**
              * @example 15+
              * @example 8-12
              * @example 3-5
+             * @example <3
              */
             horizonYears: string;
             goal: string;
@@ -223,6 +272,54 @@ export interface components {
             };
             esgReviewTickers: string[];
             source: string;
+            /** @description Custom profiles only. Rule code (as in `limits`, plus `esg_review`) -> why, and which questions caused it. */
+            limitReasons?: {
+                [key: string]: components["schemas"]["LimitReason"];
+            };
+        };
+        LimitReason: {
+            /** @description One sentence */
+            text: string;
+            questions: number[];
+        };
+        /** @description The 7 questionnaire answers. Multiple choice only; no name, age or amounts. */
+        ProfileAnswers: {
+            /**
+             * @description Q1 main goal
+             * @enum {string}
+             */
+            goal: "preserve" | "income" | "balanced" | "growth";
+            /**
+             * @description Q2 years before the money is needed
+             * @enum {string}
+             */
+            horizon: "lt3" | "3to5" | "5to10" | "10plus";
+            /**
+             * @description Q3 reaction to a 25% drop
+             * @enum {string}
+             */
+            drop25: "sell_all" | "sell_some" | "hold" | "buy_more";
+            /**
+             * @description Q4 need for cash in the next 2 years
+             * @enum {string}
+             */
+            liquidity: "high" | "some" | "low" | "none";
+            /**
+             * @description Q5 interest in crypto
+             * @enum {string}
+             */
+            crypto: "none" | "small" | "significant";
+            /**
+             * @description Q6 importance of ESG
+             * @enum {string}
+             */
+            esg: "not_important" | "prefer" | "strict";
+            /** @description Q7 industries of interest (industry sector groups of the universe; may be empty) */
+            industries: string[];
+        };
+        CreateProfileRequest: {
+            answers: components["schemas"]["ProfileAnswers"];
+            language?: components["schemas"]["Language"];
         };
         PersonaList: {
             items: components["schemas"]["Persona"][];
@@ -842,6 +939,56 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    createProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Profile created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Persona"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Persona"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     listConversations: {
