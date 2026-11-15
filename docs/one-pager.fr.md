@@ -43,8 +43,8 @@ ce qui pourrait mal tourner, et les conflits avec le profil.
 
 ## AWS au cœur de la solution
 Amazon Bedrock (Converse + ConverseStream, Claude Haiku 4.5 et Sonnet 4.6) · Bedrock Guardrails
-(ApplyGuardrail, entrée et sortie) · Amazon S3 (données et traces d'exécution) · Amazon Cognito (vérification
-des jetons prête). Région `us-east-1`. Détails : [architecture-aws.fr.md](architecture-aws.fr.md).
+(ApplyGuardrail, entrée et sortie) · Amazon S3 (données et traces d'exécution).
+Région `us-east-1`. Détails : [architecture-aws.fr.md](architecture-aws.fr.md).
 
 ## Valeur d'affaires
 Pour une banque, un courtier ou une plateforme d'éducation financière : un assistant qui **montre son

@@ -19,7 +19,6 @@ PNG: [architecture-aws.fr.png](architecture-aws.fr.png)
 | **Amazon Bedrock — ConverseStream** | Le présentateur (Claude Sonnet 4.6) rédige la réponse à partir des seuls résultats des travailleurs ; le texte est diffusé au navigateur | `presenter.py` |
 | **Amazon Bedrock Guardrails — ApplyGuardrail** | Filtre la question et la réponse : sujets refusés (conseil personnel réel, transactions réelles), PII, contenu, attaques de prompt ; caviardage des PII avant l'écriture de la trace | `guardrail.py` |
 | **Amazon S3** | `s3://$DATA_BUCKET/data/` : prix, FX, macro (lecture avec `DATA_SOURCE=s3`) ; `s3://$DATA_BUCKET/runs/<run_id>.json` : trace complète de chaque réponse, liée dans l'interface | `workers/data_retriever.py`, `run_trace.py` |
-| **Amazon Cognito** | Vérification des jetons ID implémentée et testée ; aucun groupe d'utilisateurs configuré, le serveur tourne en mode dev | `server/auth.py` |
 | **AWS Workshop Studio** (environnement fourni) | Exécute le backend et l'interface (code-server derrière CloudFront) avec des identifiants temporaires | — |
 
 ## Parcours d'une question

@@ -19,7 +19,6 @@ PNG: [architecture-aws.en.png](architecture-aws.en.png)
 | **Amazon Bedrock — ConverseStream** | The presenter (Claude Sonnet 4.6) writes the answer from the worker results only; the text is streamed to the browser | `presenter.py` |
 | **Amazon Bedrock Guardrails — ApplyGuardrail** | Filters the question and the answer: denied topics (personal advice to the real user, real trades), PII, content, prompt attacks; PII redacted before the trace is written | `guardrail.py` |
 | **Amazon S3** | `s3://$DATA_BUCKET/data/`: prices, FX, macro (read with `DATA_SOURCE=s3`); `s3://$DATA_BUCKET/runs/<run_id>.json`: full trace of every answer, linked in the UI | `workers/data_retriever.py`, `run_trace.py` |
-| **Amazon Cognito** | ID-token verification implemented and tested; no user pool configured, the server runs in dev mode | `server/auth.py` |
 | **AWS Workshop Studio** (provided environment) | Runs the backend and the UI (code-server behind CloudFront) with temporary credentials | — |
 
 ## Life of a question

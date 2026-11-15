@@ -42,8 +42,8 @@ assets, how it fits the persona's horizon and risk tolerance, what could go wron
 
 ## AWS at the core
 Amazon Bedrock (Converse + ConverseStream, Claude Haiku 4.5 and Sonnet 4.6) · Bedrock Guardrails
-(ApplyGuardrail, input and output) · Amazon S3 (data and run traces) · Amazon Cognito (token verification
-ready). Region `us-east-1`. Details: [architecture-aws.en.md](architecture-aws.en.md).
+(ApplyGuardrail, input and output) · Amazon S3 (data and run traces).
+Region `us-east-1`. Details: [architecture-aws.en.md](architecture-aws.en.md).
 
 ## Business value
 For a bank, a broker or a financial-education platform: an assistant that **shows its reasoning**, respects
