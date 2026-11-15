@@ -1,0 +1,233 @@
+====================================================================================================
+                               ALPHAFORGE AI - WORKER METRICS REPORT
+====================================================================================================
+Generated:  2026-11-15 01:00
+Window:     2021-11-12 to 2026-11-12
+Currency:   CAD (USD assets converted with Bank of Canada FX)
+Note:       simulation for fictional personas only, not financial advice
+
+Summary
+-------
+  Persona | Target                 | Proposed weight | Verdict
+  --------+------------------------+-----------------+---------
+  Robert  | NVDA                   | 50%             | CONFLICT
+  Amira   | Information Technology | 40%             | PASS
+  Mateo   | Energy                 | -               | FLAG
+
+What each metric means
+----------------------
+  Total             total return: price change over the whole period, dividends included (adj_close)
+  Ann. ret          annualized return: total return converted to a yearly rate
+  Ann. vol          annualized volatility: how much daily prices swing (daily std x sqrt(252);
+                    crypto x sqrt(365))
+  Max DD            max drawdown: worst fall from a previous peak during the period
+  vs peak           current drawdown: how far the latest price is below the highest price of the
+                    period
+  Label             risk label from vol: <10% Low, 10-20% Moderate, 20-35% High, >35% Very High; one
+                    level higher if max drawdown is worse than -30%
+  Mom. 6m / 12m     momentum: price change over the last 6 / 12 months
+  vs bench 12m      relative strength: 12-month return minus the benchmark's (SPY for U.S., XIU.TO
+                    for Canada)
+  vs 200d avg       latest price compared with its 200-day average (positive = uptrend)
+  vs 12m high       how far the latest price is below its 12-month high
+  Status            CONFLICT = rule broken; FLAG = exceeds a limit on its own or needs review; INFO
+                    = portfolio-level reminder; PASS = within limit; N/A = rule does not apply
+
+====================================================================================================
+                                  MARKET CONTEXT AS OF 2026-11-12
+====================================================================================================
+Historical tendencies, NOT predictions. Monthly series are used only from their assumed publication
+  date (reference month + 21 days).
+
+Business-cycle phase: Mid cycle
+-------------------------------
+  Rule fired: no recession signal, no inversion in the past 12 months, no early-cycle signal
+
+  Signal        | Value    | Reference date | Usable from
+  --------------+----------+----------------+------------
+  SAHMREALTIME  | 0.0      | 2026-09-01     | 2026-10-21
+  RECPROUSM156N | 0.4      | 2026-09-01     | 2026-10-21
+  T10Y2Y        | 0.24     | 2026-11-12     | 2026-11-12
+  INDPRO        | 103.9506 | 2026-09-01     | 2026-10-21
+
+  Sector tilt: Information Technology, Industrials, Communication Services
+
+Fear vs hope: normal
+--------------------
+  Signal                   | Value | Date       | Reading
+  -------------------------+-------+------------+-------------------------------------------------
+  VIX                      | 18.7  | 2026-11-12 | normal (<15 calm, 15-25 normal, >25 fear)
+  High-yield credit spread | 3.2%  | 2026-11-12 | +0.49 pts vs 2026-08-12 -> rising, stress signal
+  Consumer sentiment       | 48.1  | 2026-09-01 | 12-month change -7.0
+
+====================================================================================================
+                                    ROBERT | NVDA | 50% PROPOSED
+====================================================================================================
+
+1) Risk over the full window (2021-11-12 to 2026-11-12, CAD)
+------------------------------------------------------------
+  Asset | Total   | Ann. ret | Ann. vol | Max DD | vs peak | Label
+  ------+---------+----------+----------+--------+---------+----------
+  NVDA  | +523.1% | +44.4%   | 51.1%    | -63.5% | -30.4%  | Very High
+
+  Label reason: vol 51.1% -> Very High
+  Vol in USD: 51.9% (exchange-rate effect on vol: -0.8%)
+
+2) 2022 stress test (2021-12-31 to 2022-12-30, CAD)
+---------------------------------------------------
+  Asset | 2022 return | 2022 max DD | 2022 vol | Label
+  ------+-------------+-------------+----------+----------
+  NVDA  | -46.9%      | -59.2%      | 61.2%    | Very High
+
+3) Momentum and trend (as of 2026-11-12, CAD)
+---------------------------------------------
+  Asset | Bench. | Mom. 6m | Mom. 12m | vs bench 12m | vs 200d avg | vs 12m high | Trend
+  ------+--------+---------+----------+--------------+-------------+-------------+-----------
+  NVDA  | SPY    | -21.6%  | -12.5%   | -26.5%       | -16.5%      | -30.4%      | below 200d
+
+4) Suitability for Robert
+-------------------------
+  Rule                     | Limit  | Value       | Status
+  -------------------------+--------+-------------+---------
+  crypto_max               | 0.0%   | 0.0%        | PASS
+  single_stock_max         | 10.0%  | 50.0%       | CONFLICT
+  vol_max                  | 10.0%  | NVDA 51.1%  | FLAG
+  bonds_cash_min           | 50.0%  | -           | INFO
+  stress_2022_max_drawdown | -15.0% | NVDA -59.2% | FLAG
+
+  Why:
+  - crypto_max: target holds no crypto
+  - single_stock_max: single stock NVDA: proposed 50.0% vs cap 10.0% -> above cap
+  - vol_max: annualized vol (2021-11-12 to 2026-11-12, CAD): NVDA 51.1% vs persona limit 10.0%: on
+    its own this exceeds the limit, so it could only be a small part of the portfolio
+  - bonds_cash_min: portfolio still needs at least 50.0% in bonds/cash alongside this target
+  - stress_2022_max_drawdown: max drawdown in 2022 (CAD): NVDA -59.2% vs persona limit -15.0%: on
+    its own this exceeds the limit, so it could only be a small part of the portfolio
+
+  >>> OVERALL VERDICT: CONFLICT   (conflict 1, flag 2, info 1, pass 1)
+
+5) Sources and warnings
+-----------------------
+  Source: Yahoo Finance via the open-source yfinance Python library (https://finance.yahoo.com,
+    retrieved 2026-11-13); FX: Bank of Canada Valet API series FXUSDCAD
+    (https://www.bankofcanada.ca/valet/observations/FXUSDCAD/json, retrieved 2026-11-13)
+  Warning: NVDA: only 251 daily returns (< 252), metrics less reliable
+
+====================================================================================================
+                           AMIRA | INFORMATION TECHNOLOGY | 40% PROPOSED
+====================================================================================================
+
+1) Risk over the full window (2021-11-12 to 2026-11-12, CAD)
+------------------------------------------------------------
+  Asset                         | Total   | Ann. ret | Ann. vol | Max DD | vs peak | Label
+  ------------------------------+---------+----------+----------+--------+---------+----------
+  Information Technology basket | +177.6% | +23.3%   | 30.1%    | -45.8% | -6.7%   | Very High
+    SHOP.TO                     | -0.0%   | -0.0%    | 65.1%    | -83.5% | -17.1%  | Very High
+    CSU.TO                      | +61.0%  | +10.3%   | 30.8%    | -56.4% | -32.3%  | Very High
+    AAPL                        | +175.0% | +23.1%   | 28.3%    | -34.0% | +0.0%   | Very High
+    MSFT                        | +83.6%  | +13.3%   | 28.5%    | -34.3% | -3.9%   | Very High
+    NVDA                        | +523.1% | +45.6%   | 51.4%    | -63.5% | -30.4%  | Very High
+
+  Label reason: vol 30.1% -> High; max drawdown -45.8% worse than -30% -> bumped to Very High
+
+2) 2022 stress test (2021-12-31 to 2022-12-30, CAD)
+---------------------------------------------------
+  Asset                  | 2022 return | 2022 max DD | 2022 vol | Label
+  -----------------------+-------------+-------------+----------+----------
+  Information Technology | -36.1%      | -43.9%      | 41.9%    | Very High
+
+3) Momentum and trend (as of 2026-11-12, CAD)
+---------------------------------------------
+  Asset   | Bench. | Mom. 6m | Mom. 12m | vs bench 12m | vs 200d avg | vs 12m high | Trend
+  --------+--------+---------+----------+--------------+-------------+-------------+-----------
+  SHOP.TO | XIU.TO | +53.0%  | -4.6%    | -26.0%       | +15.9%      | -17.1%      | above 200d
+  CSU.TO  | XIU.TO | +45.5%  | +4.4%    | -17.0%       | +24.9%      | -0.8%       | above 200d
+  AAPL    | SPY    | +25.4%  | +32.5%   | +18.6%       | +21.1%      | +0.0%       | above 200d
+  MSFT    | SPY    | +33.9%  | +5.0%    | -9.0%        | +21.8%      | -3.9%       | above 200d
+  NVDA    | SPY    | -21.6%  | -12.5%   | -26.5%       | -16.5%      | -30.4%      | below 200d
+
+4) Suitability for Amira
+------------------------
+  Rule              | Limit | Value | Status
+  ------------------+-------+-------+-------
+  crypto_max        | 15.0% | 0.0%  | PASS
+  single_stock_max  | 15.0% | -     | N/A
+  sector_max        | 50.0% | 40.0% | PASS
+  min_asset_classes | 3     | 1     | INFO
+
+  Why:
+  - crypto_max: target holds no crypto
+  - single_stock_max: target is not a single stock
+  - sector_max: sector Information Technology: proposed 40.0% vs cap 50.0% -> within cap
+  - min_asset_classes: target covers 1 asset class(es) ['equity']; the portfolio needs at least 3,
+    so pair it with other asset classes
+
+  >>> OVERALL VERDICT: PASS   (info 1, pass 2, not_applicable 1)
+
+5) Sources and warnings
+-----------------------
+  Source: Yahoo Finance via the open-source yfinance Python library (https://finance.yahoo.com,
+    retrieved 2026-11-13); FX: Bank of Canada Valet API series FXUSDCAD
+    (https://www.bankofcanada.ca/valet/observations/FXUSDCAD/json, retrieved 2026-11-13)
+  Warning: only 245 daily returns (< 252), metrics less reliable
+  Warning: sector = equal-weight basket of universe assets, rebalanced daily, common dates only
+
+====================================================================================================
+                                MATEO | ENERGY | NO WEIGHT PROPOSED
+====================================================================================================
+
+1) Risk over the full window (2021-11-12 to 2026-11-12, CAD)
+------------------------------------------------------------
+  Asset         | Total   | Ann. ret | Ann. vol | Max DD | vs peak | Label
+  --------------+---------+----------+----------+--------+---------+----------
+  Energy basket | +198.9% | +25.2%   | 20.5%    | -18.2% | -6.3%   | High
+    ENB.TO      | +82.6%  | +13.2%   | 16.3%    | -21.4% | -13.3%  | Moderate
+    CNQ.TO      | +252.7% | +29.5%   | 30.7%    | -33.1% | -10.7%  | Very High
+    XOM         | +254.9% | +29.7%   | 26.4%    | -19.1% | -7.4%   | High
+
+  Label reason: vol 20.5% -> High
+
+2) 2022 stress test (2021-12-31 to 2022-12-30, CAD)
+---------------------------------------------------
+  Asset  | 2022 return | 2022 max DD | 2022 vol | Label
+  -------+-------------+-------------+----------+------
+  Energy | +53.5%      | -18.2%      | 26.4%    | High
+
+3) Momentum and trend (as of 2026-11-12, CAD)
+---------------------------------------------
+  Asset  | Bench. | Mom. 6m | Mom. 12m | vs bench 12m | vs 200d avg | vs 12m high | Trend
+  -------+--------+---------+----------+--------------+-------------+-------------+-----------
+  ENB.TO | XIU.TO | -6.4%   | +6.0%    | -15.4%       | -4.2%       | -13.3%      | below 200d
+  CNQ.TO | XIU.TO | +11.1%  | +60.8%   | +39.4%       | +9.7%       | -10.7%      | above 200d
+  XOM    | SPY    | +18.8%  | +50.5%   | +36.6%       | +12.2%      | -7.4%       | above 200d
+
+4) Suitability for Mateo
+------------------------
+  Rule       | Limit               | Value               | Status
+  -----------+---------------------+---------------------+-------
+  crypto_max | 0.0%                | 0.0%                | PASS
+  vol_max    | 15.0%               | Energy 20.5%        | FLAG
+  bonds_min  | 30.0%               | -                   | INFO
+  esg_review | ENB.TO, CNQ.TO, XOM | ENB.TO, CNQ.TO, XOM | FLAG
+
+  Why:
+  - crypto_max: target holds no crypto
+  - vol_max: annualized vol (2021-11-12 to 2026-11-12, CAD): Energy 20.5% vs persona limit 15.0%: on
+    its own this exceeds the limit, so it could only be a small part of the portfolio
+  - bonds_min: portfolio still needs at least 30.0% in bonds alongside this target
+  - esg_review: ESG review needed for ['ENB.TO', 'CNQ.TO', 'XOM'] (evidence comes from the ethics
+    worker, not available yet)
+
+  >>> OVERALL VERDICT: FLAG   (flag 2, info 1, pass 1)
+
+5) Sources and warnings
+-----------------------
+  Source: Yahoo Finance via the open-source yfinance Python library (https://finance.yahoo.com,
+    retrieved 2026-11-13); FX: Bank of Canada Valet API series FXUSDCAD
+    (https://www.bankofcanada.ca/valet/observations/FXUSDCAD/json, retrieved 2026-11-13)
+  Warning: only 245 daily returns (< 252), metrics less reliable
+  Warning: sector = equal-weight basket of universe assets, rebalanced daily, common dates only
+
+====================================================================================================
+                                           END OF REPORT
+====================================================================================================

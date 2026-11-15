@@ -1,0 +1,129 @@
+====================================================================================================
+                               ALPHAFORGE AI - WORKER METRICS REPORT
+====================================================================================================
+Generated:  2026-11-15 01:00
+Window:     2021-11-12 to 2026-11-12
+Currency:   CAD (USD assets converted with Bank of Canada FX)
+Note:       simulation for fictional personas only, not financial advice
+
+Summary
+-------
+  Persona | Target | Proposed weight | Verdict
+  --------+--------+-----------------+--------
+  Robert  | Bonds  | -               | FLAG
+
+What each metric means
+----------------------
+  Total             total return: price change over the whole period, dividends included (adj_close)
+  Ann. ret          annualized return: total return converted to a yearly rate
+  Ann. vol          annualized volatility: how much daily prices swing (daily std x sqrt(252);
+                    crypto x sqrt(365))
+  Max DD            max drawdown: worst fall from a previous peak during the period
+  vs peak           current drawdown: how far the latest price is below the highest price of the
+                    period
+  Label             risk label from vol: <10% Low, 10-20% Moderate, 20-35% High, >35% Very High; one
+                    level higher if max drawdown is worse than -30%
+  Mom. 6m / 12m     momentum: price change over the last 6 / 12 months
+  vs bench 12m      relative strength: 12-month return minus the benchmark's (SPY for U.S., XIU.TO
+                    for Canada)
+  vs 200d avg       latest price compared with its 200-day average (positive = uptrend)
+  vs 12m high       how far the latest price is below its 12-month high
+  Status            CONFLICT = rule broken; FLAG = exceeds a limit on its own or needs review; INFO
+                    = portfolio-level reminder; PASS = within limit; N/A = rule does not apply
+
+====================================================================================================
+                                  MARKET CONTEXT AS OF 2026-11-12
+====================================================================================================
+Historical tendencies, NOT predictions. Monthly series are used only from their assumed publication
+  date (reference month + 21 days).
+
+Business-cycle phase: Mid cycle
+-------------------------------
+  Rule fired: no recession signal, no inversion in the past 12 months, no early-cycle signal
+
+  Signal        | Value    | Reference date | Usable from
+  --------------+----------+----------------+------------
+  SAHMREALTIME  | 0.0      | 2026-09-01     | 2026-10-21
+  RECPROUSM156N | 0.4      | 2026-09-01     | 2026-10-21
+  T10Y2Y        | 0.24     | 2026-11-12     | 2026-11-12
+  INDPRO        | 103.9506 | 2026-09-01     | 2026-10-21
+
+  Sector tilt: Information Technology, Industrials, Communication Services
+
+Fear vs hope: normal
+--------------------
+  Signal                   | Value | Date       | Reading
+  -------------------------+-------+------------+-------------------------------------------------
+  VIX                      | 18.7  | 2026-11-12 | normal (<15 calm, 15-25 normal, >25 fear)
+  High-yield credit spread | 3.2%  | 2026-11-12 | +0.49 pts vs 2026-08-12 -> rising, stress signal
+  Consumer sentiment       | 48.1  | 2026-09-01 | 12-month change -7.0
+
+====================================================================================================
+                                ROBERT | BONDS | NO WEIGHT PROPOSED
+====================================================================================================
+
+1) Risk over the full window (2021-11-12 to 2026-11-12, CAD)
+------------------------------------------------------------
+  Building block: members shown separately, no blended figure.
+  Asset  | Total  | Ann. ret | Ann. vol | Max DD | vs peak | Label
+  -------+--------+----------+----------+--------+---------+------
+  XBB.TO | +3.6%  | +0.7%    | 6.6%     | -15.5% | -1.5%   | Low
+  ZST.TO | +18.3% | +3.4%    | 0.6%     | -0.4%  | -0.0%   | Low
+  AGG    | +11.7% | +2.2%    | 7.4%     | -12.8% | -2.2%   | Low
+  TLT    | -26.4% | -6.0%    | 16.1%    | -39.7% | -31.1%  | High
+
+2) 2022 stress test (2021-12-31 to 2022-12-30, CAD)
+---------------------------------------------------
+  Asset  | 2022 return | 2022 max DD | 2022 vol | Label
+  -------+-------------+-------------+----------+----------
+  XBB.TO | -11.7%      | -15.3%      | 8.4%     | Low
+  ZST.TO | +1.2%       | -0.4%       | 0.8%     | Low
+  AGG    | -7.1%       | -10.7%      | 9.3%     | Low
+  TLT    | -26.5%      | -31.8%      | 20.8%    | Very High
+
+3) Momentum and trend (as of 2026-11-12, CAD)
+---------------------------------------------
+  Asset  | Bench. | Mom. 6m | Mom. 12m | vs bench 12m | vs 200d avg | vs 12m high | Trend
+  -------+--------+---------+----------+--------------+-------------+-------------+-----------
+  XBB.TO | XIU.TO | +0.4%   | -0.4%    | -21.8%       | +0.0%       | -1.5%       | above 200d
+  ZST.TO | XIU.TO | +1.3%   | +2.5%    | -18.9%       | +1.0%       | -0.0%       | above 200d
+  AGG    | SPY    | +2.5%   | +0.5%    | -13.5%       | +1.3%       | -2.2%       | above 200d
+  TLT    | SPY    | -0.1%   | -5.7%    | -19.7%       | -1.2%       | -6.8%       | below 200d
+
+4) Suitability for Robert
+-------------------------
+  Rule                     | Limit  | Value                                               | Status
+  -------------------------+--------+-----------------------------------------------------+-------
+  crypto_max               | 0.0%   | 0.0%                                                | PASS
+  single_stock_max         | 10.0%  | -                                                   | N/A
+  vol_max                  | 10.0%  | XBB.TO 6.6%, ZST.TO 0.6%, AGG 7.4%, TLT 16.1%       | FLAG
+  bonds_cash_min           | 50.0%  | -                                                   | PASS
+  stress_2022_max_drawdown | -15.0% | XBB.TO -15.3%, ZST.TO -0.4%, AGG -10.7%, TLT -31.8% | FLAG
+
+  Why:
+  - crypto_max: target holds no crypto
+  - single_stock_max: target is not a single stock
+  - vol_max: annualized vol (2021-11-12 to 2026-11-12, CAD): XBB.TO 6.6%, ZST.TO 0.6%, AGG 7.4%, TLT
+    16.1% vs persona limit 10.0%: on its own this exceeds the limit, so it could only be a small
+    part of the portfolio; within limit: XBB.TO, ZST.TO, AGG
+  - bonds_cash_min: target counts toward the 50.0% bonds/cash minimum
+  - stress_2022_max_drawdown: max drawdown in 2022 (CAD): XBB.TO -15.3%, ZST.TO -0.4%, AGG -10.7%,
+    TLT -31.8% vs persona limit -15.0%: on its own this exceeds the limit, so it could only be a
+    small part of the portfolio; within limit: ZST.TO, AGG
+
+  >>> OVERALL VERDICT: FLAG   (flag 2, pass 2, not_applicable 1)
+
+5) Sources and warnings
+-----------------------
+  Source: Yahoo Finance via the open-source yfinance Python library (https://finance.yahoo.com,
+    retrieved 2026-11-13); FX: Bank of Canada Valet API series FXUSDCAD
+    (https://www.bankofcanada.ca/valet/observations/FXUSDCAD/json, retrieved 2026-11-13)
+  Warning: AGG: only 251 daily returns (< 252), metrics less reliable
+  Warning: TLT: only 251 daily returns (< 252), metrics less reliable
+  Warning: XBB.TO: only 250 daily returns (< 252), metrics less reliable
+  Warning: ZST.TO: only 250 daily returns (< 252), metrics less reliable
+  Warning: building block: members reported separately, no blended figure
+
+====================================================================================================
+                                           END OF REPORT
+====================================================================================================
