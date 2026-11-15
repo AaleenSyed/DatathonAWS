@@ -84,13 +84,6 @@ def sector_members(sector: str) -> list[dict]:
     return exact or [r for r in u if r["sector"].split(" (")[0] == sector]
 
 
-def equal_weight_index(df: pd.DataFrame) -> pd.Series:
-    """Equal-weight index (starts at 1.0), rebalanced daily, from a date x ticker price frame on common dates."""
-    df = df.dropna()
-    ret = df.pct_change().dropna().mean(axis=1)
-    return pd.concat([pd.Series([1.0], index=[df.index[0]]), (1 + ret).cumprod()])
-
-
 def group_kind(members: list[dict]) -> str:
     """'industry' if every member is an equity, else 'building_block'."""
     return "industry" if all(m["asset_class"] == "equity" for m in members) else "building_block"
@@ -178,9 +171,10 @@ def analyze_sector(sector: str, start: str, end: str, currency: str = "CAD") -> 
         if len(df) < 2:
             return _err(f"sector '{sector}': fewer than 2 common dates between {start} and {end}")
         w = 1 / len(tickers)
-        index = equal_weight_index(df)
-        if len(index) - 1 < 252:
-            warnings.append(f"only {len(index) - 1} daily returns (< 252), metrics less reliable")
+        basket_ret = df.pct_change().dropna().mean(axis=1)  # equal weight, rebalanced daily
+        index = pd.concat([pd.Series([1.0], index=[df.index[0]]), (1 + basket_ret).cumprod()])
+        if len(basket_ret) < 252:
+            warnings.append(f"only {len(basket_ret)} daily returns (< 252), metrics less reliable")
         warnings.append("sector = equal-weight basket of universe assets, rebalanced daily, common dates only")
         data = {"sector": sector, "kind": kind, "members": tickers, "weights": {t: w for t in tickers},
                 **metrics(index, DAYS_STOCK),

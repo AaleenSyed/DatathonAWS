@@ -8,7 +8,7 @@ assumptions and limitations.
 
 ## Status
 - [x] Phase 1: personas, data_retriever, risk_analyst, tests
-- [x] Phase 2: suitability + market context
+- [ ] Phase 2: suitability + market context
 - [ ] Phase 3: chat pipeline (boss, reviewer, presenter, trace)
 - [ ] Phase 4: Bedrock Guardrail
 - [ ] Phase 5: news + ethics workers
@@ -33,18 +33,12 @@ See `CLAUDE.md` (pipeline) and `AGENT_GUARDRAILS.md` (guardrails per agent). Age
 | `personas.py` | Fictional personas and their limits |
 | `workers/data_retriever.py` | Prices (adj_close, USD→CAD), FX, macro (publication-lag aware), asset info |
 | `workers/risk_analyst.py` | Asset/sector return, vol, drawdown, correlation, 2022 stress test, risk labels |
-| `workers/market_context.py` | Business-cycle phase (FRED rules), fear vs hope, sector momentum/trend/relative strength |
-| `workers/suitability.py` | Checks a ticker or sector against a persona's limits: pass/info/flag/conflict per rule |
-| `data/fetch_fred_extra.py` | One-off fetch of extra FRED series → `data/macro_extra.csv` |
 
 ## Data sources
 Full list with URLs, retrieval dates, processing, terms and limitations: `data/sources_metadata.csv`.
 - Prices, corporate actions: Yahoo Finance via yfinance (Yahoo terms of use)
 - USD/CAD FX, Canadian yields, policy rate, CPI: Bank of Canada Valet API
 - U.S. rates, CPI, unemployment: FRED (Federal Reserve Bank of St. Louis)
-- Yield curve (T10Y2Y), Sahm rule (SAHMREALTIME), recession probability (RECPROUSM156N), industrial production
-  (INDPRO), VIX (VIXCLS), high-yield spread (BAMLH0A0HYM2), consumer sentiment (UMCSENT): FRED, via
-  `data/fetch_fred_extra.py` (labels and units read from each FRED series page)
 - Universe and sector labels: datathon organizers
 
 ## Team assumptions
@@ -60,26 +54,10 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
 - **USD assets** also report volatility in USD, to show how much of the CAD risk comes from the exchange rate.
 - **2022 stress test**: last 2021 close (2021-12-31) to last 2022 close.
 - **Monthly macro** counts as published 21 days after the end of its reference month.
-- **Business-cycle phase** (historical tendency, labelled `assumption`, never a prediction), checked in order:
-  Recession risk (SAHMREALTIME ≥ 0.5 or RECPROUSM156N ≥ 30) → Early cycle (recession signal in the past 12 months
-  and INDPRO above its value 3 months earlier) → Late cycle (T10Y2Y < 0 now or in the past 12 months) → Mid cycle.
-  Sector tilts per phase as in `CLAUDE.md`.
-- **Fear vs hope**: VIX < 15 calm/hope, 15–25 normal, > 25 fear; high-yield spread higher than 3 months earlier =
-  credit stress.
-- **Momentum/trend**: 6- and 12-month return, 12-month relative strength vs XIU.TO (`.TO` tickers) or SPY (others),
-  price vs 200-observation average, drawdown from the 12-month high. Industry baskets are compared with an
-  equal-weight mix of their members' benchmarks.
-- **Suitability statuses**: `conflict` (excluded asset type or proposed weight above a cap), `flag` (standalone
-  vol / 2022 drawdown above a portfolio limit, or ESG review), `info` (portfolio-level reminder, e.g. bonds
-  minimum), `pass`, `not_applicable`, `not_evaluated`. Standalone vol above a portfolio limit is a `flag`, not a
-  `conflict`: a small slice can still fit a lower-risk portfolio.
 
 ## Limitations
 - Survivorship bias: the universe was picked in 2026.
 - FRED values are revised vintages, not what was known at the time.
 - CNQ.TO 1.021 "split" on 2022-08-22 is likely a special distribution.
 - Several sectors have only one asset (Communication Services, Health Care, Industrials, Utilities, Gold).
-- No ESG, news or fundamentals data in the starter set; ESG-review flags for Mateo have no evidence until the
-  ethics worker (phase 5).
-- FRED only serves the last 3 years of the high-yield spread (from 2023-11-14): no credit-stress signal before
-  that date.
+- No ESG, news or fundamentals data in the starter set.

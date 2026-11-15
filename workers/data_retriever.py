@@ -195,7 +195,7 @@ def get_macro(series_ids, start: str, end: str, as_of: str | None = None) -> dic
         s, e = _dates(start, end)
         cutoff = pd.Timestamp(as_of) if as_of else e
         frames = [_load("macro_rates.csv")]
-        if (DATA_DIR / "macro_extra.csv").exists() or os.getenv("DATA_SOURCE") == "s3":
+        if (DATA_DIR / "macro_extra.csv").exists():
             frames.append(_load("macro_extra.csv"))
         macro = pd.concat(frames, ignore_index=True)
         data, warnings, sources, units = {}, [], set(), {}
