@@ -9,7 +9,7 @@ assumptions and limitations.
 ## Status
 - [x] Phase 1: personas, data_retriever, risk_analyst, tests
 - [x] Phase 2: suitability + market context
-- [ ] Phase 3: chat pipeline (boss, reviewer, presenter, trace)
+- [x] Phase 3: chat pipeline (boss, reviewer, presenter, trace)
 - [ ] Phase 4: Bedrock Guardrail
 - [ ] Phase 5: news + ethics workers
 - [ ] Phase 6: Streamlit UI
@@ -21,7 +21,9 @@ py -3.14 -m venv .venv            # Python 3.11+
 .venv\Scripts\activate
 pip install -r requirements.txt
 python -m pytest -q
+python chat.py                     # terminal chatbot (needs AWS credentials for Bedrock)
 ```
+Live demo questions on Bedrock (costs a few cents): `RUN_LIVE=1 python -m pytest -q -s tests/test_live_demo.py`
 Data CSVs go in `data/` (gitignored) or are read from `s3://$DATA_BUCKET/data/` (set `DATA_BUCKET` in `.env`).
 AWS credentials come from the environment / `~/.aws/credentials`, never from the repo.
 
@@ -35,6 +37,13 @@ See `CLAUDE.md` (pipeline) and `AGENT_GUARDRAILS.md` (guardrails per agent). Age
 | `workers/risk_analyst.py` | Asset/sector return, vol, drawdown, correlation, 2022 stress test, risk labels |
 | `workers/market_context.py` | Business-cycle phase (FRED rules), fear vs hope, sector momentum/trend/relative strength |
 | `workers/suitability.py` | Checks a ticker or sector against a persona's limits: pass/info/flag/conflict per rule |
+| `pipeline.py` | ChatSession: boss (Strands agent, Sonnet 5 on Bedrock) → worker tools → reviewer (max 2 retries) → presenter → answer check → trace |
+| `agent_tools.py` | Workers wrapped as Strands `@tool`; persona and dates fixed by the session; every call logged to the trace |
+| `reviewer.py` | Deterministic checks: work coverage, sources, periods, persona limits, ESG check, no look-ahead; every answer number must be in the worker results |
+| `presenter.py` | Final answer with Sonnet 5 (Bedrock Converse), claims tagged `[fact: step N]` / `[assumption]` / `[scenario]` |
+| `run_trace.py` | Run trace saved to `runs/` and `s3://$DATA_BUCKET/runs/` |
+| `chat.py` | Terminal chat: pick a persona, multi-turn Q&A, `/trace` shows the steps |
+| `prompts/` | Boss and presenter system prompts |
 | `data/fetch_fred_extra.py` | One-off fetch of extra FRED series → `data/macro_extra.csv` |
 
 ## Data sources
@@ -74,10 +83,17 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
   minimum), `pass`, `not_applicable`, `not_evaluated`. Standalone vol above a portfolio limit is a `flag`, not a
   `conflict`: a small slice can still fit a lower-risk portfolio.
 
+- **Pipeline**: the boss assumes a 50% share when the user implies "a big part" without a number (stated in the
+  answer). Plain words map to targets with a small alias list (crypto, bitcoin, tech, bonds, gold...) in `reviewer.py`.
+- **Answer check**: every number in the answer must match a worker result (as written or ×100, within its rounding);
+  `[fact: step N]` must point to an existing step. Max 2 rewrites, then a visible reviewer note.
+
 ## Limitations
 - Survivorship bias: the universe was picked in 2026.
 - FRED values are revised vintages, not what was known at the time.
 - CNQ.TO 1.021 "split" on 2022-08-22 is likely a special distribution.
+- The answer check verifies numbers and citations, not units or wording: a right number with a wrong unit or
+  meaning can pass. Every answer has a full trace to audit it.
 - Several sectors have only one asset (Communication Services, Health Care, Industrials, Utilities, Gold).
 - No ESG, news or fundamentals data in the starter set; ESG-review flags for Mateo have no evidence until the
   ethics worker (phase 5).

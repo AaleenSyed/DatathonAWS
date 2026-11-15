@@ -3,3 +3,5 @@ numpy>=2.5
 boto3>=1.44
 python-dotenv>=1.2
 pytest>=9.2
+strands-agents>=1.65
+pydantic>=2.14

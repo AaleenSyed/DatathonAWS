@@ -7,3 +7,4 @@ data/*.csv
 !data/sources_metadata.csv
 
 node_modules/
+runs/
