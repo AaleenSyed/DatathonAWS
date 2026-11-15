@@ -1,16 +1,21 @@
 openapi: 3.1.0
 info:
   title: AlphaForge AI Chat API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    REST API for the AlphaForge AI chat assistant (conversations, history, auth helpers).
+    REST API for the AlphaForge AI chat assistant (personas, conversations, history, auth helpers).
     Streaming chat runs over WebSocket and is described in `asyncapi.yaml`.
     The WebSocket message payloads are defined here, under `components/schemas`
     (WsClientMessage / WsServerMessage), so both specs share one source of truth.
 
+    **The backend owns the data shapes.** Every analysis field mirrors the Python pipeline
+    (`pipeline.py`, `run_trace.py`, `workers/`) and is built by `server/explainer.py`.
+    Numbers are fractions (0.15 = 15%), in CAD unless the trace says otherwise.
+    Rule codes, statuses, actors and tool names are codes; clients translate them for display.
+
     Sign-up, sign-in, password reset and token refresh are handled directly by
-    Amazon Cognito (Amplify Auth or OIDC with PKCE), not by this API. Clients send the
-    Cognito **ID token** as a Bearer token.
+    Amazon Cognito, not by this API. Clients send the Cognito **ID token** as a Bearer token.
+    Without Cognito settings the server runs in dev mode (any token, or none, is accepted).
 
     Simulation only. No real transactions. Never personalized financial advice.
 servers:
@@ -20,10 +25,24 @@ security:
   - bearerAuth: []
 tags:
   - name: Session
+  - name: Personas
   - name: Conversations
   - name: Messages
 
 paths:
+  /health:
+    get:
+      tags: [Session]
+      operationId: getHealth
+      summary: Liveness check (no auth)
+      security: []
+      responses:
+        "200":
+          description: Server is up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
   /me:
     get:
       tags: [Session]
@@ -54,6 +73,19 @@ paths:
               schema: { $ref: "#/components/schemas/WsTicket" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /personas:
+    get:
+      tags: [Personas]
+      operationId: listPersonas
+      summary: The fictional investor personas and their assumed limits (from personas.py)
+      responses:
+        "200":
+          description: Every persona
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonaList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /conversations:
     get:
       tags: [Conversations]
@@ -73,6 +105,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConversationPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [Conversations]
@@ -110,7 +143,7 @@ paths:
     patch:
       tags: [Conversations]
       operationId: updateConversation
-      summary: Rename a conversation or switch the active branch
+      summary: Rename a conversation, switch the active branch or change the answer language
       requestBody:
         required: true
         content:
@@ -196,6 +229,17 @@ components:
           examples: [unauthorized, not_found, invalid_request, internal_error]
         message: { type: string }
 
+    Health:
+      type: object
+      required: [status, agentMode, authMode]
+      properties:
+        status: { const: ok }
+        agentMode:
+          type: string
+          enum: [bedrock, demo]
+          description: "`demo` = scripted boss and presenter (no LLM) for UI work; numbers still come from the real workers."
+        authMode: { type: string, enum: [cognito, dev] }
+
     User:
       type: object
       required: [id, email]
@@ -210,18 +254,59 @@ components:
         ticket: { type: string }
         expiresAt: { type: string, format: date-time }
 
+    Language:
+      type: string
+      enum: [en, fr]
+      description: Answer language. `fr` = Canadian French.
+
     PersonaId:
       type: string
       enum: [amira, mateo, robert]
       description: Fictional investor persona the conversation is about.
 
+    Persona:
+      type: object
+      description: One persona from personas.py. Profiles are fictional; numeric limits are team assumptions.
+      required: [id, name, age, occupation, riskTolerance, horizonYears, goal, preferences, limits, esgReviewTickers, source]
+      properties:
+        id: { $ref: "#/components/schemas/PersonaId" }
+        name: { type: string }
+        age: { type: integer }
+        occupation: { type: string }
+        riskTolerance: { type: string, examples: [high, moderate, low-moderate] }
+        horizonYears: { type: string, examples: ["15+", "8-12", "3-5"] }
+        goal: { type: string }
+        preferences:
+          type: array
+          items: { type: string }
+        limits:
+          type: object
+          description: |
+            Rule code -> limit, as in personas.py. Fractions (0.15 = 15%), except `min_asset_classes` (a count)
+            and `sector_max` (sector name -> fraction).
+          additionalProperties: true
+          examples: [{ crypto_max: 0.15, single_stock_max: 0.15, sector_max: { Information Technology: 0.5 }, min_asset_classes: 3 }]
+        esgReviewTickers:
+          type: array
+          items: { type: string }
+        source: { type: string }
+
+    PersonaList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Persona" }
+
     Conversation:
       type: object
-      required: [id, title, personaId, activeLeafId, createdAt, updatedAt]
+      required: [id, title, personaId, language, activeLeafId, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         title: { type: string, maxLength: 120 }
         personaId: { $ref: "#/components/schemas/PersonaId" }
+        language: { $ref: "#/components/schemas/Language" }
         activeLeafId:
           type: [string, "null"]
           format: uuid
@@ -241,19 +326,23 @@ components:
     CreateConversationRequest:
       type: object
       required: [personaId]
+      additionalProperties: false
       properties:
         personaId: { $ref: "#/components/schemas/PersonaId" }
-        title: { type: string, maxLength: 120 }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        language: { $ref: "#/components/schemas/Language" }
 
     UpdateConversationRequest:
       type: object
       minProperties: 1
+      additionalProperties: false
       properties:
-        title: { type: string, maxLength: 120 }
+        title: { type: string, minLength: 1, maxLength: 120 }
         activeLeafId:
           type: string
           format: uuid
           description: Switch to another branch by selecting its last message.
+        language: { $ref: "#/components/schemas/Language" }
 
     MessageList:
       type: object
@@ -273,7 +362,7 @@ components:
 
     Message:
       type: object
-      required: [id, conversationId, parentId, role, content, status, toolCalls, createdAt]
+      required: [id, conversationId, parentId, role, content, status, language, trace, final, createdAt]
       properties:
         id: { type: string, format: uuid }
         conversationId: { type: string, format: uuid }
@@ -282,11 +371,17 @@ components:
           format: uuid
           description: Previous message in this branch. Null for the first message.
         role: { $ref: "#/components/schemas/MessageRole" }
-        content: { type: string, description: Plain or markdown text }
+        content:
+          type: string
+          description: |
+            Markdown. Assistant answers carry claim tags written by the presenter:
+            `[fact: step N]` (N = TraceStep.step, several allowed: `[fact: step 3, 7]`), `[assumption]`, `[scenario]`.
         status: { $ref: "#/components/schemas/MessageStatus" }
-        toolCalls:
+        language: { $ref: "#/components/schemas/Language" }
+        trace:
           type: array
-          items: { $ref: "#/components/schemas/ToolCall" }
+          description: Every step of the run (assistant messages only; empty for user messages).
+          items: { $ref: "#/components/schemas/TraceStep" }
         final:
           oneOf:
             - $ref: "#/components/schemas/ExplainerPayload"
@@ -294,21 +389,167 @@ components:
           description: Structured explanation attached to completed assistant messages.
         createdAt: { type: string, format: date-time }
 
-    ToolCall:
+    TraceStep:
       type: object
-      required: [id, name, arguments, status]
+      description: One step of the run trace (run_trace.py), the explainability evidence.
+      required: [step, actor, action, input, output, outputSummary, timestamp]
       properties:
-        id: { type: string, description: Trace step id; claims reference it }
-        name: { type: string, pattern: "^[a-zA-Z0-9_-]+$" }
-        arguments:
-          type: object
-          additionalProperties: true
-        status: { type: string, enum: [running, ok, error] }
-        result:
-          type: object
-          additionalProperties: true
+        step: { type: integer, minimum: 1, description: "Number cited by `[fact: step N]`." }
+        actor:
+          type: string
+          description: Who did it.
+          examples: [user, boss, "worker:risk_analyst", "worker:suitability", "worker:market_context", "worker:data_retriever", reviewer, presenter, pipeline]
+        action:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]+$"
+          examples: [question, plan, analyze_asset, analyze_sector, stress_test_2022, check_suitability, cycle_phase, review_work, write_answer, check_answer, final_answer]
+        input: { description: Arguments of the step (any JSON). }
+        output:
           description: |
-            Tool output. By convention includes `source` and the date range actually used.
+            Result (any JSON). Worker results follow AGENT_GUARDRAILS.md: `status`, `data`, `source`, `period`,
+            `currency`, `warnings` (or `status: error` + `error`).
+        outputSummary: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    SuitabilityStatus:
+      type: string
+      enum: [conflict, flag, info, pass, not_applicable, not_evaluated]
+      description: |
+        conflict = hard rule broken at the proposed weight; flag = above a portfolio-level limit on its own, or needs
+        review; info = portfolio-level reminder; pass = within the limit; not_applicable; not_evaluated = data missing.
+
+    SuitabilityOverall:
+      type: string
+      enum: [conflict, flag, incomplete, pass]
+
+    SuitabilityCheck:
+      type: object
+      required: [rule, status, limit, value, explanation]
+      properties:
+        rule: { type: string, examples: [crypto_max, single_stock_max, sector_max, min_asset_classes, vol_max, bonds_min, bonds_cash_min, stress_2022_max_drawdown, esg_review] }
+        status: { $ref: "#/components/schemas/SuitabilityStatus" }
+        limit:
+          description: Fraction, count, object (sector -> fraction) or list (ESG tickers), as in personas.py.
+        value:
+          description: Fraction, count, object (ticker -> fraction), list or null.
+        explanation: { type: string, description: Written by the suitability worker (English). }
+
+    SuitabilityResult:
+      type: object
+      required: [target, targetKind, proposedWeight, overall, checks, traceStep]
+      properties:
+        target: { type: string }
+        targetKind: { $ref: "#/components/schemas/TargetKind" }
+        proposedWeight: { type: [number, "null"], description: "Fraction of the portfolio, e.g. 0.5" }
+        overall: { $ref: "#/components/schemas/SuitabilityOverall" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/SuitabilityCheck" }
+        traceStep: { type: integer }
+
+    TargetKind:
+      type: string
+      enum: [asset, industry, building_block]
+      description: industry = all-equity sector group (equal-weight basket); building_block = ETFs or crypto (no blended figure).
+
+    Member:
+      type: object
+      required: [ticker, name, assetClass]
+      properties:
+        ticker: { type: string }
+        name: { type: string }
+        assetClass: { type: string, examples: [equity, etf_bond, etf_equity, etf_commodity, crypto] }
+
+    MetricRange:
+      type: object
+      required: [min, minTicker, max, maxTicker]
+      properties:
+        min: { type: number }
+        minTicker: { type: string }
+        max: { type: number }
+        maxTicker: { type: string }
+
+    TargetSummary:
+      type: object
+      description: A requested target or a recommended sector group, with its key numbers from the trace.
+      required: [name, kind, members, riskLabel, annualizedVol, maxDrawdown, totalReturn, range, suitabilityOverall, momentum12m, trend, period, currency, traceSteps]
+      properties:
+        name: { type: string }
+        kind: { $ref: "#/components/schemas/TargetKind" }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/Member" }
+        riskLabel: { type: [string, "null"], examples: [Low, Moderate, High, Very High] }
+        annualizedVol: { type: [number, "null"] }
+        maxDrawdown: { type: [number, "null"] }
+        totalReturn: { type: [number, "null"] }
+        range:
+          description: Building blocks only (no blended figure) - min and max over the members.
+          oneOf:
+            - type: object
+              required: [annualizedVol, maxDrawdown, totalReturn]
+              properties:
+                annualizedVol: { $ref: "#/components/schemas/MetricRange" }
+                maxDrawdown: { $ref: "#/components/schemas/MetricRange" }
+                totalReturn: { $ref: "#/components/schemas/MetricRange" }
+            - type: "null"
+        suitabilityOverall:
+          oneOf:
+            - $ref: "#/components/schemas/SuitabilityOverall"
+            - type: "null"
+        momentum12m: { type: [number, "null"] }
+        trend: { type: [string, "null"], examples: [above 200-day average, below 200-day average] }
+        period:
+          oneOf:
+            - $ref: "#/components/schemas/Period"
+            - type: "null"
+        currency: { type: [string, "null"] }
+        traceSteps:
+          type: array
+          items: { type: integer }
+
+    Period:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+
+    RiskRow:
+      type: object
+      description: One bar in the risk charts. Building blocks are split into one row per member.
+      required: [name, group, kind, annualizedVol, maxDrawdown, totalReturn, riskLabel, stress2022Return, stress2022MaxDrawdown, traceSteps]
+      properties:
+        name: { type: string, description: Ticker, or sector group for an industry basket }
+        group: { type: string, description: The requested target or recommended sector this row belongs to }
+        kind: { $ref: "#/components/schemas/TargetKind" }
+        annualizedVol: { type: [number, "null"] }
+        maxDrawdown: { type: [number, "null"] }
+        totalReturn: { type: [number, "null"] }
+        riskLabel: { type: [string, "null"] }
+        stress2022Return: { type: [number, "null"] }
+        stress2022MaxDrawdown: { type: [number, "null"] }
+        traceSteps:
+          type: array
+          items: { type: integer }
+
+    MarketContext:
+      type: object
+      required: [asOf, phase, ruleFired, sectorTilt, vix, mood, creditSpreadRising, consumerSentiment, traceSteps]
+      properties:
+        asOf: { type: string, format: date }
+        phase: { type: [string, "null"], examples: [Recession risk, Early cycle, Mid cycle, Late cycle] }
+        ruleFired: { type: [string, "null"] }
+        sectorTilt:
+          type: array
+          items: { type: string }
+        vix: { type: [number, "null"] }
+        mood: { type: [string, "null"], examples: [calm/hope, normal, fear] }
+        creditSpreadRising: { type: [boolean, "null"] }
+        consumerSentiment: { type: [number, "null"] }
+        traceSteps:
+          type: array
+          items: { type: integer }
 
     ClaimKind:
       type: string
@@ -316,42 +557,112 @@ components:
 
     Claim:
       type: object
-      required: [text, kind]
+      description: A tagged sentence of the answer (parsed from the markdown tags).
+      required: [text, kind, traceSteps, sources]
       properties:
-        text: { type: string }
+        text: { type: string, description: Sentence without the tag }
         kind: { $ref: "#/components/schemas/ClaimKind" }
-        source:
-          type: string
-          description: Required for `fact` claims (dataset, URL, period, currency).
-        traceStepId:
-          type: string
-          description: ToolCall.id that produced the number.
+        traceSteps:
+          type: array
+          description: Steps cited by a fact.
+          items: { type: integer }
+        sources:
+          type: array
+          description: Source, period and currency of each cited step.
+          items: { type: string }
 
-    GovernanceResult:
+    Verdict:
       type: object
-      required: [rule, status]
+      required: [verdict, reasons]
       properties:
-        rule: { type: string, examples: ["crypto <= 15%"] }
-        status: { type: string, enum: [pass, flag] }
-        value: { type: [number, "null"] }
-        limit: { type: [number, "null"] }
-        note: { type: string }
+        verdict: { type: string, enum: [pass, fail] }
+        reasons:
+          type: array
+          items: { type: string }
+
+    Review:
+      type: object
+      required: [work, answer, workRetries, answerRetries, incomplete]
+      properties:
+        work: { $ref: "#/components/schemas/Verdict" }
+        answer: { $ref: "#/components/schemas/Verdict" }
+        workRetries: { type: integer, minimum: 0, description: Times the reviewer sent the plan back to the boss }
+        answerRetries: { type: integer, minimum: 0, description: Times the reviewer sent the answer back to the presenter }
+        incomplete: { type: boolean, description: True when the work still failed after the retries }
+
+    Caveat:
+      type: string
+      enum: [simulation_only, survivorship_bias, fred_revised_vintages, equal_weight_baskets, past_performance, macro_publication_lag]
+      description: Fixed data caveats (README); clients show a translated sentence.
+
+    RunInfo:
+      type: object
+      required: [runId, sessionId, analysisDate, s3Uri]
+      properties:
+        runId: { type: string }
+        sessionId: { type: [string, "null"] }
+        analysisDate: { type: string, format: date }
+        s3Uri: { type: [string, "null"], description: "Trace JSON in S3 (s3://$DATA_BUCKET/runs/...)" }
 
     ExplainerPayload:
       type: object
-      description: Final structured answer produced by the agent's explainer step.
-      required: [summary, claims, governance, limitations]
+      description: |
+        Final structured explanation, built deterministically from the run trace by server/explainer.py.
+        Every number here also appears in a trace step (see traceSteps).
+      required: [language, persona, recommendedSectors, requestedTargets, conflicts, suitability, riskTable, personaLimits, marketContext, claims, review, limitations, caveats, run]
       properties:
-        summary: { type: string }
+        language: { $ref: "#/components/schemas/Language" }
+        persona:
+          type: object
+          required: [id, name]
+          properties:
+            id: { $ref: "#/components/schemas/PersonaId" }
+            name: { type: string }
+        recommendedSectors:
+          type: array
+          description: 1-2 sector groups the boss recommends for the persona (the main answer).
+          items: { $ref: "#/components/schemas/TargetSummary" }
+        requestedTargets:
+          type: array
+          description: Tickers or sector groups the user asked about.
+          items: { $ref: "#/components/schemas/TargetSummary" }
+        conflicts:
+          type: array
+          description: Conflicts between the request and the persona, as noted by the boss.
+          items: { type: string }
+        suitability:
+          type: array
+          items: { $ref: "#/components/schemas/SuitabilityResult" }
+        riskTable:
+          type: array
+          items: { $ref: "#/components/schemas/RiskRow" }
+        personaLimits:
+          type: object
+          additionalProperties: true
+          description: The persona's limits (personas.py), for chart reference lines.
+        marketContext:
+          oneOf:
+            - $ref: "#/components/schemas/MarketContext"
+            - type: "null"
         claims:
           type: array
           items: { $ref: "#/components/schemas/Claim" }
-        governance:
-          type: array
-          items: { $ref: "#/components/schemas/GovernanceResult" }
+        review: { $ref: "#/components/schemas/Review" }
         limitations:
           type: array
+          description: Warnings from the worker results (deduplicated).
           items: { type: string }
+        caveats:
+          type: array
+          items: { $ref: "#/components/schemas/Caveat" }
+        run: { $ref: "#/components/schemas/RunInfo" }
+
+    GenerationStage:
+      type: string
+      enum: [queued, planning, analyzing, reviewing, writing, checking, done]
+      description: |
+        queued = waiting for another run to finish; planning = boss is choosing tools; analyzing = workers ran;
+        reviewing = reviewer checks the work; writing = presenter writes; checking = reviewer checks the answer.
 
     # ---------------------------------------------------------------------
     # WebSocket payloads (used by asyncapi.yaml). Discriminated by `type`.
@@ -366,8 +677,9 @@ components:
         parentId:
           type: [string, "null"]
           format: uuid
-          description: Defaults to the conversation's activeLeafId.
+          description: Defaults to the conversation's activeLeafId. Must be an assistant message (or null).
         text: { type: string, minLength: 1, maxLength: 8000 }
+        language: { $ref: "#/components/schemas/Language" }
 
     WsMessageEdit:
       type: object
@@ -379,6 +691,7 @@ components:
         conversationId: { type: string, format: uuid }
         messageId: { type: string, format: uuid, description: User message being edited }
         text: { type: string, minLength: 1, maxLength: 8000 }
+        language: { $ref: "#/components/schemas/Language" }
 
     WsMessageRegenerate:
       type: object
@@ -389,6 +702,7 @@ components:
         requestId: { type: string }
         conversationId: { type: string, format: uuid }
         messageId: { type: string, format: uuid, description: Assistant message to redo }
+        language: { $ref: "#/components/schemas/Language" }
 
     WsGenerationCancel:
       type: object
@@ -434,33 +748,36 @@ components:
         message:
           $ref: "#/components/schemas/Message"
 
+    WsGenerationStatus:
+      type: object
+      description: Progress of the running generation (a run takes about a minute).
+      required: [type, conversationId, messageId, stage, steps]
+      properties:
+        type: { const: generation.status }
+        conversationId: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        stage: { $ref: "#/components/schemas/GenerationStage" }
+        steps: { type: integer, minimum: 0, description: Trace steps so far }
+
+    WsTraceStep:
+      type: object
+      description: A new step of the run trace, sent as soon as it happens.
+      required: [type, conversationId, messageId, step]
+      properties:
+        type: { const: trace.step }
+        conversationId: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        step: { $ref: "#/components/schemas/TraceStep" }
+
     WsMessageDelta:
       type: object
+      description: Text to append. The presenter writes the whole answer at once, so it arrives as one delta.
       required: [type, conversationId, messageId, delta]
       properties:
         type: { const: message.delta }
         conversationId: { type: string, format: uuid }
         messageId: { type: string, format: uuid }
         delta: { type: string, description: Text chunk to append }
-
-    WsToolCall:
-      type: object
-      required: [type, conversationId, messageId, toolCall]
-      properties:
-        type: { const: tool.call }
-        conversationId: { type: string, format: uuid }
-        messageId: { type: string, format: uuid }
-        toolCall: { $ref: "#/components/schemas/ToolCall" }
-
-    WsToolResult:
-      type: object
-      required: [type, conversationId, messageId, toolCall]
-      properties:
-        type: { const: tool.result }
-        conversationId: { type: string, format: uuid }
-        messageId: { type: string, format: uuid }
-        toolCall:
-          $ref: "#/components/schemas/ToolCall"
 
     WsMessageEnd:
       type: object
@@ -480,7 +797,7 @@ components:
         conversationId: { type: string, format: uuid }
         code:
           type: string
-          examples: [invalid_message, not_found, rate_limited, agent_error, internal_error]
+          examples: [invalid_message, not_found, busy, agent_error, internal_error]
         message: { type: string }
 
     WsPong:
@@ -493,9 +810,9 @@ components:
       description: Any message the server may send.
       oneOf:
         - $ref: "#/components/schemas/WsMessageStart"
+        - $ref: "#/components/schemas/WsGenerationStatus"
+        - $ref: "#/components/schemas/WsTraceStep"
         - $ref: "#/components/schemas/WsMessageDelta"
-        - $ref: "#/components/schemas/WsToolCall"
-        - $ref: "#/components/schemas/WsToolResult"
         - $ref: "#/components/schemas/WsMessageEnd"
         - $ref: "#/components/schemas/WsError"
         - $ref: "#/components/schemas/WsPong"
@@ -503,9 +820,9 @@ components:
         propertyName: type
         mapping:
           message.start: "#/components/schemas/WsMessageStart"
+          generation.status: "#/components/schemas/WsGenerationStatus"
+          trace.step: "#/components/schemas/WsTraceStep"
           message.delta: "#/components/schemas/WsMessageDelta"
-          tool.call: "#/components/schemas/WsToolCall"
-          tool.result: "#/components/schemas/WsToolResult"
           message.end: "#/components/schemas/WsMessageEnd"
           error: "#/components/schemas/WsError"
           pong: "#/components/schemas/WsPong"

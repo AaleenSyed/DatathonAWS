@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>AlphaForge AI</title>
+    <script>
+      // Set the theme and the page language before first paint. src/i18n.tsx keeps `lang` in sync after that.
+      try {
+        var t = localStorage.getItem("theme");
+        if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+      try {
+        var l = localStorage.getItem("lang");
+        if (l !== "en" && l !== "fr") l = (navigator.language || "").toLowerCase().indexOf("fr") === 0 ? "fr" : "en";
+        document.documentElement.lang = l === "fr" ? "fr-CA" : "en-CA";
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

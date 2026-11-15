@@ -1,0 +1,116 @@
+====================================================================================================
+                               ALPHAFORGE AI - WORKER METRICS REPORT
+====================================================================================================
+Generated:  2026-11-15 01:00
+Window:     2021-11-12 to 2026-11-12
+Currency:   CAD (USD assets converted with Bank of Canada FX)
+Note:       simulation for fictional personas only, not financial advice
+
+Summary
+-------
+  Persona | Target | Proposed weight | Verdict
+  --------+--------+-----------------+---------
+  Robert  | TSLA   | 20%             | CONFLICT
+
+What each metric means
+----------------------
+  Total             total return: price change over the whole period, dividends included (adj_close)
+  Ann. ret          annualized return: total return converted to a yearly rate
+  Ann. vol          annualized volatility: how much daily prices swing (daily std x sqrt(252);
+                    crypto x sqrt(365))
+  Max DD            max drawdown: worst fall from a previous peak during the period
+  vs peak           current drawdown: how far the latest price is below the highest price of the
+                    period
+  Label             risk label from vol: <10% Low, 10-20% Moderate, 20-35% High, >35% Very High; one
+                    level higher if max drawdown is worse than -30%
+  Mom. 6m / 12m     momentum: price change over the last 6 / 12 months
+  vs bench 12m      relative strength: 12-month return minus the benchmark's (SPY for U.S., XIU.TO
+                    for Canada)
+  vs 200d avg       latest price compared with its 200-day average (positive = uptrend)
+  vs 12m high       how far the latest price is below its 12-month high
+  Status            CONFLICT = rule broken; FLAG = exceeds a limit on its own or needs review; INFO
+                    = portfolio-level reminder; PASS = within limit; N/A = rule does not apply
+
+====================================================================================================
+                                  MARKET CONTEXT AS OF 2026-11-12
+====================================================================================================
+Historical tendencies, NOT predictions. Monthly series are used only from their assumed publication
+  date (reference month + 21 days).
+
+Business-cycle phase: Mid cycle
+-------------------------------
+  Rule fired: no recession signal, no inversion in the past 12 months, no early-cycle signal
+
+  Signal        | Value    | Reference date | Usable from
+  --------------+----------+----------------+------------
+  SAHMREALTIME  | 0.0      | 2026-09-01     | 2026-10-21
+  RECPROUSM156N | 0.4      | 2026-09-01     | 2026-10-21
+  T10Y2Y        | 0.24     | 2026-11-12     | 2026-11-12
+  INDPRO        | 103.9506 | 2026-09-01     | 2026-10-21
+
+  Sector tilt: Information Technology, Industrials, Communication Services
+
+Fear vs hope: normal
+--------------------
+  Signal                   | Value | Date       | Reading
+  -------------------------+-------+------------+-------------------------------------------------
+  VIX                      | 18.7  | 2026-11-12 | normal (<15 calm, 15-25 normal, >25 fear)
+  High-yield credit spread | 3.2%  | 2026-11-12 | +0.49 pts vs 2026-08-12 -> rising, stress signal
+  Consumer sentiment       | 48.1  | 2026-09-01 | 12-month change -7.0
+
+====================================================================================================
+                                    ROBERT | TSLA | 20% PROPOSED
+====================================================================================================
+
+1) Risk over the full window (2021-11-12 to 2026-11-12, CAD)
+------------------------------------------------------------
+  Asset | Total  | Ann. ret | Ann. vol | Max DD | vs peak | Label
+  ------+--------+----------+----------+--------+---------+----------
+  TSLA  | +30.9% | +5.6%    | 58.9%    | -70.9% | -17.5%  | Very High
+
+  Label reason: vol 58.9% -> Very High
+  Vol in USD: 59.6% (exchange-rate effect on vol: -0.6%)
+
+2) 2022 stress test (2021-12-31 to 2022-12-30, CAD)
+---------------------------------------------------
+  Asset | 2022 return | 2022 max DD | 2022 vol | Label
+  ------+-------------+-------------+----------+----------
+  TSLA  | -62.6%      | -70.7%      | 65.7%    | Very High
+
+3) Momentum and trend (as of 2026-11-12, CAD)
+---------------------------------------------
+  Asset | Bench. | Mom. 6m | Mom. 12m | vs bench 12m | vs 200d avg | vs 12m high | Trend
+  ------+--------+---------+----------+--------------+-------------+-------------+-----------
+  TSLA  | SPY    | -4.7%   | -6.1%    | -20.0%       | +6.5%       | -15.9%      | above 200d
+
+4) Suitability for Robert
+-------------------------
+  Rule                     | Limit  | Value       | Status
+  -------------------------+--------+-------------+---------
+  crypto_max               | 0.0%   | 0.0%        | PASS
+  single_stock_max         | 10.0%  | 20.0%       | CONFLICT
+  vol_max                  | 10.0%  | TSLA 58.9%  | FLAG
+  bonds_cash_min           | 50.0%  | -           | INFO
+  stress_2022_max_drawdown | -15.0% | TSLA -70.7% | FLAG
+
+  Why:
+  - crypto_max: target holds no crypto
+  - single_stock_max: single stock TSLA: proposed 20.0% vs cap 10.0% -> above cap
+  - vol_max: annualized vol (2021-11-12 to 2026-11-12, CAD): TSLA 58.9% vs persona limit 10.0%: on
+    its own this exceeds the limit, so it could only be a small part of the portfolio
+  - bonds_cash_min: portfolio still needs at least 50.0% in bonds/cash alongside this target
+  - stress_2022_max_drawdown: max drawdown in 2022 (CAD): TSLA -70.7% vs persona limit -15.0%: on
+    its own this exceeds the limit, so it could only be a small part of the portfolio
+
+  >>> OVERALL VERDICT: CONFLICT   (conflict 1, flag 2, info 1, pass 1)
+
+5) Sources and warnings
+-----------------------
+  Source: Yahoo Finance via the open-source yfinance Python library (https://finance.yahoo.com,
+    retrieved 2026-11-13); FX: Bank of Canada Valet API series FXUSDCAD
+    (https://www.bankofcanada.ca/valet/observations/FXUSDCAD/json, retrieved 2026-11-13)
+  Warning: TSLA: only 251 daily returns (< 252), metrics less reliable
+
+====================================================================================================
+                                           END OF REPORT
+====================================================================================================

@@ -40,5 +40,5 @@ STRICT RULES
 - Talk about the persona ("for Robert's profile ..."), never give personal advice to the real user, never
   tell anyone to buy or sell, never promise or predict returns.
 - If the reviewer note says the analysis is incomplete, say so in one sentence near the top.
-- End with exactly this line:
-  _Educational simulation for a fictional persona ({{PERSONA_NAME}}). Not personalized financial advice._
+
+{{LANGUAGE_RULES}}

@@ -5,3 +5,11 @@ python-dotenv>=1.2
 pytest>=9.2
 strands-agents>=1.65
 pydantic>=2.14
+# web backend (server/)
+fastapi>=0.163
+uvicorn[standard]>=0.54
+pyjwt[crypto]>=2.15
+# tests: contract (OpenAPI schema) checks and the FastAPI test client
+pyyaml>=6.0
+jsonschema>=4.26
+httpx>=0.28

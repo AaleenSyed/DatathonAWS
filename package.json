@@ -5,7 +5,10 @@
     "contracts:lint": "spectral lint contracts/openapi.yaml",
     "client:generate": "pnpm --filter @alphaforge/api-client generate",
     "client:build": "pnpm --filter @alphaforge/api-client build",
-    "client:test": "pnpm --filter @alphaforge/api-client test"
+    "client:test": "pnpm --filter @alphaforge/api-client test",
+    "web:dev": "pnpm client:build && pnpm --filter alphaforge-web dev",
+    "web:build": "pnpm client:build && pnpm --filter alphaforge-web build",
+    "web:typecheck": "pnpm client:build && pnpm --filter alphaforge-web typecheck"
   },
   "devDependencies": {
     "@stoplight/spectral-cli": "^6.14.0"
