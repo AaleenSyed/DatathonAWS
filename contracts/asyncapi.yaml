@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: AlphaForge AI Chat WebSocket
-  version: 0.2.0
+  version: 0.2.1
   description: |
     Streaming chat protocol shared by web and mobile clients.
     All payload schemas live in `openapi.yaml` (`components/schemas/Ws*`) and are
@@ -13,9 +13,9 @@ info:
 
     **Flow:** the client sends `message.send`, `message.edit` or `message.regenerate`.
     The server answers with `message.start`, then any number of `generation.status` and
-    `trace.step` (one per run-trace step, live), then one `message.delta` (the whole answer)
-    and `message.end` (the message with its `trace` and `final` explanation).
-    A run takes about a minute; one run at a time per conversation (`busy` error otherwise).
+    `trace.step` (one per run-trace step, live), then `message.delta` events (the answer text as it is
+    written; `reset: true` replaces the text so far) and `message.end` (the message with its `trace` and
+    `final` explanation). A run takes 20-30 seconds; one run at a time per conversation (`busy` error otherwise).
     `generation.cancel` ends the message at once with status `cancelled`; the result of the run is discarded.
     Events of a conversation go to every open socket of the same user (reconnects keep receiving them).
     Send `ping` every 25 seconds; the server answers `pong`.

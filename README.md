@@ -37,10 +37,10 @@ See `CLAUDE.md` (pipeline) and `AGENT_GUARDRAILS.md` (guardrails per agent). Age
 | `workers/risk_analyst.py` | Asset/sector return, vol, drawdown, correlation, 2022 stress test, risk labels |
 | `workers/market_context.py` | Business-cycle phase (FRED rules), fear vs hope, sector momentum/trend/relative strength |
 | `workers/suitability.py` | Checks a ticker or sector against a persona's limits: pass/info/flag/conflict per rule |
-| `pipeline.py` | ChatSession: boss (Strands agent, Sonnet 5 on Bedrock) → worker tools → reviewer (max 2 retries) → presenter → answer check → trace |
-| `agent_tools.py` | Workers wrapped as Strands `@tool`; persona and dates fixed by the session; every call logged to the trace |
+| `pipeline.py` | ChatSession: boss (Strands agent, Haiku 4.5 on Bedrock, 2 turns) → worker tools → reviewer (max 2 retries) → presenter (streamed) → answer check (max 1 retry) → trace with per-step durations |
+| `agent_tools.py` | Workers wrapped as Strands `@tool` (coarse `assess_target`, `rank_sectors_for_persona`, `market_snapshot` + the fine tools); the boss gets compact results, the trace keeps the full output; persona and dates fixed by the session |
 | `reviewer.py` | Deterministic checks: work coverage, sources, periods, persona limits, ESG check, no look-ahead; every answer number must be in the worker results |
-| `presenter.py` | Final answer with Sonnet 5 (Bedrock Converse), claims tagged `[fact: step N]` / `[assumption]` / `[scenario]` |
+| `presenter.py` | Final answer with Sonnet 4.6 (Bedrock ConverseStream, text streamed to the UI), claims tagged `[fact: step N]` / `[assumption]` / `[scenario]` |
 | `run_trace.py` | Run trace saved to `runs/` and `s3://$DATA_BUCKET/runs/` |
 | `chat.py` | Terminal chat: pick a persona, multi-turn Q&A, `/trace` shows the steps |
 | `prompts/` | Boss and presenter system prompts |

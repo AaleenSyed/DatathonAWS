@@ -68,7 +68,7 @@ Not tested: a real Bedrock run through the UI, and the workshop proxy URL (`VITE
   profile table shows Consumer Staples' 2022 drawdown (-13.7%) from the suitability step.
 - Server: conversations are in memory (lost on restart; traces stay in `runs/` and S3). One run at a time
   (`agent_tools.CONTEXT` is global; others show "queued"). Cancel discards the result but the run finishes in
-  the background. The answer arrives as one `message.delta` (the presenter does not stream).
+  the background. The Bedrock presenter streams its text as many `message.delta` events (`reset: true` replaces a rejected draft); the demo agent sends one.
 - Auth: Cognito verification is implemented and tested, but no user pool exists and the frontend has no
   sign-in yet, so the server runs in **dev mode** (any token). Do not expose it publicly in dev mode.
 

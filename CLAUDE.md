@@ -55,7 +55,7 @@ Everything is framed as an educational simulation for a fictional persona, never
 ## Agent pipeline (boss → workers → reviewer → presenter)
 ```
 User (persona + request)
-  → BOSS (LLM, Sonnet 5): builds a plan (tickers, checks, order), dispatches workers
+  → BOSS (LLM, Haiku 4.5): builds a plan in 2 turns (coarse tools in parallel, then the plan)
   → WORKERS (deterministic Python scripts, NOT LLMs):
        data_retriever   → prices in CAD, FX, macro, asset info + source + period
        risk_analyst     → per asset AND per sector: return, vol, max drawdown, correlation,
@@ -68,7 +68,7 @@ User (persona + request)
        ethics (LATER)   → curated esg_evidence.csv + AgentCore Web Search, cited URLs
   → REVIEWER: checks the work; on FAIL sends the task back to the worker/boss with reasons
        (max 2 retries, then proceed with an explicit "incomplete" note)
-  → PRESENTER (LLM, Sonnet 5): writes the final answer using ONLY worker outputs
+  → PRESENTER (LLM, Sonnet 4.6, streamed): writes the final answer using ONLY worker outputs
 ```
 - Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the
   chat history (multi-turn) for the session.
@@ -178,7 +178,7 @@ Each phase is only done when its tests pass and the results are sanity-checked:
    workers/market_context.py (cycle phase, sector momentum/trend, fear vs hope) using
    data/fetch_fred_extra.py. Tests for each persona and for each cycle rule.
 3. **Chat pipeline**: Strands boss agent with workers as @tool functions, reviewer.py with the
-   retry loop (max 2), presenter (Sonnet 5), run trace saved locally + to S3, and chat.py: a
+   retry loop (max 2), presenter, run trace saved locally + to S3, and chat.py: a
    terminal chatbot (pick persona, then multi-turn Q&A). Verify on the demo questions below.
 4. **Guardrail**: attach the Bedrock Guardrail (ID/version from .env) to LLM calls; test that
    persona questions pass and real-user advice / trade requests are blocked.
@@ -222,15 +222,16 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
   (Fable, Sonnet 5.5, Haiku 5.5). This applies no matter which AI assistant writes the code.
 - Bedrock via boto3 Converse API (never InvokeModel). Use `global.` inference profile IDs.
 - Models: default `global.amazon.nova-2-lite-v1:0` for cheap tests;
-  `global.anthropic.claude-sonnet-5` for the agent; `global.anthropic.claude-haiku-4-5-20251001-v1:0`
-  for structured output. NOT available: Sonnet 5.5, Haiku 5.5, Fable.
+  boss `global.anthropic.claude-haiku-4-5-20251001-v1:0` (BOSS_MODEL; fastest model with every benchmark
+  plan right, see scripts/benchmark.py); presenter `global.anthropic.claude-sonnet-4-6` (PRESENTER_MODEL,
+  streamed, maxTokens 1500); `global.anthropic.claude-sonnet-5` also works for both. NOT available: Sonnet 5.5, Haiku 5.5, Fable.
 - Sonnet 5 / Opus 5 / Opus 5.5: do NOT pass `temperature` or `topP`; set `maxTokens` ≥ 1000
   (they reason first; too small → empty text, stopReason `max_tokens`).
 - Never read `content[0]["text"]`. Always: `"".join(b["text"] for b in blocks if "text" in b)`.
 - Structured output: `outputConfig.textFormat.structure.jsonSchema.schema` is a JSON *string*
   (`json.dumps`), `additionalProperties: false` required. Nova 2 Lite does not support it.
 - boto3 client config: `Config(retries={"max_attempts": 5, "mode": "adaptive"})`.
-- Strands: always pass the model explicitly; cap loops with `agent(..., limits={"turns": 8})`.
+- Strands: always pass the model explicitly; cap loops with `agent(..., limits={"turns": 4})`.
   Tool names must match `^[a-zA-Z0-9_-]+$`. Tools return `{"erreur": ...}`-style dicts on failure,
   never raise.
 - No Bedrock Agents Classic, no Bedrock Flows, no AgentCore deploy unless everything else works.

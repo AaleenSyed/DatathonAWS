@@ -4,10 +4,12 @@
     AGENT_MODE=demo uvicorn server.app:app      # scripted agent, real worker numbers, no LLM cost
 """
 import asyncio
+import contextlib
 import functools
 import json
 import logging
 import math
+import threading
 from typing import Literal
 
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
@@ -176,10 +178,18 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
     tickets = TicketStore(settings.ticket_ttl_seconds)
     store, hub = Store(), Hub()
     running: dict[str, Generation] = {}
-    run = runner or (lambda persona, question, history, lang, on_step, session_id: agent.run_turn(
-        persona, question, history, lang, on_step, mode=settings.agent_mode, session_id=session_id))
+    run = runner or (lambda persona, question, history, lang, on_step, session_id, on_delta=None: agent.run_turn(
+        persona, question, history, lang, on_step, mode=settings.agent_mode, session_id=session_id,
+        on_delta=on_delta))
+    streams = agent.accepts_delta(run)
 
-    app = FastAPI(title="AlphaForge AI Chat API", version="0.2.0")
+    @contextlib.asynccontextmanager
+    async def lifespan(app):
+        if settings.warm_up:  # fill the tool cache so the first question is fast (background, ~5 s)
+            threading.Thread(target=agent.warm_up, daemon=True, name="warm-up").start()
+        yield
+
+    app = FastAPI(title="AlphaForge AI Chat API", version="0.2.1", lifespan=lifespan)
     app.state.store, app.state.running, app.state.tickets = store, running, tickets
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"],
                        allow_headers=["*"], allow_credentials=False)
@@ -324,10 +334,30 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
         def on_step(step):  # called from the pipeline thread
             loop.call_soon_threadsafe(on_step_loop, step)
 
+        shown = []  # text already sent as message.delta (streamed answer)
+
+        def on_delta_loop(chunk, reset):
+            if gen.cancelled:
+                return
+            if reset:
+                shown.clear()
+            shown.append(chunk)
+            gen.assistant["content"] = "".join(shown)
+            event = {"type": "message.delta", "conversationId": gen.conv_id, "messageId": gen.assistant["id"],
+                     "delta": chunk}
+            if reset:
+                event["reset"] = True
+            hub.to_user(gen.user_id, event)
+            set_stage(gen, "writing")
+
+        def on_delta(chunk, reset=False):  # called from the pipeline thread
+            loop.call_soon_threadsafe(on_delta_loop, chunk, reset)
+
         set_stage(gen, "queued" if agent.RUN_LOCK.locked() else "planning")
         try:
+            extra = {"on_delta": on_delta} if streams else {}
             result = await loop.run_in_executor(None, functools.partial(
-                run, conv["personaId"], user_msg["content"], history, lang, on_step, conv["id"][:8]))
+                run, conv["personaId"], user_msg["content"], history, lang, on_step, conv["id"][:8], **extra))
         except Exception as e:
             log.exception("generation failed")
             if gen.cancelled:
@@ -351,8 +381,17 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
                              trace=[to_trace_step(s) for s in result["trace"].steps])
         if conv["id"] in store.conversations:
             store.touch(conv)
-        hub.to_user(gen.user_id, {"type": "message.delta", "conversationId": gen.conv_id,
-                                  "messageId": gen.assistant["id"], "delta": result["answer"]})
+        await asyncio.sleep(0)  # deliver deltas still queued from the pipeline thread first
+        streamed = "".join(shown)
+        if streamed != result["answer"]:
+            # Not streamed (demo agent), or the pipeline added text (disclaimer, notes): send the final text.
+            # A streamed prefix only needs the rest; anything else replaces what was shown.
+            if streamed and result["answer"].startswith(streamed):
+                event = {"delta": result["answer"][len(streamed):]}
+            else:
+                event = {"delta": result["answer"], **({"reset": True} if streamed else {})}
+            hub.to_user(gen.user_id, {"type": "message.delta", "conversationId": gen.conv_id,
+                                      "messageId": gen.assistant["id"], **event})
         set_stage(gen, "done")
         end_message(gen)
 

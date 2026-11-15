@@ -12,7 +12,7 @@ import { api, createChatSocket } from "./api";
 import { Answer } from "./Answer";
 import { AppBar } from "./AppBar";
 import { Evidence, Recommended } from "./Explainer";
-import { useHealth } from "./health";
+import { refreshHealth, useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
 import { personaById } from "./personas";
 import { Trace } from "./Trace";
@@ -110,6 +110,11 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
 
   // The server keeps running while the socket is down. When it is back, reload the messages instead of
   // marking the answer as failed (events sent during the gap are lost).
+  // The backend may have restarted in another mode (demo / Bedrock): re-check /health on every (re)connect.
+  useEffect(() => {
+    if (status === "open") void refreshHealth();
+  }, [status]);
+
   useEffect(() => {
     if (status === "reconnecting") lostConnection.current = true;
     if (status !== "open" || !lostConnection.current || !conversationId) return;
@@ -486,7 +491,8 @@ function reduce(prev: Message[], m: WsServerMessage): Message[] {
     case "trace.step":
       return prev.map((x) => (x.id === m.messageId ? { ...x, trace: upsertStep(x.trace, m.step) } : x));
     case "message.delta":
-      return prev.map((x) => (x.id === m.messageId ? { ...x, content: x.content + m.delta } : x));
+      // Streamed text; `reset` = the reviewer asked for a rewrite (or the server replaced the text)
+      return prev.map((x) => (x.id === m.messageId ? { ...x, content: (m.reset ? "" : x.content) + m.delta } : x));
     case "message.end":
       return prev.some((x) => x.id === m.message.id)
         ? prev.map((x) => (x.id === m.message.id ? m.message : x))

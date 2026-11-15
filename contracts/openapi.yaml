@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AlphaForge AI Chat API
-  version: 0.2.0
+  version: 0.2.1
   description: |
     REST API for the AlphaForge AI chat assistant (personas, conversations, history, auth helpers).
     Streaming chat runs over WebSocket and is described in `asyncapi.yaml`.
@@ -772,13 +772,17 @@ components:
 
     WsMessageDelta:
       type: object
-      description: Text to append. The presenter writes the whole answer at once, so it arrives as one delta.
+      description: |
+        Text to append to the message, streamed as the presenter writes it (many small deltas). The demo agent
+        sends the whole answer as one delta. With `reset: true`, first discard the text received so far
+        (the reviewer rejected a draft, or the pipeline rewrote the text), then append `delta`.
       required: [type, conversationId, messageId, delta]
       properties:
         type: { const: message.delta }
         conversationId: { type: string, format: uuid }
         messageId: { type: string, format: uuid }
         delta: { type: string, description: Text chunk to append }
+        reset: { type: boolean, description: "Discard the text received so far before appending delta" }
 
     WsMessageEnd:
       type: object

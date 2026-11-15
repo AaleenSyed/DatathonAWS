@@ -25,7 +25,7 @@ possible; prompts are the second line, not the only one.
 | **No facts from memory.** Every value (price, return, rate, date, ticker, sector, source, URL) comes from `data/` files or a script/worker that was run, never from an agent's own knowledge. Only exception: rules and thresholds written in `CLAUDE.md` / this file, cited. Missing value → "not available" + reason, never a guess. | Workers read only data/scripts; presenter uses only trace numbers; reviewer checks every number exists in the trace; tests compute expectations from data or synthetic series |
 | Every step is logged to the run trace (step, actor, input, output summary, timestamp). | Pipeline code; trace saved locally + `s3://$DATA_BUCKET/runs/` |
 | No credentials in code, prompts, traces, or logs. | `.gitignore`, `git status` before commit; traces never include env vars |
-| Bounded execution: Strands `limits={"turns": 8}`, reviewer max 2 retries, boto3 adaptive retries (5). | Code |
+| Bounded execution: Strands `limits={"turns": 4}`, reviewer max 2 retries, answer check max 1 retry, boto3 adaptive retries (5). | Code |
 
 ---
 
@@ -45,7 +45,7 @@ possible; prompts are the second line, not the only one.
 
 ---
 
-## 2. Boss (LLM: Sonnet 5, Strands Agent)
+## 2. Boss (LLM: Haiku 4.5, Strands Agent)
 
 **Role:** understand the question, build a plan (tickers, sectors, checks, order), call workers, keep
 multi-turn chat context.
@@ -160,7 +160,7 @@ with an explicit "incomplete analysis" note shown to the user and logged in the 
 
 ---
 
-## 5. Presenter (LLM: Sonnet 5)
+## 5. Presenter (LLM: Sonnet 4.6, streamed)
 
 **Role:** write the final answer from worker outputs only.
 

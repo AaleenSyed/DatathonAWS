@@ -73,7 +73,8 @@ redirect to `/chat`. Each chat page creates a new conversation (conversations li
 2. `generation.status` updates the stage line ("The workers are computing the numbers (7 steps)…"); stages are
    `queued, planning, analyzing, reviewing, writing, checking, done`.
 3. `trace.step` events are upserted by `step.step` into `message.trace`, so the trace panel fills live.
-4. `message.delta` carries the whole answer at once (the presenter does not stream); `message.end` replaces the
+4. `message.delta` events stream the answer as it is written (`reset: true` = start the text again; the demo
+   agent sends one delta); `message.end` replaces the
    message with the final one, including `final` (the `ExplainerPayload`).
 
 Claim tags written by the presenter are rendered as chips: `[fact: step 3, 7]` → "Fact · steps 3, 7",

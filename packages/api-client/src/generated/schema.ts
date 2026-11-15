@@ -664,7 +664,11 @@ export interface components {
             messageId: string;
             step: components["schemas"]["TraceStep"];
         };
-        /** @description Text to append. The presenter writes the whole answer at once, so it arrives as one delta. */
+        /**
+         * @description Text to append to the message, streamed as the presenter writes it (many small deltas). The demo agent
+         *     sends the whole answer as one delta. With `reset: true`, first discard the text received so far
+         *     (the reviewer rejected a draft, or the pipeline rewrote the text), then append `delta`.
+         */
         WsMessageDelta: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -677,6 +681,8 @@ export interface components {
             messageId: string;
             /** @description Text chunk to append */
             delta: string;
+            /** @description Discard the text received so far before appending delta */
+            reset?: boolean;
         };
         WsMessageEnd: {
             /**

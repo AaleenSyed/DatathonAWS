@@ -4,6 +4,7 @@ AGENT_MODE        bedrock (default) | demo  (demo = scripted boss/presenter, no 
 COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID   set both to verify Cognito ID tokens; otherwise dev auth
 COGNITO_REGION    default us-east-1
 CORS_ORIGINS      comma-separated list, default "*"
+WARM_UP           1 (default) = precompute the persona sector rankings at start-up; 0 = off
 """
 import os
 from dataclasses import dataclass, field
@@ -17,6 +18,7 @@ class Settings:
     cognito_region: str = "us-east-1"
     cors_origins: list[str] = field(default_factory=lambda: ["*"])
     ticket_ttl_seconds: int = 30
+    warm_up: bool = False  # load_settings() turns it on (WARM_UP=1 by default); tests build Settings() directly
 
     @property
     def auth_mode(self) -> str:
@@ -30,4 +32,5 @@ def load_settings() -> Settings:
                     cognito_pool_id=os.getenv("COGNITO_USER_POOL_ID") or None,
                     cognito_client_id=os.getenv("COGNITO_CLIENT_ID") or None,
                     cognito_region=os.getenv("COGNITO_REGION", "us-east-1"),
-                    cors_origins=origins or ["*"])
+                    cors_origins=origins or ["*"],
+                    warm_up=os.getenv("WARM_UP", "1") != "0")
