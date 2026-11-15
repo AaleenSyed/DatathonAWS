@@ -151,8 +151,11 @@ labelled `assumption`, with the signal values and dates that triggered it.
 The starter dataset has NO ESG/ethics data (only the ESGV ticker and `sector`). Energy-sector
 names (ENB.TO, CNQ.TO, XOM) are candidates for review. Ethics worker comes later (Tier 2).
 
-## UI
-Not now. For now the chatbot runs in the terminal (`chat.py`). Streamlit comes in phase 6.
+## UI (decided Nov 15: React, not Streamlit)
+React + Vite app in `apps/web/` (Canadian French and English, switchable) on top of a FastAPI backend in
+`server/` that serves the pipeline over the contract in `contracts/` (REST + WebSocket). **The backend owns the
+data shapes**: the frontend adapts to what the pipeline produces; change `contracts/openapi.yaml` first, then
+regenerate the client (`pnpm client:build`). Terminal chat (`chat.py`) still works. Status: see `HANDOFF.md`.
 
 ## Testing (required for EVERY phase, before moving on)
 Each phase is only done when its tests pass and the results are sanity-checked:
@@ -182,7 +185,8 @@ Each phase is only done when its tests pass and the results are sanity-checked:
 5. **News + ethics workers**: AgentCore Web Search gateway; news_sentiment worker (Haiku
    structured output, fear/neutral/hope per sector); ethics worker using data/esg_evidence.csv
    + web search, flags Energy-sector names for Mateo with cited evidence.
-6. **UI**: Streamlit chat UI on top of the pipeline (persona picker, chat, charts, trace panel).
+6. **UI**: FastAPI backend (`server/`, done) + React app (`apps/web/`, in progress): persona picker, chat,
+   charts, trace panel, EN/FR. See `HANDOFF.md`.
 7. **Docs**: README (sources, licenses, assumptions, limitations), technical doc, one-pager.
 
 Demo questions (must work by the end of phase 3):
@@ -249,6 +253,7 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
 ## Commands
 - Install: `pip install -r requirements.txt`
 - Chat (terminal, phases 3–5): `python chat.py`
-- UI (phase 6): `streamlit run app.py --server.address localhost`
+- Backend (phase 6): `uvicorn server.app:app --port 8000` (`AGENT_MODE=demo` = no LLM, real numbers)
+- Web UI (phase 6): `pnpm install && pnpm web:dev` (from the repo root)
 - Test: `python -m pytest -q`
  

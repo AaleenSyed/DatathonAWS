@@ -29,19 +29,28 @@ def _summary(output) -> str:
 
 
 class RunTrace:
-    def __init__(self, persona: str, question: str, as_of: str, turn: int = 1, session_id: str | None = None):
+    def __init__(self, persona: str, question: str, as_of: str, turn: int = 1, session_id: str | None = None,
+                 listener=None, language: str = "en"):
+        """listener: optional callable(step_dict) called after every step (e.g. to stream it to a UI)."""
         self.run_id = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:6]}"
         self.meta = {"run_id": self.run_id, "session_id": session_id, "turn": turn, "persona": persona,
-                     "question": question, "analysis_date": as_of, "started": _now()}
+                     "question": question, "analysis_date": as_of, "language": language, "started": _now()}
         self.steps: list[dict] = []
         self._lock = threading.Lock()  # Strands may run tools concurrently; step numbers must stay unique
+        self._listener = listener
 
     def add(self, actor: str, action: str, input=None, output=None) -> int:
         """Append a step and return its number (1-based), which answers cite as [fact: step N]."""
         with self._lock:
             n = len(self.steps) + 1
-            self.steps.append({"step": n, "actor": actor, "action": action, "input": input, "output": output,
-                               "output_summary": _summary(output), "timestamp": _now()})
+            step = {"step": n, "actor": actor, "action": action, "input": input, "output": output,
+                    "output_summary": _summary(output), "timestamp": _now()}
+            self.steps.append(step)
+        if self._listener:
+            try:
+                self._listener(dict(step))
+            except Exception:  # a broken listener must never break the analysis
+                pass
         return n
 
     def worker_steps(self) -> list[dict]:

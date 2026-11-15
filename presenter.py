@@ -8,6 +8,8 @@ from pathlib import Path
 import boto3
 from botocore.config import Config
 
+from texts import lang_or_default, text
+
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 PRESENTER_MODEL = os.getenv("PRESENTER_MODEL", "global.anthropic.claude-sonnet-5")
 MAX_TOKENS = 6000  # Sonnet 5 reasons first; too small -> empty text (CLAUDE.md)
@@ -33,9 +35,18 @@ def build_input(persona: dict, question: str, history: list, trace, plan: dict, 
     return text
 
 
+def system_prompt(persona: dict, lang: str = "en") -> str:
+    """presenter_system.txt with the language rules (prompts/lang_<code>.txt) and the closing disclaimer."""
+    lang = lang_or_default(lang)
+    rules = (PROMPTS / f"lang_{lang}.txt").read_text(encoding="utf-8").replace(
+        "{{DISCLAIMER}}", text(lang, "disclaimer", name=persona["name"]))
+    return ((PROMPTS / "presenter_system.txt").read_text(encoding="utf-8")
+            .replace("{{PERSONA_NAME}}", persona["name"]).replace("{{LANGUAGE_RULES}}", rules))
+
+
 def present(persona: dict, question: str, history: list, trace, plan: dict, notes: list,
-            feedback: str | None = None) -> str:
-    system = (PROMPTS / "presenter_system.txt").read_text(encoding="utf-8").replace("{{PERSONA_NAME}}", persona["name"])
+            feedback: str | None = None, lang: str = "en") -> str:
+    system = system_prompt(persona, lang)
     r = _bedrock().converse(
         modelId=PRESENTER_MODEL,
         system=[{"text": system}],

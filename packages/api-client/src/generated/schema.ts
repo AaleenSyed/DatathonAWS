@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness check (no auth) */
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -37,6 +54,23 @@ export interface paths {
          *     `wss://host/ws?ticket=<ticket>`.
          */
         post: operations["createWsTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/personas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The fictional investor personas and their assumed limits (from personas.py) */
+        get: operations["listPersonas"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -78,7 +112,7 @@ export interface paths {
         delete: operations["deleteConversation"];
         options?: never;
         head?: never;
-        /** Rename a conversation or switch the active branch */
+        /** Rename a conversation, switch the active branch or change the answer language */
         patch: operations["updateConversation"];
         trace?: never;
     };
@@ -120,6 +154,17 @@ export interface components {
             code: string;
             message: string;
         };
+        Health: {
+            /** @constant */
+            status: "ok";
+            /**
+             * @description `demo` = scripted boss and presenter (no LLM) for UI work; numbers still come from the real workers.
+             * @enum {string}
+             */
+            agentMode: "bedrock" | "demo";
+            /** @enum {string} */
+            authMode: "cognito" | "dev";
+        };
         User: {
             /** @description Cognito `sub` claim */
             id: string;
@@ -132,15 +177,62 @@ export interface components {
             expiresAt: string;
         };
         /**
+         * @description Answer language. `fr` = Canadian French.
+         * @enum {string}
+         */
+        Language: "en" | "fr";
+        /**
          * @description Fictional investor persona the conversation is about.
          * @enum {string}
          */
         PersonaId: "amira" | "mateo" | "robert";
+        /** @description One persona from personas.py. Profiles are fictional; numeric limits are team assumptions. */
+        Persona: {
+            id: components["schemas"]["PersonaId"];
+            name: string;
+            age: number;
+            occupation: string;
+            /**
+             * @example high
+             * @example moderate
+             * @example low-moderate
+             */
+            riskTolerance: string;
+            /**
+             * @example 15+
+             * @example 8-12
+             * @example 3-5
+             */
+            horizonYears: string;
+            goal: string;
+            preferences: string[];
+            /**
+             * @description Rule code -> limit, as in personas.py. Fractions (0.15 = 15%), except `min_asset_classes` (a count)
+             *     and `sector_max` (sector name -> fraction).
+             * @example {
+             *       "crypto_max": 0.15,
+             *       "single_stock_max": 0.15,
+             *       "sector_max": {
+             *         "Information Technology": 0.5
+             *       },
+             *       "min_asset_classes": 3
+             *     }
+             */
+            limits: {
+                [key: string]: unknown;
+            };
+            esgReviewTickers: string[];
+            source: string;
+        };
+        PersonaList: {
+            items: components["schemas"]["Persona"][];
+        };
         Conversation: {
             /** Format: uuid */
             id: string;
             title: string;
             personaId: components["schemas"]["PersonaId"];
+            language: components["schemas"]["Language"];
             /**
              * Format: uuid
              * @description Last message of the branch currently shown. Null while empty.
@@ -158,6 +250,7 @@ export interface components {
         CreateConversationRequest: {
             personaId: components["schemas"]["PersonaId"];
             title?: string;
+            language?: components["schemas"]["Language"];
         };
         UpdateConversationRequest: {
             title?: string;
@@ -166,6 +259,7 @@ export interface components {
              * @description Switch to another branch by selecting its last message.
              */
             activeLeafId?: string;
+            language?: components["schemas"]["Language"];
         };
         MessageList: {
             items: components["schemas"]["Message"][];
@@ -185,55 +279,275 @@ export interface components {
              */
             parentId: string | null;
             role: components["schemas"]["MessageRole"];
-            /** @description Plain or markdown text */
+            /**
+             * @description Markdown. Assistant answers carry claim tags written by the presenter:
+             *     `[fact: step N]` (N = TraceStep.step, several allowed: `[fact: step 3, 7]`), `[assumption]`, `[scenario]`.
+             */
             content: string;
             status: components["schemas"]["MessageStatus"];
-            toolCalls: components["schemas"]["ToolCall"][];
+            language: components["schemas"]["Language"];
+            /** @description Every step of the run (assistant messages only; empty for user messages). */
+            trace: components["schemas"]["TraceStep"][];
             /** @description Structured explanation attached to completed assistant messages. */
-            final?: components["schemas"]["ExplainerPayload"] | null;
+            final: components["schemas"]["ExplainerPayload"] | null;
             /** Format: date-time */
             createdAt: string;
         };
-        ToolCall: {
-            /** @description Trace step id; claims reference it */
-            id: string;
+        /** @description One step of the run trace (run_trace.py), the explainability evidence. */
+        TraceStep: {
+            /** @description Number cited by `[fact: step N]`. */
+            step: number;
+            /**
+             * @description Who did it.
+             * @example user
+             * @example boss
+             * @example worker:risk_analyst
+             * @example worker:suitability
+             * @example worker:market_context
+             * @example worker:data_retriever
+             * @example reviewer
+             * @example presenter
+             * @example pipeline
+             */
+            actor: string;
+            /**
+             * @example question
+             * @example plan
+             * @example analyze_asset
+             * @example analyze_sector
+             * @example stress_test_2022
+             * @example check_suitability
+             * @example cycle_phase
+             * @example review_work
+             * @example write_answer
+             * @example check_answer
+             * @example final_answer
+             */
+            action: string;
+            /** @description Arguments of the step (any JSON). */
+            input: unknown;
+            /**
+             * @description Result (any JSON). Worker results follow AGENT_GUARDRAILS.md: `status`, `data`, `source`, `period`,
+             *     `currency`, `warnings` (or `status: error` + `error`).
+             */
+            output: unknown;
+            outputSummary: string;
+            /** Format: date-time */
+            timestamp: string;
+        };
+        /**
+         * @description conflict = hard rule broken at the proposed weight; flag = above a portfolio-level limit on its own, or needs
+         *     review; info = portfolio-level reminder; pass = within the limit; not_applicable; not_evaluated = data missing.
+         * @enum {string}
+         */
+        SuitabilityStatus: "conflict" | "flag" | "info" | "pass" | "not_applicable" | "not_evaluated";
+        /** @enum {string} */
+        SuitabilityOverall: "conflict" | "flag" | "incomplete" | "pass";
+        SuitabilityCheck: {
+            /**
+             * @example crypto_max
+             * @example single_stock_max
+             * @example sector_max
+             * @example min_asset_classes
+             * @example vol_max
+             * @example bonds_min
+             * @example bonds_cash_min
+             * @example stress_2022_max_drawdown
+             * @example esg_review
+             */
+            rule: string;
+            status: components["schemas"]["SuitabilityStatus"];
+            /** @description Fraction, count, object (sector -> fraction) or list (ESG tickers), as in personas.py. */
+            limit: unknown;
+            /** @description Fraction, count, object (ticker -> fraction), list or null. */
+            value: unknown;
+            /** @description Written by the suitability worker (English). */
+            explanation: string;
+        };
+        SuitabilityResult: {
+            target: string;
+            targetKind: components["schemas"]["TargetKind"];
+            /** @description Fraction of the portfolio, e.g. 0.5 */
+            proposedWeight: number | null;
+            overall: components["schemas"]["SuitabilityOverall"];
+            checks: components["schemas"]["SuitabilityCheck"][];
+            traceStep: number;
+        };
+        /**
+         * @description industry = all-equity sector group (equal-weight basket); building_block = ETFs or crypto (no blended figure).
+         * @enum {string}
+         */
+        TargetKind: "asset" | "industry" | "building_block";
+        Member: {
+            ticker: string;
             name: string;
-            arguments: {
-                [key: string]: unknown;
-            };
-            /** @enum {string} */
-            status: "running" | "ok" | "error";
-            /** @description Tool output. By convention includes `source` and the date range actually used. */
-            result?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @example equity
+             * @example etf_bond
+             * @example etf_equity
+             * @example etf_commodity
+             * @example crypto
+             */
+            assetClass: string;
+        };
+        MetricRange: {
+            min: number;
+            minTicker: string;
+            max: number;
+            maxTicker: string;
+        };
+        /** @description A requested target or a recommended sector group, with its key numbers from the trace. */
+        TargetSummary: {
+            name: string;
+            kind: components["schemas"]["TargetKind"];
+            members: components["schemas"]["Member"][];
+            /**
+             * @example Low
+             * @example Moderate
+             * @example High
+             * @example Very High
+             */
+            riskLabel: string | null;
+            annualizedVol: number | null;
+            maxDrawdown: number | null;
+            totalReturn: number | null;
+            /** @description Building blocks only (no blended figure) - min and max over the members. */
+            range: {
+                annualizedVol: components["schemas"]["MetricRange"];
+                maxDrawdown: components["schemas"]["MetricRange"];
+                totalReturn: components["schemas"]["MetricRange"];
+            } | null;
+            suitabilityOverall: components["schemas"]["SuitabilityOverall"] | null;
+            momentum12m: number | null;
+            /**
+             * @example above 200-day average
+             * @example below 200-day average
+             */
+            trend: string | null;
+            period: components["schemas"]["Period"] | null;
+            currency: string | null;
+            traceSteps: number[];
+        };
+        Period: {
+            /** Format: date */
+            start: string;
+            /** Format: date */
+            end: string;
+        };
+        /** @description One bar in the risk charts. Building blocks are split into one row per member. */
+        RiskRow: {
+            /** @description Ticker */
+            name: string;
+            /** @description The requested target or recommended sector this row belongs to */
+            group: string;
+            kind: components["schemas"]["TargetKind"];
+            annualizedVol: number | null;
+            maxDrawdown: number | null;
+            totalReturn: number | null;
+            riskLabel: string | null;
+            stress2022Return: number | null;
+            stress2022MaxDrawdown: number | null;
+            traceSteps: number[];
+        };
+        MarketContext: {
+            /** Format: date */
+            asOf: string;
+            /**
+             * @example Recession risk
+             * @example Early cycle
+             * @example Mid cycle
+             * @example Late cycle
+             */
+            phase: string | null;
+            ruleFired: string | null;
+            sectorTilt: string[];
+            vix: number | null;
+            /**
+             * @example calm/hope
+             * @example normal
+             * @example fear
+             */
+            mood: string | null;
+            creditSpreadRising: boolean | null;
+            consumerSentiment: number | null;
+            traceSteps: number[];
         };
         /** @enum {string} */
         ClaimKind: "fact" | "assumption" | "scenario";
+        /** @description A tagged sentence of the answer (parsed from the markdown tags). */
         Claim: {
+            /** @description Sentence without the tag */
             text: string;
             kind: components["schemas"]["ClaimKind"];
-            /** @description Required for `fact` claims (dataset, URL, period, currency). */
-            source?: string;
-            /** @description ToolCall.id that produced the number. */
-            traceStepId?: string;
+            /** @description Steps cited by a fact. */
+            traceSteps: number[];
+            /** @description Source, period and currency of each cited step. */
+            sources: string[];
         };
-        GovernanceResult: {
-            /** @example crypto <= 15% */
-            rule: string;
+        Verdict: {
             /** @enum {string} */
-            status: "pass" | "flag";
-            value?: number | null;
-            limit?: number | null;
-            note?: string;
+            verdict: "pass" | "fail";
+            reasons: string[];
         };
-        /** @description Final structured answer produced by the agent's explainer step. */
+        Review: {
+            work: components["schemas"]["Verdict"];
+            answer: components["schemas"]["Verdict"];
+            /** @description Times the reviewer sent the plan back to the boss */
+            workRetries: number;
+            /** @description Times the reviewer sent the answer back to the presenter */
+            answerRetries: number;
+            /** @description True when the work still failed after the retries */
+            incomplete: boolean;
+        };
+        /**
+         * @description Fixed data caveats (README); clients show a translated sentence.
+         * @enum {string}
+         */
+        Caveat: "simulation_only" | "survivorship_bias" | "fred_revised_vintages" | "equal_weight_baskets" | "past_performance" | "macro_publication_lag";
+        RunInfo: {
+            runId: string;
+            sessionId: string | null;
+            /** Format: date */
+            analysisDate: string;
+            /** @description Trace JSON in S3 (s3://$DATA_BUCKET/runs/...) */
+            s3Uri: string | null;
+        };
+        /**
+         * @description Final structured explanation, built deterministically from the run trace by server/explainer.py.
+         *     Every number here also appears in a trace step (see traceSteps).
+         */
         ExplainerPayload: {
-            summary: string;
+            language: components["schemas"]["Language"];
+            persona: {
+                id: components["schemas"]["PersonaId"];
+                name: string;
+            };
+            /** @description 1-2 sector groups the boss recommends for the persona (the main answer). */
+            recommendedSectors: components["schemas"]["TargetSummary"][];
+            /** @description Tickers or sector groups the user asked about. */
+            requestedTargets: components["schemas"]["TargetSummary"][];
+            /** @description Conflicts between the request and the persona, as noted by the boss. */
+            conflicts: string[];
+            suitability: components["schemas"]["SuitabilityResult"][];
+            riskTable: components["schemas"]["RiskRow"][];
+            /** @description The persona's limits (personas.py), for chart reference lines. */
+            personaLimits: {
+                [key: string]: unknown;
+            };
+            marketContext: components["schemas"]["MarketContext"] | null;
             claims: components["schemas"]["Claim"][];
-            governance: components["schemas"]["GovernanceResult"][];
+            review: components["schemas"]["Review"];
+            /** @description Warnings from the worker results (deduplicated). */
             limitations: string[];
+            caveats: components["schemas"]["Caveat"][];
+            run: components["schemas"]["RunInfo"];
         };
+        /**
+         * @description queued = waiting for another run to finish; planning = boss is choosing tools; analyzing = workers ran;
+         *     reviewing = reviewer checks the work; writing = presenter writes; checking = reviewer checks the answer.
+         * @enum {string}
+         */
+        GenerationStage: "queued" | "planning" | "analyzing" | "reviewing" | "writing" | "checking" | "done";
         WsMessageSend: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -246,10 +560,11 @@ export interface components {
             conversationId: string;
             /**
              * Format: uuid
-             * @description Defaults to the conversation's activeLeafId.
+             * @description Defaults to the conversation's activeLeafId. Must be an assistant message (or null).
              */
             parentId?: string | null;
             text: string;
+            language?: components["schemas"]["Language"];
         };
         /** @description Creates a new user message that is a sibling of `messageId`, then a new reply. */
         WsMessageEdit: {
@@ -267,6 +582,7 @@ export interface components {
              */
             messageId: string;
             text: string;
+            language?: components["schemas"]["Language"];
         };
         /** @description Creates a new assistant reply as a sibling of `messageId`. */
         WsMessageRegenerate: {
@@ -283,6 +599,7 @@ export interface components {
              * @description Assistant message to redo
              */
             messageId: string;
+            language?: components["schemas"]["Language"];
         };
         WsGenerationCancel: {
             /**
@@ -318,6 +635,35 @@ export interface components {
             userMessage?: components["schemas"]["Message"];
             message: components["schemas"]["Message"];
         };
+        /** @description Progress of the running generation (a run takes about a minute). */
+        WsGenerationStatus: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "generation.status";
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            messageId: string;
+            stage: components["schemas"]["GenerationStage"];
+            /** @description Trace steps so far */
+            steps: number;
+        };
+        /** @description A new step of the run trace, sent as soon as it happens. */
+        WsTraceStep: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trace.step";
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            messageId: string;
+            step: components["schemas"]["TraceStep"];
+        };
+        /** @description Text to append. The presenter writes the whole answer at once, so it arrives as one delta. */
         WsMessageDelta: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -330,30 +676,6 @@ export interface components {
             messageId: string;
             /** @description Text chunk to append */
             delta: string;
-        };
-        WsToolCall: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "tool.call";
-            /** Format: uuid */
-            conversationId: string;
-            /** Format: uuid */
-            messageId: string;
-            toolCall: components["schemas"]["ToolCall"];
-        };
-        WsToolResult: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "tool.result";
-            /** Format: uuid */
-            conversationId: string;
-            /** Format: uuid */
-            messageId: string;
-            toolCall: components["schemas"]["ToolCall"];
         };
         WsMessageEnd: {
             /**
@@ -377,7 +699,7 @@ export interface components {
             /**
              * @example invalid_message
              * @example not_found
-             * @example rate_limited
+             * @example busy
              * @example agent_error
              * @example internal_error
              */
@@ -392,7 +714,7 @@ export interface components {
             type: "pong";
         };
         /** @description Any message the server may send. */
-        WsServerMessage: components["schemas"]["WsMessageStart"] | components["schemas"]["WsMessageDelta"] | components["schemas"]["WsToolCall"] | components["schemas"]["WsToolResult"] | components["schemas"]["WsMessageEnd"] | components["schemas"]["WsError"] | components["schemas"]["WsPong"];
+        WsServerMessage: components["schemas"]["WsMessageStart"] | components["schemas"]["WsGenerationStatus"] | components["schemas"]["WsTraceStep"] | components["schemas"]["WsMessageDelta"] | components["schemas"]["WsMessageEnd"] | components["schemas"]["WsError"] | components["schemas"]["WsPong"];
     };
     responses: {
         /** @description Invalid request */
@@ -432,6 +754,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server is up */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
     getMe: {
         parameters: {
             query?: never;
@@ -474,6 +816,27 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    listPersonas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every persona */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     listConversations: {
         parameters: {
             query?: {
@@ -496,6 +859,7 @@ export interface operations {
                     "application/json": components["schemas"]["ConversationPage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
         };
     };

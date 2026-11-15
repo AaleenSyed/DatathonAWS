@@ -158,8 +158,19 @@ def review_work(trace, plan: dict | None, persona: str, question: str, as_of: st
 
 NUM = re.compile(r"(?<![\w.])[-−]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])[-−]?\d+(?:\.\d+)?")
 STEP_REF = re.compile(r"\[[^\]]*\bfact:[^\]]*\]", re.I)
-SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z*_\-(])")  # "...51.1% [fact: step 2]. XBB.TO vol ..." splits here
+# "...51.1% [fact: step 2]. XBB.TO vol ..." splits here; also French capitals ("À", "É") and guillemets
+SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ*_\-(«])")
 YEAR = re.compile(r"^(19|20)\d\d$")
+FR_DECIMAL = re.compile(r"(?<=\d),(?=\d)")  # 51,1 -> 51.1
+FR_THOUSANDS = re.compile(r"(?<=\d)[\u00a0\u202f](?=\d{3}\b)")  # 1 254 (non-breaking space) -> 1254
+
+
+def normalize_numbers(text: str, lang: str = "en") -> str:
+    """French answers write 51,1 % and 1 254; turn them into 51.1 % and 1254 before checking numbers.
+    Citation tags are left alone (they are removed before numbers are read)."""
+    if lang != "fr":
+        return text
+    return FR_DECIMAL.sub(".", FR_THOUSANDS.sub("", text))
 
 
 def _trace_numbers(obj, out):
@@ -213,12 +224,13 @@ def _unsupported(text: str, known: list[float]) -> list[str]:
     return bad
 
 
-def check_answer(text: str, trace) -> dict:
+def check_answer(text: str, trace, lang: str = "en") -> dict:
     """Numbers in the answer must match evidence numbers (as written, or x100 for fractions) within their
     rounding. In a sentence tagged [fact: step N] they must come from the cited steps (or the user step,
     which holds the persona profile); elsewhere from any evidence step. Years (e.g. "2022") may come from
     anywhere in the trace. Citations must point to worker or user steps. Signs are not compared
-    ("a drawdown of 63.5%" is fine)."""
+    ("a drawdown of 63.5%" is fine). lang="fr": French number style (51,1 %) is read as 51.1 %."""
+    text = normalize_numbers(text, lang)
     reasons, bad = [], []
     citable = {s["step"]: s for s in trace.steps if _evidence(s)}
     user_steps = [s for s in trace.steps if s["actor"] == "user"]

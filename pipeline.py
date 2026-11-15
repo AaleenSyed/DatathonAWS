@@ -4,6 +4,7 @@
 ChatSession keeps the boss agent (and so the conversation) across turns for one persona.
 boss / presenter are injectable for tests.
 """
+import functools
 import json
 import os
 import uuid
@@ -17,6 +18,7 @@ import reviewer
 from personas import PERSONAS
 from presenter import present as bedrock_present
 from run_trace import RunTrace
+from texts import lang_or_default, text
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 PROMPTS = Path(__file__).resolve().parent / "prompts"
@@ -25,7 +27,8 @@ BOSS_MODEL = os.getenv("BOSS_MODEL", "global.anthropic.claude-sonnet-5")
 MAX_REVIEW_RETRIES = 2
 MAX_ANSWER_RETRIES = 2
 BOSS_LIMITS = {"turns": 8}
-DISCLAIMER = "_Educational simulation for a fictional persona ({name}). Not personalized financial advice._"
+HISTORY_TURNS = 3  # earlier turns given to the boss and the presenter
+DISCLAIMER = text("en", "disclaimer", name="{name}")
 
 
 class BossPlan(BaseModel):
@@ -36,8 +39,21 @@ class BossPlan(BaseModel):
     reasoning_notes: str = Field(description="short notes: assumptions made, gaps, why these sectors")
 
 
-def make_boss(persona_key: str, as_of: str):
-    """Strands agent with the worker tools. Returns a callable(prompt) -> plan dict (or {} if none)."""
+def history_messages(history: list[dict]) -> list[dict]:
+    """Earlier turns [{"question", "answer"}] as Bedrock/Strands chat messages (user, assistant, ...)."""
+    out = []
+    for turn in history[-HISTORY_TURNS:]:
+        if turn.get("question") and turn.get("answer"):
+            out += [{"role": "user", "content": [{"text": turn["question"]}]},
+                    {"role": "assistant", "content": [{"text": turn["answer"]}]}]
+    return out
+
+
+def make_boss(persona_key: str, as_of: str, history: list[dict] | None = None):
+    """Strands agent with the worker tools. Returns a callable(prompt) -> plan dict (or {} if none).
+
+    history: earlier turns of this conversation branch, so a new session can continue a conversation
+    (the web server rebuilds the session for every message, which makes edit / regenerate branches work)."""
     from botocore.config import Config
     from strands import Agent
     from strands.models import BedrockModel
@@ -48,7 +64,8 @@ def make_boss(persona_key: str, as_of: str):
               .replace("{{AS_OF}}", as_of).replace("{{WINDOW_START}}", agent_tools.WINDOW_START))
     model = BedrockModel(model_id=BOSS_MODEL, region_name="us-east-1", max_tokens=8000,
                          boto_client_config=Config(retries={"max_attempts": 5, "mode": "adaptive"}))
-    agent = Agent(model=model, tools=agent_tools.TOOLS, system_prompt=system, callback_handler=None)
+    agent = Agent(model=model, tools=agent_tools.TOOLS, system_prompt=system, callback_handler=None,
+                  messages=history_messages(history or []))
 
     def run(prompt: str) -> dict:
         r = agent(prompt, structured_output_model=BossPlan, limits=BOSS_LIMITS)
@@ -57,16 +74,21 @@ def make_boss(persona_key: str, as_of: str):
 
 
 class ChatSession:
-    def __init__(self, persona: str, boss=None, presenter=None, as_of: str = ANALYSIS_DATE, runs_dir=None):
+    def __init__(self, persona: str, boss=None, presenter=None, as_of: str = ANALYSIS_DATE, runs_dir=None,
+                 history: list[dict] | None = None, lang: str = "en", on_step=None, session_id: str | None = None):
+        """history: earlier turns [{"question", "answer"}] to continue a conversation.
+        lang: answer language ("en" or "fr"). on_step: callable(step) for every trace step (live UI)."""
         key = str(persona).strip().lower()
         if key not in PERSONAS:
             raise ValueError(f"unknown persona '{persona}'; choose one of {sorted(PERSONAS)}")
         self.persona_key, self.persona, self.as_of = key, PERSONAS[key], as_of
-        self.boss = boss or make_boss(key, as_of)
-        self.present = presenter or bedrock_present
+        self.lang = lang_or_default(lang)
+        self.history: list[dict] = [dict(h) for h in (history or [])]
+        self.boss = boss or make_boss(key, as_of, self.history)
+        self.present = presenter or functools.partial(bedrock_present, lang=self.lang)
         self.runs_dir = runs_dir
-        self.session_id = uuid.uuid4().hex[:8]
-        self.history: list[dict] = []
+        self.on_step = on_step
+        self.session_id = session_id or uuid.uuid4().hex[:8]
 
     def _call_boss(self, trace, prompt, label):
         try:
@@ -78,7 +100,8 @@ class ChatSession:
         return plan
 
     def ask(self, question: str) -> dict:
-        trace = RunTrace(self.persona["name"], question, self.as_of, len(self.history) + 1, self.session_id)
+        trace = RunTrace(self.persona["name"], question, self.as_of, len(self.history) + 1, self.session_id,
+                         listener=self.on_step, language=self.lang)
         agent_tools.CONTEXT.update(trace=trace, persona=self.persona_key, as_of=self.as_of)
         try:
             trace.add("user", "question", {"persona": self.persona_key}, {"question": question,
@@ -106,18 +129,18 @@ class ChatSession:
                     trace.add("presenter", "write_answer", {"attempt": attempt}, check)
                     continue
                 trace.add("presenter", "write_answer", {"attempt": attempt}, {"answer": answer})
-                check = reviewer.check_answer(answer, trace)
+                check = reviewer.check_answer(answer, trace, lang=self.lang)
                 trace.add("reviewer", "check_answer", {"attempt": attempt}, check)
                 if check["verdict"] == "pass":
                     break
                 feedback = "; ".join(check["reasons"])
             if not answer:
-                answer = "Sorry, the answer could not be written this time. The analysis is saved in the trace."
+                answer = text(self.lang, "no_answer")
             if check["verdict"] == "fail":
-                answer += "\n\n> **Reviewer note:** " + "; ".join(check["reasons"])
+                answer += "\n\n" + text(self.lang, "reviewer_note", reasons="; ".join(check["reasons"]))
             if notes:
-                answer = "> **Note:** the analysis is incomplete (see trace).\n\n" + answer
-            disclaimer = DISCLAIMER.format(name=self.persona["name"])
+                answer = text(self.lang, "incomplete") + "\n\n" + answer
+            disclaimer = text(self.lang, "disclaimer", name=self.persona["name"])
             if disclaimer not in answer:
                 answer += "\n\n" + disclaimer
             trace.add("pipeline", "final_answer", None, {"answer": answer, "work_verdict": verdict["verdict"],

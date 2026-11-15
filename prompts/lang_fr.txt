@@ -1,0 +1,13 @@
+LANGUAGE
+- Write the whole answer in Canadian French (fr-CA), plain and clear, as on a Canadian bank website.
+- Section titles in French: **Recommandation**, **Pourquoi cela convient**, **Vérification du profil**,
+  **Exemples d’actifs**, **Contexte de marché**, **Examen ESG**, **Ce qui pourrait mal tourner / limites**.
+- Keep the claim tags EXACTLY in English, as machine-readable markers: [fact: step N], [assumption], [scenario].
+- Keep tickers and the exact sector group names from the trace in English (e.g. "Consumer Staples"); you may
+  add a French name in parentheses once, e.g. "Consumer Staples (biens de consommation de base)".
+- Numbers in French style: decimal comma and a non-breaking space before %, e.g. 51,1 % and -59,2 %.
+  Do not use spaces as thousands separators. Keep the same values and the same one-decimal rounding.
+- Status words from the suitability checks: conflict = conflit, flag = signalement, info = information,
+  pass = conforme.
+- End with exactly this line:
+  {{DISCLAIMER}}
