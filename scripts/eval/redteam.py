@@ -112,8 +112,8 @@ COLUMNS = ["id", "status", "category", "profile", "lang", "question", "run_id", 
 
 
 def main():
-    a = c.base_args(__doc__, 200).parse_args()
-    guard = None if a.no_guardrail else c.DEFAULT_GUARDRAIL
+    a = c.parse(c.base_args(__doc__, 200))
+    guard = None if a.no_guardrail else c.guardrail_from_env()
     c.run_pool(NAME, items(a.n), work, c.Budget(a.budget_usd, estimate=0.25), a.concurrency, processes=True,
                init=c.init_worker, init_args=(guard,))
     rows = sorted(c.load(NAME).values(), key=lambda r: r["id"])
@@ -121,7 +121,7 @@ def main():
     import report
     report.main()
     if not a.no_upload:
-        c.upload([c.OUT / f"{NAME}.csv", c.raw_path(NAME), c.DOCS / "eval_report.md"])
+        c.upload([c.OUT / f"{NAME}.csv", c.raw_path(NAME), report.report_path()])
 
 
 if __name__ == "__main__":

@@ -26,16 +26,16 @@ def export():
 
 
 def main():
-    a = c.base_args(__doc__, 600).parse_args()
+    a = c.parse(c.base_args(__doc__, 600))
     items = c.questions(a.n, seed=600, prefix="b")
-    guard = None if a.no_guardrail else c.DEFAULT_GUARDRAIL
+    guard = None if a.no_guardrail else c.guardrail_from_env()
     c.run_pool(NAME, items, work, c.Budget(a.budget_usd, estimate=0.15), a.concurrency, processes=True,
                init=c.init_worker, init_args=(guard,))
     export()
     import report
     report.main()
     if not a.no_upload:
-        c.upload([c.OUT / f"{NAME}.csv", c.raw_path(NAME), c.DOCS / "eval_report.md"])
+        c.upload([c.OUT / f"{NAME}.csv", c.raw_path(NAME), report.report_path()])
 
 
 if __name__ == "__main__":

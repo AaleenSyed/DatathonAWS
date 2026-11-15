@@ -34,8 +34,8 @@ COLUMNS = ["id", "status", "presenter", "presenter_model", "question_id", "profi
 
 
 def main():
-    a = c.base_args(__doc__, 100).parse_args()
-    guard = None if a.no_guardrail else c.DEFAULT_GUARDRAIL
+    a = c.parse(c.base_args(__doc__, 100))
+    guard = None if a.no_guardrail else c.guardrail_from_env()
     budget = c.Budget(a.budget_usd, estimate=0.25)
     c.run_pool(NAME, items(a.n), work, budget, a.concurrency, processes=True, init=c.init_worker, init_args=(guard,))
     rows = sorted(c.load(NAME).values(), key=lambda r: r["id"])
@@ -46,7 +46,7 @@ def main():
     report.main()
     if not a.no_upload:
         c.upload([c.OUT / f"{NAME}.csv", c.raw_path(NAME), c.OUT / "judge_compare_presenters.csv",
-                  c.raw_path("judge_compare_presenters"), c.DOCS / "eval_report.md"])
+                  c.raw_path("judge_compare_presenters"), report.report_path()])
 
 
 if __name__ == "__main__":

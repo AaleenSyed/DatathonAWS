@@ -25,9 +25,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "reports" / "eval"
-RAW = OUT / "raw"
+EVAL_ROOT = ROOT / "reports" / "eval"
+LABEL = "baseline"
+OUT = EVAL_ROOT / LABEL          # CSVs of the current run label
+RAW = OUT / "raw"                # one JSONL per script (resume + ledger)
 DOCS = ROOT / "docs"
+
+
+def set_label(label: str):
+    """Results of different runs (e.g. "smoke", "baseline") live in reports/eval/<label>/."""
+    global LABEL, OUT, RAW
+    if not label or not all(ch.isalnum() or ch in "-_" for ch in label):
+        raise SystemExit(f"invalid --label {label!r}")
+    LABEL, OUT = label, EVAL_ROOT / label
+    RAW = OUT / "raw"
 sys.path.insert(0, str(ROOT))
 
 # USD per 1M tokens, Bedrock on-demand, global cross-region inference profiles (same list price as the Claude
@@ -42,7 +53,14 @@ PRICES = {
 # the guardrail uses ~3 (content, denied topics, PII). Prompt-attack is part of content filters.
 GUARDRAIL_USD_PER_UNIT = 3 * 0.15 / 1000
 JUDGE_MODEL = "global.anthropic.claude-opus-5-5"
-DEFAULT_GUARDRAIL = ("45921hm0jt42", "DRAFT")  # alphaforge-guardrail in the datathon account
+
+
+def guardrail_from_env() -> tuple | None:
+    """(GUARDRAIL_ID, GUARDRAIL_VERSION) from .env, the same guardrail the app uses; None when unset."""
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+    gid = os.getenv("GUARDRAIL_ID", "").strip()
+    return (gid, os.getenv("GUARDRAIL_VERSION", "DRAFT").strip() or "DRAFT") if gid else None
 THROTTLE = re.compile(r"Throttl|TooManyRequests|Too many requests|ServiceUnavailable|ModelNotReady|"
                       r"serviceUnavailable|rate exceeded", re.I)
 
@@ -79,19 +97,30 @@ def load(name: str) -> dict:
 
 def append(name: str, record: dict):
     RAW.mkdir(parents=True, exist_ok=True)
+    line = scrub(json.dumps(record, ensure_ascii=False, default=str))  # never store env values or credentials
     with _write_lock, raw_path(name).open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+        f.write(line + "\n")
 
 
 def done_ids(name: str) -> set:
     return {i for i, r in load(name).items() if r.get("status") == "ok"}
 
 
-def total_spend() -> float:
-    """Estimated USD spent by all eval runs so far (every raw file)."""
+def _records(path: Path) -> dict:
+    out = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            r = json.loads(line)
+            out[r["id"]] = r
+    return out
+
+
+def total_spend(label: str | None = None) -> float:
+    """Estimated USD spent by the eval runs so far: every label (the budget is global), or one label."""
     total = 0.0
-    for p in RAW.glob("*.jsonl") if RAW.exists() else []:
-        for r in load(p.stem).values():
+    paths = (EVAL_ROOT / label / "raw").glob("*.jsonl") if label else EVAL_ROOT.glob("*/raw/*.jsonl")
+    for p in paths:
+        for r in _records(p).values():
             total += float(r.get("cost_usd") or 0) + sum(float(a.get("cost_usd") or 0) for a in r.get("attempts", []))
     return total
 
@@ -129,7 +158,14 @@ def base_args(desc: str, n_default: int) -> argparse.ArgumentParser:
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--no-guardrail", action="store_true", help="run without the Bedrock Guardrail")
     ap.add_argument("--no-upload", action="store_true", help="do not upload results to S3")
+    ap.add_argument("--label", default="baseline", help="results go to reports/eval/<label>/")
     return ap
+
+
+def parse(ap: argparse.ArgumentParser):
+    a = ap.parse_args()
+    set_label(a.label)
+    return a
 
 
 def run_pool(name: str, items: list[dict], work, budget: Budget, concurrency: int, processes: bool, init=None,
@@ -177,14 +213,52 @@ def run_pool(name: str, items: list[dict], work, budget: Budget, concurrency: in
                 break
 
 
+def env_values() -> list[str]:
+    """Values from .env and the AWS credentials in the environment that must never appear in exported files."""
+    vals = []
+    env = ROOT / ".env"
+    if env.exists():
+        for line in env.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                v = line.split("=", 1)[1].strip().strip("\"'")
+                if len(v) >= 6:
+                    vals.append(v)
+    for k in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        if len(os.getenv(k, "")) >= 6:
+            vals.append(os.environ[k])
+    return vals
+
+
+SECRET_PATTERNS = re.compile(r"AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|aws_secret_access_key|-----BEGIN [A-Z ]*PRIVATE KEY")
+
+
+def scrub(text: str) -> str:
+    for v in env_values():
+        text = text.replace(v, "[redacted]")
+    return SECRET_PATTERNS.sub("[redacted]", text)
+
+
+def scan(paths: list[Path]) -> list[str]:
+    """Files under `paths` that contain an env value or a credential pattern (should be empty)."""
+    vals = env_values()
+    bad = []
+    for p in paths:
+        for f in ([p] if p.is_file() else [x for x in p.rglob("*") if x.is_file()]):
+            t = f.read_text(encoding="utf-8", errors="ignore")
+            hits = [v[:4] + "…" for v in vals if v in t] + (["credential pattern"] if SECRET_PATTERNS.search(t) else [])
+            if hits:
+                bad.append(f"{f.relative_to(ROOT)}: {hits}")
+    return bad
+
+
 def write_csv(path: Path, rows: list[dict], columns: list[str]):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
         w.writeheader()
         for r in rows:
-            w.writerow({k: (json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else v)
-                        for k, v in r.items()})
+            w.writerow({k: scrub(json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v))
+                        if v is not None else "" for k, v in r.items()})
 
 
 def upload(paths: list[Path]):
@@ -199,7 +273,8 @@ def upload(paths: list[Path]):
     s3 = boto3.client("s3", region_name="us-east-1")
     for p in paths:
         if p.exists():
-            key = f"runs/eval/{p.relative_to(ROOT).as_posix().replace('reports/eval/', '')}"
+            rel = p.relative_to(ROOT).as_posix()
+            key = "runs/eval/" + (rel.replace("reports/eval/", "") if rel.startswith("reports/eval/") else f"{LABEL}/{p.name}")
             s3.upload_file(str(p), bucket, key)
     print(f"uploaded {len([p for p in paths if p.exists()])} files to s3://{bucket}/runs/eval/")
 

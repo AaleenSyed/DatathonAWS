@@ -157,12 +157,12 @@ def judge_source(source: str, n: int | None, budget: c.Budget, concurrency: int)
 def main():
     ap = c.base_args(__doc__, 0)
     ap.add_argument("--source", default="benchmark", choices=["benchmark", "compare_presenters"])
-    a = ap.parse_args()
+    a = c.parse(ap)
     name = judge_source(a.source, a.n or None, c.Budget(a.budget_usd, estimate=0.25), a.concurrency)
     import report
     report.main()
     if not a.no_upload:
-        c.upload([c.OUT / f"{name}.csv", c.raw_path(name), c.DOCS / "eval_report.md"])
+        c.upload([c.OUT / f"{name}.csv", c.raw_path(name), report.report_path()])
 
 
 if __name__ == "__main__":

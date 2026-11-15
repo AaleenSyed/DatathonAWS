@@ -28,14 +28,16 @@ def _judge(name):
 
 
 def main():
-    lines = ["# Evaluation report", "",
-             f"Generated {c.now()} by `scripts/eval/` on the real Bedrock pipeline (us-east-1). Boss Claude Haiku 4.5, "
-             "presenter Claude Sonnet 4.6 unless stated; Bedrock Guardrail `alphaforge-guardrail` on input and output. "
+    title = "Evaluation report" + ("" if c.LABEL == "baseline" else f" ({c.LABEL})")
+    lines = [f"# {title}", "",
+             f"Run label **{c.LABEL}**. Generated {c.now()} by `scripts/eval/` on the real Bedrock pipeline (us-east-1). "
+             "Boss Claude Haiku 4.5, presenter Claude Sonnet 4.6 unless stated; the Bedrock Guardrail configured for "
+             "the app (published version) on input and output. "
              "Costs are estimates from token counts and Bedrock on-demand prices (global inference profiles: Haiku 4.5 "
              "$1/$5, Sonnet 4.6 $3/$15, Sonnet 5 $2/$10, Opus 5.5 $4/$20 per 1M input/output tokens; guardrail ~$0.45 "
              "per 1,000 text units). Judge: Claude Opus 5.5, scores 1–5.", ""]
-    spent = c.total_spend()
-    lines += [f"Total estimated spend of the evaluation: **${spent:.2f}**.", ""]
+    spent = c.total_spend(c.LABEL)
+    lines += [f"Estimated spend of this run: **${spent:.2f}** (all eval runs so far: ${c.total_spend():.2f}).", ""]
 
     b = _ok("benchmark")
     errors = [r for r in c.load("benchmark").values() if r.get("status") != "ok"]
@@ -132,15 +134,22 @@ def main():
     lines += ["## Method notes", "",
               "- Questions come from templates (`scripts/eval/common.py`), deterministic per seed; the 3 questionnaire "
               "profiles are fixed answer sets (low, moderate, high risk).",
-              "- Every run is a full pipeline run with its trace in `runs/`; result files are in `reports/eval/` and "
-              "`s3://$DATA_BUCKET/runs/eval/`.",
+              f"- Every run is a full pipeline run with its trace in `runs/`; result files are in `reports/eval/{c.LABEL}/` "
+              f"and `s3://$DATA_BUCKET/runs/eval/{c.LABEL}/`. Exported files are scrubbed of `.env` values and credentials.",
               "- The judge sees the question, the profile, the boss plan, the worker steps the presenter used and the final "
               "answer. LLM judges are not ground truth: read the reasons of low scores.",
               "- Guardrail blocks on normal benchmark questions count as false positives."]
     c.DOCS.mkdir(exist_ok=True)
-    (c.DOCS / "eval_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {c.DOCS / 'eval_report.md'}")
+    path = report_path()
+    path.write_text(c.scrub("\n".join(lines) + "\n"), encoding="utf-8")
+    print(f"wrote {path}")
+
+
+def report_path():
+    return c.DOCS / ("eval_report.md" if c.LABEL == "baseline" else f"eval_report_{c.LABEL}.md")
 
 
 if __name__ == "__main__":
+    import sys
+    c.set_label(sys.argv[1] if len(sys.argv) > 1 else "baseline")
     main()
