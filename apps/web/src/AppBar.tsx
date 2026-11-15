@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useI18n } from "./i18n";
 
 export function Wordmark() {
   return (
@@ -12,9 +13,10 @@ export function Wordmark() {
 }
 
 function ThemeToggle() {
+  const { t } = useI18n();
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "light");
   const next = theme === "dark" ? "light" : "dark";
-  const label = next === "dark" ? "Passer au thème sombre" : "Passer au thème clair";
+  const label = next === "dark" ? t("theme.toDark") : t("theme.toLight");
   return (
     <button
       type="button"
@@ -45,13 +47,32 @@ function ThemeToggle() {
   );
 }
 
-/** Top bar shared by every page: wordmark (or custom left content) and the theme switch. */
+/** EN/FR switch. The UI changes at once; the next answer is written in the new language. */
+function LanguageToggle() {
+  const { t, lang, setLang } = useI18n();
+  const label = t("lang.switchTo");
+  return (
+    <button
+      type="button"
+      className="icon-btn lang-btn"
+      aria-label={label}
+      title={label}
+      lang={lang === "fr" ? "en" : "fr"}
+      onClick={() => setLang(lang === "fr" ? "en" : "fr")}
+    >
+      {t("lang.short")}
+    </button>
+  );
+}
+
+/** Top bar shared by every page: wordmark (or custom left content), language and theme switches. */
 export function AppBar({ left, right }: { left?: ReactNode; right?: ReactNode }) {
   return (
     <div className="appbar">
       <div className="appbar-left">{left ?? <Wordmark />}</div>
       <div className="appbar-right">
         {right}
+        <LanguageToggle />
         <ThemeToggle />
       </div>
     </div>

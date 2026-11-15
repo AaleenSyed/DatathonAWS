@@ -1,93 +1,130 @@
-# AlphaForge frontend
+# AlphaForge web app (`apps/web/`)
 
-Vite + React + TypeScript chat UI (persona picker, chat, trace and "why this answer" panels).
+Vite + React + TypeScript chat UI for the AlphaForge pipeline: persona picker, chat, live progress, and for
+every answer the explanation built by the backend (recommended sectors, profile check, risk charts, market
+context, claims, review, limitations, full run trace). English and Canadian French, switchable.
 
-It uses the shared contract client from `../DatathonAWS/packages/api-client`
-(`file:` dependency). Build that package first, and again after any change to `contracts/openapi.yaml`:
+The backend owns the data shapes. This app reads them through the typed client in `packages/api-client`
+(a pnpm workspace package, `"@alphaforge/api-client": "workspace:*"`), generated from `contracts/openapi.yaml`
+and `contracts/asyncapi.yaml` (v0.2.0). To change a shape, edit the contract first, then run `pnpm client:build`.
 
-    cd ../DatathonAWS && pnpm install && pnpm client:build
+## Run it
 
-Then, in this folder:
+From the repo root (Python 3.11+, Node 20+, pnpm; `data/` must exist, see the root README):
 
-    pnpm install
-    cp .env.example .env.local   # set API URL and a dev token
-    pnpm dev
+```bash
+# 1. Backend
+source .venv/bin/activate
+AGENT_MODE=demo uvicorn server.app:app --port 8000    # scripted boss/presenter (no LLM), real worker numbers
+# or: uvicorn server.app:app --port 8000              # real agent on Bedrock (us-east-1, needs AWS creds)
 
-In this workshop, open the app at `https://<cloudfront-host>/absproxy/5173/` with
-`VITE_BASE=/absproxy/5173/` in `.env.local`. The dev server forwards `<base>api/*` (REST and
-WebSocket) to `http://localhost:8000`, so the browser never calls localhost directly.
+# 2. Frontend
+pnpm install
+pnpm web:dev            # builds the client, then http://localhost:5173
+```
 
-Routes (after the base): `/chat` persona picker, `/chat/amira|mateo|robert` chat.
-`/` and unknown paths redirect to `/chat`.
+`pnpm web:typecheck` runs `tsc --noEmit`; `pnpm web:build` runs it and then `vite build` (output in `dist/`, gitignored).
 
-Sign-in (Cognito) is not wired yet; `VITE_DEV_TOKEN` is a placeholder.
+The dev server forwards `<base>api/*` (REST and WebSocket) to `http://localhost:8000`, so the browser only talks
+to its own origin. Set `BACKEND_URL` to use another port, e.g. `BACKEND_URL=http://localhost:8001 pnpm web:dev`.
 
-## Language: Canadian French (fr-CA)
+Behind the workshop's code-server proxy, create `apps/web/.env.local` with `VITE_BASE=/absproxy/5173/` and open
+`https://<cloudfront-host>/absproxy/5173/`. Other settings are in `.env.example` (`VITE_API_BASE_URL` /
+`VITE_WS_URL` for a deployed backend, `VITE_DEV_TOKEN`).
 
-The interface is written in Canadian French. `index.html` declares `<html lang="fr-CA">`. There is no
-i18n library and no language switch: the French strings are written directly in the components.
+There is no mock server any more: `AGENT_MODE=demo` gives real numbers at no Bedrock cost, and every answer it
+writes starts with "Demo mode". The app shows a banner when `GET /health` reports `agentMode: demo`.
 
-| File | What is translated |
+## Auth
+
+Sign-in is not wired yet. The backend runs in dev mode (any bearer token is accepted), and `src/api.ts` sends
+`VITE_DEV_TOKEN` if set. The WebSocket uses a single-use ticket from `POST /ws-ticket` on every (re)connect.
+Do not expose a dev-mode backend publicly.
+
+## Routes
+
+Relative to the Vite base: `/chat` persona picker, `/chat/amira|mateo|robert` chat. `/` and unknown paths
+redirect to `/chat`. Each chat page creates a new conversation (conversations live in the server's memory).
+
+## Files
+
+| File | What it does |
 |---|---|
-| `src/PersonaPicker.tsx` | Step label, heading, intro, card prompt ("Commencer →"), disclaimer |
-| `src/personas.ts` | Persona names ("26 ans") and descriptions |
-| `src/Chat.tsx` | Top bar, connection status, empty state, message labels ("Vous", "Agent"), buttons, panels, error messages, screen-reader labels |
-| `src/AppBar.tsx` | Theme switch label ("Passer au thème sombre / clair") |
+| `src/main.tsx` | Mounts `<App/>` inside `LanguageProvider` |
+| `src/App.tsx` | Routes |
+| `src/api.ts` | REST client and `ChatSocket` factory (same-origin `<base>api` by default) |
+| `src/health.ts` | `GET /health` once per page (demo banner) |
+| `src/personas.ts` | Persona ids, names and ages for routing and headers before `GET /personas` answers |
+| `src/PersonaPicker.tsx` | Cards with the translated description and the assumed limits from `GET /personas` |
+| `src/AppBar.tsx` | Wordmark, EN/FR switch, light/dark switch |
+| `src/Chat.tsx` | Conversation state, WebSocket events, branches (edit / regenerate), live stage line |
+| `src/Answer.tsx` | Markdown answer (`react-markdown` + `remark-gfm`); claim tags become chips |
+| `src/cite.ts` | Claim-tag parsing, same regexes as `server/explainer.py` (`TAG`, `STEP_NUMS`, `MAX_RANGE`) |
+| `src/Explainer.tsx` | The `ExplainerPayload` panel: cards, charts, profile check, market, claims, review, limits, run |
+| `src/Trace.tsx` | Every run-trace step, with input/output JSON; opens and scrolls to cited steps |
+| `src/format.ts` | Percent, number and date formatting with `Intl` for `en-CA` / `fr-CA` |
+| `src/i18n.tsx` | EN/FR dictionary and labels for every backend code |
+| `src/styles.css` | Tokens (light/dark) and all styles |
 
-Contract values stay in English in the data, and `src/Chat.tsx` shows a French label for each:
+## How an answer is shown
 
-| Value | Label |
-|---|---|
-| Claim kind `fact` / `assumption` / `scenario` | Fait / Hypothèse / Scénario |
-| Tool status `running` / `ok` / `error` | en cours / terminé / erreur |
-| Tool `data_retriever` / `risk_analyst` / `suitability` / `market_context` | Collecte des données / Analyse du risque / Vérification de la convenance / Contexte de marché |
+1. `message.start` adds the user message and an empty assistant message (`status: streaming`).
+2. `generation.status` updates the stage line ("The workers are computing the numbers (7 steps)…"); stages are
+   `queued, planning, analyzing, reviewing, writing, checking, done`.
+3. `trace.step` events are upserted by `step.step` into `message.trace`, so the trace panel fills live.
+4. `message.delta` carries the whole answer at once (the presenter does not stream); `message.end` replaces the
+   message with the final one, including `final` (the `ExplainerPayload`).
 
-An unknown value is shown as is. Add a label to these maps when the backend adds a tool.
+Claim tags written by the presenter are rendered as chips: `[fact: step 3, 7]` → "Fact · steps 3, 7",
+`[fact: step 17-24]` → "steps 17–24", `[assumption]`, `[scenario]`. Clicking a fact chip (or a chart value, or a
+"Fact · step N" chip in the panel) opens the trace and highlights those steps. Steps that are not in the trace
+are dropped, as in the explainer.
 
-The real backend's answers, governance rules and error messages are shown as the backend sends them,
-so they are French only if the backend writes them in French. Persona ids in the URL (`amira`,
-`mateo`, `robert`) stay as they are because the API uses them.
+The panel under each answer:
 
-### Mock server (fr-CA)
+- **Recommended sectors** and **What you asked about**: one card per `TargetSummary` (risk label, volatility,
+  max drawdown, total return, 12-month momentum and trend, members, period and currency). Building blocks
+  (bonds, broad market, gold, crypto) show the min–max range over their members, never a blended figure.
+  The left border is the overall suitability status.
+- **Conflicts noted by the boss agent**, when there are any.
+- **Risk charts** from `riskTable`: annualized volatility against `personaLimits.vol_max`, and the 2022 worst
+  fall against `personaLimits.stress_2022_max_drawdown`. Red = above the limit, green = within, navy = the
+  persona has no limit of that kind. Bars are CSS, not a chart library.
+- **Profile check**: one table per `SuitabilityResult`, every rule with its limit, value and status
+  (conflict red, flag amber, pass green, info blue, N/A and not evaluated grey). The explanation under each
+  rule is the suitability worker's text, in English.
+- **Market context**, **Claims** (with their sources), **Quality review** (both reviewer verdicts, reasons,
+  retries, "incomplete"), **Limitations and caveats**, and the run id with its S3 URI.
+- **Trace**: every step (actor, action, summary, time), with the input and output JSON (cut at 6,000 characters).
 
-The mock server also answers in Canadian French:
+Numbers from the backend are fractions (0.15 = 15%) and are formatted with one decimal, like the answer text
+(`51.1%` in English, `51,1 %` in French). Rule codes, statuses, actors, sector names, phases, moods and caveats
+are codes; `src/i18n.tsx` (`CODES`) translates them, and an unknown code is shown as sent.
 
-- `mock-server/replies.mjs`: answer text, summary, claims, governance rules and notes, limitations,
-  sector names, `source` and `risk_label` in tool results ("FICTIF" marks invented data). Numbers use
-  French spacing (`27 %`, `-22 %`).
-- `mock-server/server.mjs`: the default conversation title ("Nouvelle conversation") and every
-  REST and WebSocket error `message`.
+## Connection drops
 
-Not translated in the mock: error `code` values, tool names, enum values, JSON keys and field names
-quoted in error messages (`conversationId`, `limit`…), because they belong to the contract. Console
-logs stay in English.
+`ChatSocket` reconnects on its own (exponential backoff, new ticket each time). The server keeps running the
+analysis while the socket is down, so a drop does not mark the answer as failed. When the socket is open again
+the app reloads `GET /conversations/{id}/messages`, which has every trace step and the final answer if it
+finished during the gap. Agent failures arrive as an `error` event (`agent_error`) followed by `message.end`
+with `status: error`; `busy` and `invalid_message` errors only show a message.
 
-Conventions used (OQLF style, as on French-Canadian bank sites):
-- Guillemets with non-breaking spaces: `« Comment répartir mon portefeuille? »`.
-- No space before `?` and `!`; a non-breaking space before `:` (`Limites : …`).
-- Typographic apostrophe `’` (`l’Agent`, `aujourd’hui`).
-- Sentence case for buttons and headings.
+## Language
 
-When you add UI text, write it in French with these conventions. If an English version is needed
-later, move the strings into one file (for example `src/strings.ts`) or add a library such as
-`react-intl`.
+The UI language follows the saved choice (`localStorage.lang`), else the browser language; the EN/FR button
+switches it at once and sets `<html lang>` to `en-CA` or `fr-CA` (also before first paint, in `index.html`).
+Every message is sent with `language`, and the backend writes that answer in that language. Earlier answers
+stay in the language they were written in. Free text from the workers (rule explanations, warnings, the
+"rule fired" sentence, sources) is in English and marked `lang="en"`.
+
+French follows OQLF conventions, as on French-Canadian bank sites: guillemets with non-breaking spaces
+(`« … »`), no space before `?` and `!`, a non-breaking space before `:` and `%`, the typographic apostrophe `’`,
+and sentence case. Add every new string to both `EN` and `FR` in `src/i18n.tsx`; TypeScript fails the build if a
+French key is missing.
 
 ## Look and colours
 
-Colours come from the bnc.ca palette and are defined as CSS variables at the top of
-`src/styles.css` (light and dark theme; the theme follows the system and can be switched in the top
-bar). Navy `#00314D` for text and buttons, red `#E41C23` for the logo mark, ice blue `#D9EEF4`
-for the user's messages. In the chat the assistant is always called "Agent"; persona names appear
-only on the picker.
-
-## Mock backend
-
-`mock-server/` is an in-memory stand-in for the real API. It follows
-`../DatathonAWS/contracts/openapi.yaml` and `asyncapi.yaml` (REST, tickets, WebSocket streaming,
-edit/regenerate branches, cancel). All answers and numbers are invented.
-
-    pnpm mock          # http://localhost:8000 and ws://localhost:8000/ws
-
-Optional: `MOCK_REQUIRE_AUTH=1` returns 401 without a Bearer token, `MOCK_DELAY_MS=60` sets the
-streaming speed, `PORT=8000` sets the port. Stop it when the real backend is ready; the frontend
-needs no changes.
+Colours come from the bnc.ca palette, defined as CSS variables at the top of `src/styles.css` (light and dark;
+the theme follows the system and can be switched in the top bar). Navy `#00314D` for text and buttons, red
+`#E41C23` for the logo mark and conflicts, ice blue `#D9EEF4` for the user's messages. In the chat the assistant
+is called "Agent"; the header shows whose profile is checked ("Profile: Robert").

@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "
 import type { PersonaId } from "@alphaforge/api-client";
 import { PersonaPicker } from "./PersonaPicker";
 import { Chat } from "./Chat";
-import { PERSONAS } from "./personas";
+import { personaById } from "./personas";
 
 // Routes (relative to the Vite base, e.g. /absproxy/5173/):
 //   /                 -> redirects to /chat
@@ -29,7 +29,7 @@ function PickerRoute() {
 function ChatRoute() {
   const { personaId } = useParams();
   const navigate = useNavigate();
-  const persona = PERSONAS.find((p) => p.id === personaId?.toLowerCase());
+  const persona = personaById(personaId);
   if (!persona) return <Navigate to="/chat" replace />;
   const id: PersonaId = persona.id;
   // key: switching persona via the URL starts a fresh chat.

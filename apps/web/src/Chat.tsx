@@ -1,55 +1,95 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Message, PersonaId, SocketStatus, ToolCall, WsServerMessage } from "@alphaforge/api-client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  GenerationStage,
+  Message,
+  PersonaId,
+  SocketStatus,
+  TraceStep,
+  WsClientMessage,
+  WsServerMessage,
+} from "@alphaforge/api-client";
 import { api, createChatSocket } from "./api";
+import { Answer } from "./Answer";
 import { AppBar } from "./AppBar";
+import { Explainer } from "./Explainer";
+import { useHealth } from "./health";
+import { useI18n, type Key } from "./i18n";
+import { personaById } from "./personas";
+import { Trace } from "./Trace";
 
-const STATUS_LABEL: Record<SocketStatus, string> = {
-  idle: "Inactif",
-  connecting: "Connexion…",
-  open: "Connecté",
-  reconnecting: "Reconnexion…",
-  closed: "Déconnecté",
-};
+interface Progress {
+  stage: GenerationStage;
+  steps: number;
+}
 
-// Contract values stay in English in the data; these are their French display labels.
-const CLAIM_LABEL: Record<string, string> = { fact: "Fait", assumption: "Hypothèse", scenario: "Scénario" };
-const TOOL_STATUS_LABEL: Record<string, string> = { running: "en cours", ok: "terminé", error: "erreur" };
-const TOOL_LABEL: Record<string, string> = {
-  data_retriever: "Collecte des données",
-  risk_analyst: "Analyse du risque",
-  suitability: "Vérification de la convenance",
-  market_context: "Contexte de marché",
-};
+interface TraceView {
+  open: boolean;
+  highlight: number[];
+  focus: number;
+}
+
+interface ErrorState {
+  key: Key;
+  vars?: Record<string, string>;
+  detail?: string;
+}
+
+const CLOSED_TRACE: TraceView = { open: false, highlight: [], focus: 0 };
 
 export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () => void }) {
+  const { t, lang, code } = useI18n();
+  const health = useHealth();
+  const persona = personaById(personaId);
+  const name = persona?.name ?? personaId;
+
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]); // every branch
   const [activeLeafId, setActiveLeafId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Record<string, Progress>>({});
+  const [traceView, setTraceView] = useState<Record<string, TraceView>>({});
   const [status, setStatus] = useState<SocketStatus>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorState | null>(null);
   const [text, setText] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const socket = useRef(createChatSocket());
-  const endRef = useRef<HTMLDivElement>(null);
+  const pendingScroll = useRef<{ id: string; block: ScrollLogicalPosition } | null>(null);
+  const lostConnection = useRef(false);
+  const langRef = useRef(lang);
+  langRef.current = lang;
 
   useEffect(() => {
     const s = socket.current;
     const offStatus = s.onStatus(setStatus);
     const offMsg = s.onMessage((m) => {
       setMessages((prev) => reduce(prev, m));
-      if (m.type === "message.start") setActiveLeafId(m.message.id);
-      if (m.type === "error") {
-        setError(`${m.code}: ${m.message}`);
-        setMessages((prev) => failStreaming(prev));
+      switch (m.type) {
+        case "message.start":
+          setActiveLeafId(m.message.id);
+          pendingScroll.current = { id: m.message.id, block: "end" };
+          break;
+        case "generation.status":
+          setProgress((p) => ({ ...p, [m.messageId]: { stage: m.stage, steps: m.steps } }));
+          pendingScroll.current = { id: m.messageId, block: "end" };
+          break;
+        case "message.end":
+          // Show the start of the answer, not the bottom of the explanation panel.
+          pendingScroll.current = { id: m.message.id, block: "start" };
+          break;
+        case "error":
+          // agent_error is followed by message.end (status error); busy / invalid_message change nothing.
+          setError({ key: "chat.errServer", vars: { code: m.code }, detail: m.message });
+          break;
       }
     });
     (async () => {
-      const { data, error: err } = await api.POST("/conversations", { body: { personaId } });
-      if (err || !data) return setError("Impossible de créer la conversation.");
+      const { data, error: err } = await api.POST("/conversations", {
+        body: { personaId, language: langRef.current },
+      });
+      if (err || !data) return setError({ key: "chat.errCreate" });
       setConversationId(data.id);
       await s.connect();
-    })().catch((e) => setError(String(e)));
+    })().catch((e) => setError({ key: "chat.errCreate", detail: String(e) }));
     return () => {
       offStatus();
       offMsg();
@@ -57,44 +97,73 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
     };
   }, [personaId]);
 
-  // A dropped connection ends any generation in progress.
+  // The server keeps running while the socket is down. When it is back, reload the messages instead of
+  // marking the answer as failed (events sent during the gap are lost).
   useEffect(() => {
-    if (status === "reconnecting" || status === "closed") setMessages((prev) => failStreaming(prev));
-  }, [status]);
+    if (status === "reconnecting") lostConnection.current = true;
+    if (status !== "open" || !lostConnection.current || !conversationId) return;
+    lostConnection.current = false;
+    void api
+      .GET("/conversations/{conversationId}/messages", { params: { path: { conversationId } } })
+      .then(({ data, error: err }) => {
+        if (err || !data) return setError({ key: "chat.errLoad" });
+        setMessages(data.items);
+      });
+  }, [status, conversationId]);
 
   const path = useMemo(() => activePath(messages, activeLeafId), [messages, activeLeafId]);
   const generating = messages.some((m) => m.status === "streaming");
-
-  // Keep the newest text in view while an answer streams in.
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, generating, path[path.length - 1]?.content.length]);
   const canAct = status === "open" && !!conversationId && !generating;
 
-  function sendMessage() {
-    const value = text.trim();
+  useEffect(() => {
+    const p = pendingScroll.current;
+    if (!p) return;
+    pendingScroll.current = null;
+    document.getElementById(`msg-${p.id}`)?.scrollIntoView({ block: p.block, behavior: "smooth" });
+  }, [messages, progress]);
+
+  // One stable callback per message, so memoized answers do not re-render while typing.
+  const citeFns = useRef(new Map<string, (steps: number[]) => void>());
+  const citeFor = useCallback((id: string) => {
+    let fn = citeFns.current.get(id);
+    if (!fn) {
+      fn = (steps: number[]) =>
+        setTraceView((v) => ({ ...v, [id]: { open: true, highlight: steps, focus: (v[id]?.focus ?? 0) + 1 } }));
+      citeFns.current.set(id, fn);
+    }
+    return fn;
+  }, []);
+
+  function send(message: WsClientMessage): boolean {
+    try {
+      socket.current.send(message);
+      setError(null);
+      return true;
+    } catch {
+      setError({ key: "chat.errSend" });
+      return false;
+    }
+  }
+
+  function sendMessage(value = text.trim()) {
     if (!value || !canAct) return;
-    setError(null);
-    socket.current.send({ type: "message.send", conversationId: conversationId!, text: value });
-    setText("");
+    if (send({ type: "message.send", conversationId: conversationId!, text: value, language: lang })) setText("");
   }
 
   function saveEdit(messageId: string) {
     const value = editText.trim();
     if (!value || !canAct) return;
-    setError(null);
-    socket.current.send({ type: "message.edit", conversationId: conversationId!, messageId, text: value });
-    setEditingId(null);
+    if (send({ type: "message.edit", conversationId: conversationId!, messageId, text: value, language: lang })) {
+      setEditingId(null);
+    }
   }
 
   function regenerate(messageId: string) {
-    if (!canAct) return;
-    setError(null);
-    socket.current.send({ type: "message.regenerate", conversationId: conversationId!, messageId });
+    if (canAct) send({ type: "message.regenerate", conversationId: conversationId!, messageId, language: lang });
   }
 
   function cancel() {
-    if (conversationId) socket.current.send({ type: "generation.cancel", conversationId });
+    if (conversationId) send({ type: "generation.cancel", conversationId });
   }
 
   async function switchBranch(sibling: Message) {
@@ -105,8 +174,10 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
       params: { path: { conversationId } },
       body: { activeLeafId: leaf.id },
     });
-    if (err) setError("Impossible d’afficher cette version.");
+    if (err) setError({ key: "chat.errBranch" });
   }
+
+  const example = t(`chat.ex.${personaId}` as Key);
 
   return (
     <div className="page chat-page">
@@ -114,170 +185,193 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
         left={
           <>
             <button className="back" onClick={onBack}>
-              <span aria-hidden="true">←</span> Changer de profil
+              <span aria-hidden="true">←</span> {t("chat.back")}
             </button>
-            <span className="persona-name">Agent</span>
+            <span className="persona-name">{t("chat.profile", { name })}</span>
           </>
         }
         right={
           <span className={`status status-${status}`} role="status">
             <span className="dot" aria-hidden="true" />
-            {STATUS_LABEL[status] ?? status}
+            <span className="status-text">{t(`status.${status}` as Key)}</span>
           </span>
         }
       />
+      {health?.agentMode === "demo" && <p className="banner">{t("app.demo")}</p>}
       <main className="chat">
-      <section className="messages" aria-live="polite">
-        {path.length === 0 && !error && (
-          <div className="empty">
-            <h2>Posez une question à l’Agent</h2>
-            <p>Essayez « Comment répartir mon portefeuille? » ou « Quel est le risque de ne détenir que des actions technologiques? »</p>
-          </div>
-        )}
-        {path.map((m) => {
-          const siblings = siblingsOf(messages, m);
-          const index = siblings.findIndex((s) => s.id === m.id);
-          return (
-            <article key={m.id} className={`msg ${m.role}`}>
-              <div className="msg-role">{m.role === "user" ? "Vous" : "Agent"}</div>
-              {siblings.length > 1 && (
-                <div className="branches" aria-label="Autres versions de ce message">
-                  <button
-                    aria-label="Version précédente"
-                    disabled={generating || index === 0}
-                    onClick={() => switchBranch(siblings[index - 1])}
-                  >
-                    ‹
-                  </button>
-                  <span>
-                    {index + 1}/{siblings.length}
-                  </span>
-                  <button
-                    aria-label="Version suivante"
-                    disabled={generating || index === siblings.length - 1}
-                    onClick={() => switchBranch(siblings[index + 1])}
-                  >
-                    ›
-                  </button>
-                </div>
-              )}
-
-              {editingId === m.id ? (
-                <div className="edit">
-                  <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} />
-                  <div className="actions">
-                    <button onClick={() => saveEdit(m.id)} disabled={!canAct || !editText.trim()}>
-                      Enregistrer et renvoyer
-                    </button>
-                    <button onClick={() => setEditingId(null)}>Annuler la modification</button>
-                  </div>
-                </div>
-              ) : (
-                <p>
-                  {m.content}
-                  {m.status === "streaming" && !m.content && (
-                    <span className="typing" aria-label="Réflexion en cours">
-                      <i />
-                      <i />
-                      <i />
+        <section className="messages" aria-live="polite">
+          {path.length === 0 && (
+            <div className="empty">
+              <h2>{t("chat.emptyTitle")}</h2>
+              <p>{t("chat.emptyHint", { name })}</p>
+              <p className="try">
+                <span className="muted">
+                  {t("chat.try")}
+                  {t("colon")}
+                </span>
+                <button type="button" className="suggestion" disabled={!canAct} onClick={() => sendMessage(example)}>
+                  {t("chat.quoted", { q: example })}
+                </button>
+              </p>
+            </div>
+          )}
+          {path.map((m) => {
+            const siblings = siblingsOf(messages, m);
+            const index = siblings.findIndex((s) => s.id === m.id);
+            const view = traceView[m.id] ?? CLOSED_TRACE;
+            const prog = progress[m.id];
+            return (
+              <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}${m.final ? " has-final" : ""}`}>
+                <div className="msg-head">
+                  <span className="msg-role">{m.role === "user" ? t("chat.you") : t("chat.agent")}</span>
+                  {siblings.length > 1 && (
+                    <span className="branches" aria-label={t("chat.versions")}>
+                      <button
+                        aria-label={t("chat.prev")}
+                        disabled={generating || index === 0}
+                        onClick={() => switchBranch(siblings[index - 1])}
+                      >
+                        ‹
+                      </button>
+                      <span>
+                        {index + 1}/{siblings.length}
+                      </span>
+                      <button
+                        aria-label={t("chat.next")}
+                        disabled={generating || index === siblings.length - 1}
+                        onClick={() => switchBranch(siblings[index + 1])}
+                      >
+                        ›
+                      </button>
                     </span>
                   )}
-                </p>
-              )}
+                </div>
 
-              {m.status === "cancelled" && <small className="tag">Arrêté</small>}
-              {m.status === "error" && <small className="tag error">⚠ Interrompu</small>}
+                {m.role === "user" &&
+                  (editingId === m.id ? (
+                    <div className="edit">
+                      <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} />
+                      <div className="actions">
+                        <button onClick={() => saveEdit(m.id)} disabled={!canAct || !editText.trim()}>
+                          {t("chat.saveEdit")}
+                        </button>
+                        <button onClick={() => setEditingId(null)}>{t("chat.cancelEdit")}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="user-text">{m.content}</p>
+                  ))}
 
-              {m.toolCalls.length > 0 && (
-                <details>
-                  <summary>Trace ({m.toolCalls.length} étapes)</summary>
-                  <ul>
-                    {m.toolCalls.map((t) => (
-                      <li key={t.id}>
-                        {TOOL_LABEL[t.name] ?? t.name} <em>{TOOL_STATUS_LABEL[t.status] ?? t.status}</em>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              {m.final && (
-                <details>
-                  <summary>Pourquoi cette réponse</summary>
-                  <p>{m.final.summary}</p>
-                  <ul>
-                    {m.final.claims.map((c, i) => (
-                      <li key={i}>
-                        [{CLAIM_LABEL[c.kind] ?? c.kind}] {c.text} {c.source && <small>({c.source})</small>}
-                      </li>
-                    ))}
-                  </ul>
-                  {m.final.governance.length > 0 && (
-                    <ul>
-                      {m.final.governance.map((g, i) => (
-                        <li key={i}>
-                          {g.status === "flag" ? "⚠" : "✓"} {g.rule}
-                          {g.note ? `: ${g.note}` : ""}
-                        </li>
-                      ))}
-                    </ul>
+                {m.role === "assistant" && m.status === "streaming" && (
+                  <StageLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
+                )}
+                {m.role === "assistant" && m.content && (
+                  <Answer content={m.content} trace={m.trace} onCite={citeFor(m.id)} />
+                )}
+
+                {m.status === "cancelled" && <small className="tag">{t("chat.stopped")}</small>}
+                {m.status === "error" && <small className="tag error">⚠ {t("chat.interrupted")}</small>}
+
+                {m.final && <Explainer f={m.final} onCite={citeFor(m.id)} />}
+                {m.role === "assistant" && (
+                  <Trace
+                    trace={m.trace}
+                    open={view.open}
+                    highlight={view.highlight}
+                    focus={view.focus}
+                    onToggle={(open) =>
+                      setTraceView((v) => (v[m.id]?.open === open ? v : { ...v, [m.id]: { ...(v[m.id] ?? CLOSED_TRACE), open } }))
+                    }
+                  />
+                )}
+
+                <div className="actions">
+                  {m.role === "user" && editingId !== m.id && (
+                    <button
+                      disabled={!canAct}
+                      onClick={() => {
+                        setEditingId(m.id);
+                        setEditText(m.content);
+                      }}
+                    >
+                      {t("chat.edit")}
+                    </button>
                   )}
-                  {m.final.limitations.length > 0 && <p>Limites : {m.final.limitations.join("; ")}</p>}
-                </details>
-              )}
-
-              <div className="actions">
-                {m.role === "user" && editingId !== m.id && (
-                  <button
-                    disabled={!canAct}
-                    onClick={() => {
-                      setEditingId(m.id);
-                      setEditText(m.content);
-                    }}
-                  >
-                    Modifier
-                  </button>
-                )}
-                {m.role === "assistant" && m.status !== "streaming" && (
-                  <button disabled={!canAct} onClick={() => regenerate(m.id)}>
-                    Régénérer
-                  </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
-        {error && (
-          <p className="error" role="alert">
-            <span aria-hidden="true">⚠</span> {error}
-          </p>
-        )}
-        <div ref={endRef} />
-      </section>
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          sendMessage();
-        }}
-      >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Posez une question…"
-          aria-label="Votre question"
-          disabled={generating}
-        />
-        {generating ? (
-          <button type="button" className="btn btn-secondary" onClick={cancel}>
-            Arrêter
-          </button>
-        ) : (
-          <button type="submit" className="btn btn-primary" disabled={!canAct}>
-            Envoyer
-          </button>
-        )}
-      </form>
+                  {m.role === "assistant" && m.status !== "streaming" && (
+                    <button disabled={!canAct} onClick={() => regenerate(m.id)}>
+                      {t("chat.regenerate")}
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+          {error && (
+            <p className="error" role="alert">
+              <span aria-hidden="true">⚠</span> {t(error.key, error.vars)}
+              {error.detail && <span lang="en">{`: ${error.detail}`}</span>}
+            </p>
+          )}
+        </section>
+        <form
+          className="composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage();
+          }}
+        >
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t("chat.placeholder")}
+            aria-label={t("chat.inputLabel")}
+            disabled={generating}
+          />
+          {generating ? (
+            <button type="button" className="btn btn-secondary" onClick={cancel}>
+              {t("chat.stop")}
+            </button>
+          ) : (
+            <button type="submit" className="btn btn-primary" disabled={!canAct || !text.trim()}>
+              {t("chat.send")}
+            </button>
+          )}
+        </form>
+        <p className="composer-note">{t("app.disclaimer")}</p>
       </main>
+    </div>
+  );
+}
+
+/** What the pipeline is doing now, with the number of trace steps so far and the latest one. */
+function StageLine({
+  progress,
+  trace,
+  actorLabel,
+}: {
+  progress: Progress | undefined;
+  trace: TraceStep[];
+  actorLabel: (actor: string) => string;
+}) {
+  const { t } = useI18n();
+  const stage = progress?.stage ?? "planning";
+  const last = trace[trace.length - 1];
+  return (
+    <div className="stage" role="status">
+      <span className="typing" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      <div>
+        <strong>{t(`stage.${stage}` as Key, { n: Math.max(progress?.steps ?? 0, trace.length) })}</strong>
+        {last && (
+          <small>
+            {last.step}. {actorLabel(last.actor)} · <code>{last.action}</code>
+          </small>
+        )}
+        <small className="muted">{t("stage.note")}</small>
+      </div>
     </div>
   );
 }
@@ -309,27 +403,29 @@ function latestLeaf(all: Message[], from: Message): Message {
   }
 }
 
-function failStreaming(prev: Message[]): Message[] {
-  return prev.some((m) => m.status === "streaming")
-    ? prev.map((m) => (m.status === "streaming" ? { ...m, status: "error" as const } : m))
-    : prev;
-}
-
-function upsertTool(calls: ToolCall[], call: ToolCall): ToolCall[] {
-  return calls.some((c) => c.id === call.id) ? calls.map((c) => (c.id === call.id ? call : c)) : [...calls, call];
+/** Insert or replace a trace step by its number (steps can arrive again after a reload). */
+function upsertStep(trace: TraceStep[], step: TraceStep): TraceStep[] {
+  const i = trace.findIndex((s) => s.step === step.step);
+  if (i === -1) return [...trace, step].sort((a, b) => a.step - b.step);
+  const next = trace.slice();
+  next[i] = step;
+  return next;
 }
 
 function reduce(prev: Message[], m: WsServerMessage): Message[] {
   switch (m.type) {
-    case "message.start":
-      return [...prev, ...(m.userMessage ? [m.userMessage] : []), m.message];
+    case "message.start": {
+      const added = [...(m.userMessage ? [m.userMessage] : []), m.message];
+      return [...prev.filter((x) => !added.some((a) => a.id === x.id)), ...added];
+    }
+    case "trace.step":
+      return prev.map((x) => (x.id === m.messageId ? { ...x, trace: upsertStep(x.trace, m.step) } : x));
     case "message.delta":
       return prev.map((x) => (x.id === m.messageId ? { ...x, content: x.content + m.delta } : x));
-    case "tool.call":
-    case "tool.result":
-      return prev.map((x) => (x.id === m.messageId ? { ...x, toolCalls: upsertTool(x.toolCalls, m.toolCall) } : x));
     case "message.end":
-      return prev.map((x) => (x.id === m.message.id ? m.message : x));
+      return prev.some((x) => x.id === m.message.id)
+        ? prev.map((x) => (x.id === m.message.id ? m.message : x))
+        : [...prev, m.message];
     default:
       return prev;
   }

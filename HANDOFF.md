@@ -1,7 +1,8 @@
 # Handoff: web backend + React frontend (Nov 15, 2026)
 
-Branch **`web-app`** (pushed to GitHub). **Not merged into `main`** yet: the backend is done and tested, but
-the React app still uses the old contract and does not compile. `main` = 41f03fe (phase 3 merged, 188 tests).
+Branch **`web-app`** (pushed to GitHub). **Not merged into `main`** yet. The backend is done and tested, and
+the React app now uses contract v0.2 (to-do items 1 to 4 below are done: it compiles, builds, and was
+smoke-tested in demo mode in EN and FR). `main` = 41f03fe (phase 3 merged, 188 tests).
 
 ## Read this first: data is not on GitHub
 `data/*.csv` is gitignored (team rule). To work at home you need `data/` (starter CSVs + `macro_extra.csv`).
@@ -33,33 +34,28 @@ Without AWS credentials, use `AGENT_MODE=demo` (no Bedrock; real worker numbers)
 | Pipeline additions (backward compatible) | `pipeline.py`: `ChatSession(history=, lang=, on_step=)`; boss seeded with the branch history, so edit/regenerate work. `run_trace.py`: live step listener. `presenter.py` + `prompts/lang_en.txt`, `prompts/lang_fr.txt`: answer language. `reviewer.py`: French numbers (51,1 %) are checked; sentence split handles À/É. `texts.py`: disclaimers and notes in EN/FR | Done |
 | Contract + client | `contracts/*.yaml`, `packages/api-client/src/types.ts`, regenerated `generated/schema.ts` | Spectral lint: no errors. Client build + 8 client tests pass |
 | Tests | `tests/test_server.py` (22), `tests/test_explainer.py` (11), `tests/contract.py` (checks every REST response and WS event against `openapi.yaml`), `tests/test_live_server.py` (2, needs `RUN_LIVE=1`) | **221 passed**. Live on Bedrock: 2 passed (Robert/NVDA in French: work + answer checks passed, trace saved to S3; Amira follow-up in English used the history) |
-| Frontend moved into the repo | `apps/web/` (copied from `/workshop/frontend` without `node_modules`, `dist`, `.env.local`, `mock-server`). Dependency is now `workspace:*`; `react-markdown` + `remark-gfm` added; root scripts `web:dev`, `web:build`, `web:typecheck` | Copied, **not adapted** |
-| i18n | `apps/web/src/i18n.tsx`: EN/FR dictionary, labels for every backend code (statuses, rules, sectors, actors, phases, caveats), `LanguageProvider`, `useI18n()` | Written, **not wired in** |
+| Frontend on contract v0.2 | `apps/web/`: `Chat.tsx` (WS events `trace.step` / `generation.status`, live stage line, reload after reconnect, `language` on every send), `Answer.tsx` + `cite.ts` (markdown, claim chips that open the trace), `Explainer.tsx` (cards, risk charts, profile check, market, claims, review, limits, run), `Trace.tsx`, `format.ts`, `health.ts` (demo banner). See `apps/web/README.md` | Done. `pnpm web:build` passes; headless-browser smoke test below |
+| i18n | `apps/web/src/i18n.tsx` wired in: `LanguageProvider` in `main.tsx`, EN/FR button in `AppBar.tsx`, `PersonaPicker.tsx` reads `GET /personas` (assumed limits), `<html lang>` set before first paint and on switch | Done |
 | Tools | `scripts/inspect_target.py` (readable .txt report), `scripts/sanity_check.py` (31 independent checks; all pass) | Done |
 
+## Frontend smoke test (demo mode, headless Chromium)
+Backend `AGENT_MODE=demo` + `pnpm web:dev`; each demo question sent from the empty-state suggestion button.
+| Check | Result |
+|---|---|
+| Robert EN, NVDA question | NVDA card "Conflict"; vol chart 7 bars vs 10.0% limit (4 above); 2022 chart vs -15.0%; profile table shows conflict / flag / info / N/A / pass |
+| Mateo FR | All labels in French (« Services publics », « Signalement »), numbers `14,7 %`; Energy flagged for ESG review; follow-up question + Régénérer → branch switcher 2/2 |
+| Amira EN | Crypto building block shown as BTC-USD/ETH-USD range; "No limit of this kind for Amira" on both charts (she has no vol or 2022 limit) |
+| Claim chip | Opens the trace and highlights the cited step |
+| Socket dropped mid-run | Reconnects, reloads the messages, shows the finished answer; no "Interrupted" tag |
+| EN/FR button, dark theme | Switch at once; `<html lang>` follows; no console errors in any run |
+| `pytest` / client tests | 221 passed, 5 skipped / 8 passed |
+Not tested: a real Bedrock run through the UI, and the workshop proxy URL (`VITE_BASE=/absproxy/5173/`).
+
 ## To do, in order
-1. **Adapt `apps/web/src/Chat.tsx` to contract v0.2** (all 17 TypeScript errors are in this file):
-   - `toolCalls` → `trace` (type `TraceStep`); handle `trace.step` (append/upsert by `step.step`) and
-     `generation.status` (show the stage text `stage.*` from i18n, with the step count).
-   - Render `content` as markdown (`react-markdown` + `remark-gfm`). Turn `[fact: step 3, 7]`, `[fact: step 17-24]`,
-     `[assumption]`, `[scenario]` into chips that open the trace at those steps (same regexes as
-     `server/explainer.py`: `TAG`, `STEP_NUMS`).
-   - Final panel from `m.final`: recommended sector cards, requested targets, conflicts, suitability table
-     (color by status; conflict red, flag amber), charts from `riskTable` (vol vs `personaLimits.vol_max`; 2022
-     drawdown vs `personaLimits.stress_2022_max_drawdown`; simple SVG bars are enough), market context,
-     claims, review, limitations + caveats, run id + S3 URI.
-   - Create `src/format.ts`: percent with `Intl.NumberFormat(locale, {style: "percent", maximumFractionDigits: 1})`.
-   - Send `language` with `message.send` / `edit` / `regenerate` and with `POST /conversations`.
-   - Show the persona's name in the chat header (judges must see whose profile is checked).
-   - On reconnect, do not mark the streaming message as failed: the server keeps running. When the socket is
-     `open` again, refetch `GET /conversations/{id}/messages`.
-2. **Wire i18n**: wrap `<App/>` in `LanguageProvider` (`main.tsx`); add an EN/FR toggle to `AppBar.tsx`;
-   `PersonaPicker.tsx` uses `GET /personas` (show the assumed limits) + the `persona.*` blurbs; remove
-   `src/personas.ts` (or keep as fallback); `index.html` lang is set at runtime.
-3. **Rewrite `apps/web/README.md`**: the mock server is gone (use `AGENT_MODE=demo`); the client is a workspace package.
-4. **Run both and smoke-test** the 3 demo questions in EN and FR (see "How to run").
-5. **Merge `web-app` → `main`** via PR. Tell the frontend teammate to work in `apps/web/` from now on.
-6. Remaining phases: 4 guardrail, 5 news/ethics (optional), 7 docs (README sources/licenses, technical doc,
+1. **Merge `web-app` → `main`** via PR. Tell the frontend teammate to work in `apps/web/` from now on
+   (`/workshop/frontend` is the old copy; its mock server and Vite were still running on ports 8000 and 5173).
+2. Before the video: one real Bedrock question through the UI (`uvicorn server.app:app`, no `AGENT_MODE`).
+3. Remaining phases: 4 guardrail, 5 news/ethics (optional), 7 docs (README sources/licenses, technical doc,
    one-pager, 5-min video). Repo + README due **Sunday Nov 15, 23:59**.
 
 ## Known issues (from the reviews; not blocking)
@@ -67,6 +63,9 @@ Without AWS credentials, use `AGENT_MODE=demo` (no Bedrock; real worker numbers)
 - Dates in the trace (2021-11-12) make the numbers 11 and 12 look "supported" in the answer check.
 - Annualized return differs for the same asset alone vs inside a basket (NVDA 44.4% vs 45.6%): years = returns/252 on common dates.
 - Mateo's "Utilities" is one company (FTS.TO).
+- The 2022 chart only has bars for targets the boss ran `stress_test_2022` on (`riskTable.stress2022*` comes from
+  those steps). In demo mode that is only the requested target, so Robert's chart shows NVDA alone, while the
+  profile table shows Consumer Staples' 2022 drawdown (-13.7%) from the suitability step.
 - Server: conversations are in memory (lost on restart; traces stay in `runs/` and S3). One run at a time
   (`agent_tools.CONTEXT` is global; others show "queued"). Cancel discards the result but the run finishes in
   the background. The answer arrives as one `message.delta` (the presenter does not stream).
