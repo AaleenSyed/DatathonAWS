@@ -17,6 +17,7 @@ PLAN = {"requested_targets": ["NVDA"], "recommended_sectors": ["Consumer Staples
 @pytest.fixture(autouse=True)
 def no_s3(monkeypatch):
     monkeypatch.setenv("TRACE_S3", "0")
+    monkeypatch.setenv("SEMANTIC_CHECK", "0")  # no Bedrock in offline tests; fakes below
 
 
 class FakeBoss:
@@ -150,3 +151,55 @@ def test_no_stress_tool_before_end_of_2022(tmp_path):
     finally:
         at.CONTEXT["as_of"] = "2026-11-12"
     assert r["status"] == "error" and "before the end of 2022" in r["error"]
+
+
+# ---------- semantic (Haiku) check, with a fake checker ----------
+
+class FakeSemantic:
+    def __init__(self, fail_first=0, raise_error=False):
+        self.calls, self.fail_first, self.raise_error = [], fail_first, raise_error
+
+    def __call__(self, answer, trace):
+        self.calls.append(answer)
+        if self.raise_error:
+            raise RuntimeError("throttled")
+        if len(self.calls) <= self.fail_first:
+            return {"verdict": "fail", "reasons": ['"held up better": evidence shows it did worse'], "issues": []}
+        return {"verdict": "pass", "reasons": [], "issues": []}
+
+
+def test_semantic_fail_triggers_rewrite(tmp_path):
+    presenter, sem = FakePresenter(), FakeSemantic(fail_first=1)
+    r = pipeline.ChatSession("robert", boss=FakeBoss(), presenter=presenter, runs_dir=tmp_path, semantic=sem).ask(Q)
+    assert len(presenter.calls) == 2 and "held up better" in presenter.calls[1]["feedback"]
+    assert r["answer_verdict"]["verdict"] == "pass"
+    steps = [s for s in r["trace"].steps if s["action"] == "semantic_check"]
+    assert [s["output"]["verdict"] for s in steps] == ["fail", "pass"]
+
+
+def test_semantic_runs_only_after_numbers_pass(tmp_path):
+    sem = FakeSemantic()
+    pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter(bad_first=1), runs_dir=tmp_path,
+                         semantic=sem).ask(Q)
+    assert len(sem.calls) == 1  # the bad-number draft never reached the LLM check
+
+
+def test_semantic_never_fixed_gets_reviewer_note(tmp_path):
+    sem = FakeSemantic(fail_first=99)
+    r = pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter(), runs_dir=tmp_path,
+                             semantic=sem).ask(Q)
+    assert "Reviewer note" in r["answer"] and "held up better" in r["answer"]
+
+
+def test_semantic_error_does_not_block(tmp_path):
+    r = pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter(), runs_dir=tmp_path,
+                             semantic=FakeSemantic(raise_error=True)).ask(Q)
+    assert r["answer_verdict"]["verdict"] == "pass" and "Reviewer note" not in r["answer"]
+    assert any(s["action"] == "semantic_check" and "unavailable" in s["output_summary"] for s in r["trace"].steps)
+
+
+def test_semantic_off_by_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEMANTIC_CHECK", "0")
+    assert pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter()).semantic is None
+    monkeypatch.setenv("SEMANTIC_CHECK", "1")
+    assert pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter()).semantic is not None

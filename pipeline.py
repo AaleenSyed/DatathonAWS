@@ -57,7 +57,8 @@ def make_boss(persona_key: str, as_of: str):
 
 
 class ChatSession:
-    def __init__(self, persona: str, boss=None, presenter=None, as_of: str = ANALYSIS_DATE, runs_dir=None):
+    def __init__(self, persona: str, boss=None, presenter=None, as_of: str = ANALYSIS_DATE, runs_dir=None,
+                 semantic=None):
         key = str(persona).strip().lower()
         if key not in PERSONAS:
             raise ValueError(f"unknown persona '{persona}'; choose one of {sorted(PERSONAS)}")
@@ -65,6 +66,9 @@ class ChatSession:
         self.boss = boss or make_boss(key, as_of)
         self.present = presenter or bedrock_present
         self.runs_dir = runs_dir
+        # Haiku 4.5 meaning check after the number check; SEMANTIC_CHECK=0 turns it off (offline tests)
+        self.semantic = semantic if semantic is not None else (
+            reviewer.semantic_check if os.getenv("SEMANTIC_CHECK", "1") != "0" else None)
         self.session_id = uuid.uuid4().hex[:8]
         self.history: list[dict] = []
 
@@ -108,6 +112,15 @@ class ChatSession:
                 trace.add("presenter", "write_answer", {"attempt": attempt}, {"answer": answer})
                 check = reviewer.check_answer(answer, trace)
                 trace.add("reviewer", "check_answer", {"attempt": attempt}, check)
+                if check["verdict"] == "pass" and self.semantic:
+                    try:
+                        sem = self.semantic(answer, trace)
+                        trace.add("reviewer", "semantic_check", {"attempt": attempt, "model": reviewer.SEMANTIC_MODEL},
+                                  sem)
+                        check = {"verdict": sem["verdict"], "reasons": sem["reasons"]}
+                    except Exception as e:  # the LLM check must not block an answer whose numbers are verified
+                        trace.add("reviewer", "semantic_check", {"attempt": attempt},
+                                  {"status": "error", "error": f"semantic check unavailable: {e}"})
                 if check["verdict"] == "pass":
                     break
                 feedback = "; ".join(check["reasons"])

@@ -92,6 +92,11 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
 - **Answer check**: every number must match a worker result (as written or ×100, within its rounding). On a line
   tagged `[fact: step N]` it must come from the cited step(s); citations must point to worker steps. Bare counts
   0–12 ("3 asset classes") are exempt, but not percentages or decimals. Max 2 rewrites, then a visible reviewer note.
+- **Meaning check** (Claude Haiku 4.5 on Bedrock, structured output, after the number check passes): lists every
+  comparison and every value placed under a rule, checks each against the cited steps, and sends contradictions
+  (wrong direction, wrong rule, wrong period, misread status) back to the presenter. Adds ~5-15 s per answer.
+  If the call fails, the answer is kept (numbers already verified) and the failure is logged in the trace.
+  `SEMANTIC_CHECK=0` turns it off. Prompt: `prompts/semantic_check.txt`.
 - **Work review**: requested and recommended targets need a real risk analysis (not just a stress test) and a
   suitability check; recommended sectors also need momentum and must not have a suitability `conflict`; every
   ESG-review name must be checked; a worker error must be retried successfully or explained in the boss notes.
@@ -100,7 +105,8 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
 - Survivorship bias: the universe was picked in 2026.
 - FRED values are revised vintages, not what was known at the time.
 - CNQ.TO 1.021 "split" on 2022-08-22 is likely a special distribution.
-- The answer check verifies numbers and citations, not units, signs or wording: a right number with a wrong unit,
+- The number check verifies numbers and citations, not units, signs or wording (the Haiku meaning check covers
+  comparisons, rules and periods, but an LLM check can still miss things): a right number with a wrong unit,
   sign or meaning can pass, and a whole-number percent can match some unrelated value in the cited step by chance.
   Every answer has a full trace to audit it.
 - Target words are matched literally: "I have little energy..." makes the reviewer require an Energy analysis

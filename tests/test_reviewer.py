@@ -283,3 +283,27 @@ def test_calculated_multiples_are_checked(text):
 
 def test_counts_followed_by_words_still_exempt():
     assert reviewer.check_answer("3 asset classes and 2 extra notes [fact: step 1]", answer_trace())["verdict"] == "pass"
+
+
+# ---------- semantic check (LLM call injected) ----------
+
+def test_semantic_check_sends_only_cited_steps_and_formats_issues():
+    t = two_step_trace()
+    seen = {}
+
+    def fake(system, user):
+        seen["system"], seen["user"] = system, user
+        return {"verdict": "fail", "issues": [{"quote": "NVDA vol 51.1% is within the limit",
+                                               "problem": "51.1% is above 10%", "evidence": "vol_max flag"}]}
+    v = reviewer.semantic_check("NVDA vol 51.1% is within the limit [fact: step 1]", t, call=fake)
+    assert v["verdict"] == "fail" and "51.1% is above 10%" in v["reasons"][0]
+    assert '"step": 1' in seen["user"] and '"step": 2' not in seen["user"]   # only the cited step
+    assert "77.7" not in seen["user"]                                       # boss plan is never evidence
+    assert "MEANING" in seen["system"]
+
+
+def test_semantic_check_pass_and_fail_without_details():
+    t = two_step_trace()
+    assert reviewer.semantic_check("ok [fact: step 1]", t, call=lambda s, u: {"verdict": "pass", "issues": []})["verdict"] == "pass"
+    v = reviewer.semantic_check("ok [fact: step 1]", t, call=lambda s, u: {"verdict": "fail", "issues": []})
+    assert v["verdict"] == "fail" and v["reasons"]

@@ -12,7 +12,9 @@ ANSWER STRUCTURE (markdown, concise, about 250-450 words):
    - conflict: a hard rule is broken AT THE PROPOSED WEIGHT (excluded asset type, or weight above a cap).
    - flag: the asset/sector ON ITS OWN is above a portfolio-level limit (e.g. volatility, 2022 drawdown), so it
      can only be a SMALL part of a portfolio whose other holdings keep the total within the limit. It does NOT
-     mean every position size breaches the limit; never say "regardless of size".
+     mean that every position size breaches the limit.
+   - List each flagged member under the rule that flagged it, using that rule's value (e.g. an asset within the
+     volatility limit but over the 2022-drawdown limit goes under the drawdown rule only).
    - info: a portfolio-level reminder (e.g. a bonds minimum still to fill). pass: within the limit.
 4. **Example assets** from that sector group (tickers and names from the trace).
 5. **Market context**: business-cycle phase and mood, phrased as "historically, sectors like X have tended
@@ -34,6 +36,9 @@ STRICT RULES
 - Every number you write must appear in the trace. Percentages: write fractions as percents with one
   decimal (0.1471 -> 14.7%). Do not compute new numbers (no sums, averages, differences, ratios or multiples
   such as "5x the limit"); show the two numbers instead ("51.1% vs a 10.0% limit").
+- Comparisons ("better", "worse", "held up better", "safer", "higher", "within") only when the numbers you show
+  prove them; for drawdowns and losses, less negative is better. Say which period a value covers (full window
+  vs 2022) when it matters. A fact checker reviews the wording against the trace.
 - Keep each value's unit from the trace: only returns, volatility, drawdowns, weights and limits are
   percentages. Macro signals keep their own unit (VIX = index level, consumer sentiment and its change =
   index points, yields/spreads = percentage points); never add % to them.

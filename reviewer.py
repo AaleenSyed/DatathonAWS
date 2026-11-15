@@ -9,10 +9,15 @@ review_work(trace, plan, ...)  -> checks the workers' output before the presente
   6. every persona limit was evaluated
   7. no data dated after the analysis date
 check_answer(text, trace) -> every number in the presenter's answer appears in the trace, cited steps exist.
-Both return {"verdict": "pass" | "fail", "reasons": [...]}.
+semantic_check(text, trace) -> the one LLM check (Claude Haiku 4.5 on Bedrock, structured output): the
+  answer's wording (comparisons, which rule a value belongs to, period) must not contradict the cited steps.
+All return {"verdict": "pass" | "fail", "reasons": [...]}.
 """
 import bisect
+import json
+import os
 import re
+from pathlib import Path
 
 from personas import PERSONAS
 from workers import data_retriever as dr
@@ -238,3 +243,56 @@ def check_answer(text: str, trace) -> dict:
     if bad:
         reasons.append(f"numbers not found in the cited steps / trace: {sorted(set(bad))}")
     return _verdict(list(dict.fromkeys(reasons)))
+
+
+# ---------- semantic check (LLM) ----------
+
+SEMANTIC_MODEL = os.getenv("SEMANTIC_MODEL", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
+# checked_claims comes first so the model works through each claim before deciding (a bare verdict missed
+# real errors in full-size answers during testing)
+SEMANTIC_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["checked_claims", "verdict", "issues"],
+    "properties": {
+        "checked_claims": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["quote", "evidence", "ok"],
+            "properties": {"quote": {"type": "string"}, "evidence": {"type": "string"}, "ok": {"type": "boolean"}}}},
+        "verdict": {"type": "string", "enum": ["pass", "fail"]},
+        "issues": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["quote", "problem", "evidence"],
+            "properties": {"quote": {"type": "string"}, "problem": {"type": "string"}, "evidence": {"type": "string"}}}},
+    },
+}
+_bedrock = None
+
+
+def _haiku(system: str, user: str) -> dict:
+    """One Converse call with structured output; returns the parsed JSON."""
+    global _bedrock
+    if _bedrock is None:
+        import boto3
+        from botocore.config import Config
+        _bedrock = boto3.client("bedrock-runtime", region_name="us-east-1",
+                                config=Config(retries={"max_attempts": 5, "mode": "adaptive"}))
+    r = _bedrock.converse(
+        modelId=SEMANTIC_MODEL, system=[{"text": system}],
+        messages=[{"role": "user", "content": [{"text": user}]}],
+        inferenceConfig={"maxTokens": 6000},
+        outputConfig={"textFormat": {"type": "json_schema", "structure": {"jsonSchema": {
+            "schema": json.dumps(SEMANTIC_SCHEMA), "name": "semantic_check"}}}})
+    return json.loads("".join(b["text"] for b in r["output"]["message"]["content"] if "text" in b))
+
+
+def semantic_check(text: str, trace, call=None) -> dict:
+    """Ask Haiku 4.5 whether the answer's wording contradicts the cited worker results. `call` is injectable
+    for tests. Returns {"verdict", "reasons", "issues"}."""
+    cited = {int(n) for r in STEP_REF.findall(text) for n in re.findall(r"\d+", r)}
+    steps = [{"step": s["step"], "action": s["action"], "input": s["input"], "output": s["output"]}
+             for s in trace.steps if _evidence(s) and (s["step"] in cited or not cited)]
+    system = (Path(__file__).resolve().parent / "prompts" / "semantic_check.txt").read_text(encoding="utf-8")
+    user = f"ANSWER:\n{text}\n\nEVIDENCE (trace steps cited by the answer):\n{json.dumps(steps, default=str)}"
+    out = (call or _haiku)(system, user)
+    issues = out.get("issues") or []
+    reasons = [f'"{i["quote"][:160]}": {i["problem"]} (evidence: {i["evidence"]})' for i in issues]
+    if out.get("verdict") == "fail" and not reasons:
+        reasons = ["semantic check failed without details"]
+    return {"verdict": "fail" if reasons else "pass", "reasons": reasons, "issues": issues}
