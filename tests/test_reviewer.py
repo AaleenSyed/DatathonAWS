@@ -283,3 +283,23 @@ def test_calculated_multiples_are_checked(text):
 
 def test_counts_followed_by_words_still_exempt():
     assert reviewer.check_answer("3 asset classes and 2 extra notes [fact: step 1]", answer_trace())["verdict"] == "pass"
+
+
+# ---------- no promises or predictions (guardrails/05_presenter.md) ----------
+
+@pytest.mark.parametrize("text", [
+    "NVDA will go up next year.", "Utilities are a safe bet for Robert.", "Returns are guaranteed.",
+    "Bonds will rise in value.", "Ce secteur va monter.", "Un rendement garanti.", "Un placement sans risque.",
+])
+def test_predictions_fail(text):
+    v = reviewer.check_answer(text, answer_trace())
+    assert v["verdict"] == "fail" and "predicts returns" in " ".join(v["reasons"])
+
+
+@pytest.mark.parametrize("text", [
+    "Returns are not guaranteed.", "Past results do not guarantee future returns.",
+    "Les rendements ne sont pas garantis.", "Aucun placement n’est sans risque.",
+    "Historically, sectors like Utilities have tended to hold up better.",
+])
+def test_negated_or_historical_wording_passes(text):
+    assert reviewer.check_answer(text, answer_trace())["verdict"] == "pass"

@@ -8,7 +8,8 @@ review_work(trace, plan, ...)  -> checks the workers' output before the presente
   5. every successful worker result has a source and a period
   6. every persona limit was evaluated
   7. no data dated after the analysis date
-check_answer(text, trace) -> every number in the presenter's answer appears in the trace, cited steps exist.
+check_answer(text, trace) -> every number in the presenter's answer appears in the trace, cited steps exist,
+  and no sentence promises or predicts returns ("guaranteed", "will go up", "safe bet", "sans risque", ...).
 Both return {"verdict": "pass" | "fail", "reasons": [...]}.
 """
 import bisect
@@ -224,6 +225,27 @@ def _unsupported(text: str, known: list[float]) -> list[str]:
     return bad
 
 
+# Certainty about future returns (guardrails/05_presenter.md). English and Canadian French. A negation shortly
+# before the match ("not guaranteed", "n'est pas garanti", "aucun placement n'est sans risque") is fine.
+PREDICTION = re.compile(
+    r"\bguarantee[sd]?\b|\bwill\s+(?:surely\s+|certainly\s+|definitely\s+)?(?:go\s+up|rise|double|triple|soar)\b"
+    r"|\bsafe\s+bet\b|\bcan(?:not|'t|’t)\s+lose\b|\bsure\s+thing\b"
+    r"|\bgaranti(?:e|s|es)?\b|\bsans\s+risque\b|\bva(?:\s+(?:sûrement|certainement))?\s+(?:monter|doubler|grimper)\b"
+    r"|\bvont(?:\s+(?:sûrement|certainement))?\s+(?:monter|doubler|grimper)\b|\bpari\s+sûr\b", re.I)
+NEGATION = re.compile(r"\b(?:not|no|never|nothing|nor|without|ne|pas|aucun|aucune|jamais|rien|sans)\b|n['’]|n't\b",
+                      re.I)
+
+
+def predictions(text: str) -> list[str]:
+    """Phrases that promise or predict returns, unless negated within the few words before them."""
+    found = []
+    for m in PREDICTION.finditer(text):
+        before = text[max(0, m.start() - 30):m.start()]
+        if not NEGATION.search(before):
+            found.append(m.group())
+    return found
+
+
 def check_answer(text: str, trace, lang: str = "en") -> dict:
     """Numbers in the answer must match evidence numbers (as written, or x100 for fractions) within their
     rounding. In a sentence tagged [fact: step N] they must come from the cited steps (or the user step,
@@ -249,4 +271,8 @@ def check_answer(text: str, trace, lang: str = "en") -> dict:
                     bad.append(b)
     if bad:
         reasons.append(f"numbers not found in the cited steps / trace: {sorted(set(bad))}")
+    sure = predictions(STEP_REF.sub(" ", text))
+    if sure:
+        reasons.append(f"the answer promises or predicts returns {sorted(set(sure))}; describe historical numbers "
+                       "and risks instead, never certainty about the future")
     return _verdict(list(dict.fromkeys(reasons)))

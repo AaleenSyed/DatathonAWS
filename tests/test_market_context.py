@@ -197,3 +197,29 @@ def test_momentum_no_look_ahead(monkeypatch):
         return pd.concat([df, df[df.ticker == "NVDA"].tail(1).assign(date=pd.Timestamp("2024-07-01"), adj_close=1e9)])
     monkeypatch.setattr(dr, "_load", with_future)
     assert mc.sector_momentum("NVDA", "2024-06-28") == before
+
+
+def test_cycle_phase_no_look_ahead(monkeypatch):
+    """guardrails/03_workers_market_context.md: values dated after the analysis date, or monthly values not yet
+    published by then (reference month + publication lag), must not change the phase or its signals."""
+    as_of = "2026-11-12"
+    before = mc.cycle_phase(as_of)
+    real = dr._load
+
+    def with_future(n):
+        df = real(n)
+        if n not in ("macro_extra.csv", "macro_rates.csv"):
+            return df
+        last = df.sort_values("date").groupby("series_id").tail(1)
+        # extreme values: a recession signal and a deep inversion, dated after as_of and in as_of's own month
+        # (a monthly value for November is only published in December)
+        extreme = {"SAHMREALTIME": 5.0, "RECPROUSM156N": 99.0, "T10Y2Y": -3.0, "INDPRO": 1.0, "VIXCLS": 80.0}
+        last = last.assign(value=last["series_id"].map(extreme).fillna(1e6))
+        monthly = last[last["frequency"].str.contains("monthly", case=False)]
+        rows = [monthly.assign(date=pd.Timestamp("2026-11-01"))]  # same month as as_of: not published yet
+        rows += [last.assign(date=pd.Timestamp(d)) for d in ("2026-11-13", "2027-01-15")]  # after as_of
+        return pd.concat([df, *rows], ignore_index=True)
+    monkeypatch.setattr(dr, "_load", with_future)
+    after = mc.cycle_phase(as_of)
+    assert after["status"] == "ok" and after["data"]["phase"] == before["data"]["phase"]
+    assert after["data"]["signals"] == before["data"]["signals"] and after["period"] == before["period"]

@@ -261,7 +261,8 @@ def build(result: dict, persona_key: str, lang: str) -> dict:
         "review": {"work": work, "answer": answer,
                    "workRetries": max(0, actions.count("review_work") - 1),
                    "answerRetries": max(0, actions.count("write_answer") - 1),
-                   "incomplete": work["verdict"] == "fail"},
+                   # a guardrail block ("blocked") is reported as fail but is not an incomplete analysis
+                   "incomplete": (result.get("work_verdict") or {}).get("verdict") == "fail"},
         "limitations": limitations(run),
         "caveats": list(CAVEATS),
         "run": {"runId": trace.run_id, "sessionId": trace.meta.get("session_id"),

@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 import agent_tools
+import guardrail
 import reviewer
 from personas import PERSONAS
 from presenter import present as bedrock_present
@@ -126,11 +127,13 @@ def make_boss(persona_key: str, as_of: str, history: list[dict] | None = None):
 class ChatSession:
     def __init__(self, persona: str, boss=None, presenter=None, as_of: str = ANALYSIS_DATE, runs_dir=None,
                  history: list[dict] | None = None, lang: str = "en", on_step=None, session_id: str | None = None,
-                 on_delta=None):
+                 on_delta=None, guard=None):
         """history: earlier turns [{"question", "answer"}] to continue a conversation.
         lang: answer language ("en" or "fr"). on_step: callable(step) for every trace step (live UI).
         on_delta: callable(text, reset) for the answer text as it is streamed (reset=True: discard the text
-        streamed so far, the reviewer asked for a rewrite). Only the Bedrock presenter streams."""
+        streamed so far, the reviewer asked for a rewrite). Only the Bedrock presenter streams.
+        guard: callable(text, source) -> {"action", ...} applying the Bedrock Guardrail (default guardrail.check,
+        skipped when GUARDRAIL_ID is unset or AGENT_MODE=demo). Injectable for tests."""
         key = str(persona).strip().lower()
         if key not in PERSONAS:
             raise ValueError(f"unknown persona '{persona}'; choose one of {sorted(PERSONAS)}")
@@ -144,6 +147,7 @@ class ChatSession:
         self.runs_dir = runs_dir
         self.on_step = on_step
         self.session_id = session_id or uuid.uuid4().hex[:8]
+        self.guard = guard or guardrail.check
 
     def _delta(self, chunk: str):
         self._streamed = True
@@ -156,8 +160,9 @@ class ChatSession:
             plan = self.boss(prompt) or {}
         except Exception as e:
             plan = {}
-            trace.add("boss", f"{label}_error", {"prompt": prompt[:500]}, {"status": "error", "error": str(e)})
-        trace.add("boss", label, {"prompt": prompt[:500]}, plan, duration_ms=_ms_since(t0))
+            trace.add("boss", f"{label}_error", {"prompt": guardrail.redact_pii(prompt[:500])},
+                      {"status": "error", "error": str(e)})
+        trace.add("boss", label, {"prompt": guardrail.redact_pii(prompt[:500])}, plan, duration_ms=_ms_since(t0))
         return plan
 
     def _review_work(self, trace, plan, question, attempt):
@@ -166,13 +171,41 @@ class ChatSession:
         trace.add("reviewer", "review_work", {"attempt": attempt}, verdict, duration_ms=_ms_since(t0))
         return verdict
 
+    def _guard(self, trace, content: str, source: str) -> bool:
+        """Apply the Bedrock Guardrail to the question (INPUT) or the final answer (OUTPUT). True = blocked.
+        Logged in the trace only when the guardrail is configured; the logged text is PII-redacted and the
+        matched content is never stored. An API error fails open (the run continues) and is logged."""
+        t0 = time.perf_counter()
+        try:
+            r = self.guard(content, source) or {}
+        except Exception as e:
+            r = {"action": "ERROR", "assessments": [], "error": str(e)[:300]}
+        if r.get("action") == "SKIPPED":
+            return False
+        blocked = r.get("action") == "GUARDRAIL_INTERVENED"
+        status = "blocked" if blocked else "error" if r.get("action") == "ERROR" else "ok"
+        trace.add("guardrail", f"{source.lower()}_{'blocked' if blocked else 'checked'}",
+                  {"source": source, "text": guardrail.redact_pii(content)[:500]},
+                  {"status": status, **{k: v for k, v in r.items() if k != "source"}}, duration_ms=_ms_since(t0))
+        return blocked
+
+    def _blocked(self, trace, source: str) -> str:
+        answer = text(self.lang, "guardrail_block", name=self.persona["name"])
+        trace.add("pipeline", "final_answer", None, {"answer": answer, "work_verdict": "blocked",
+                                                     "answer_verdict": "blocked", "blocked_by": source})
+        return answer
+
     def ask(self, question: str) -> dict:
-        trace = RunTrace(self.persona["name"], question, self.as_of, len(self.history) + 1, self.session_id,
+        safe_question = guardrail.redact_pii(question)  # stored in the trace (local + S3); the models get the original
+        trace = RunTrace(self.persona["name"], safe_question, self.as_of, len(self.history) + 1, self.session_id,
                          listener=self.on_step, language=self.lang)
         agent_tools.CONTEXT.update(trace=trace, persona=self.persona_key, as_of=self.as_of)
         try:
-            trace.add("user", "question", {"persona": self.persona_key}, {"question": question,
+            trace.add("user", "question", {"persona": self.persona_key}, {"question": safe_question,
                                                                          "persona_profile": self.persona})
+            if self._guard(trace, question, "INPUT"):  # blocked: no boss, no presenter
+                blocked = {"verdict": "blocked", "reasons": ["input blocked by the Bedrock Guardrail"]}
+                return self._finish(trace, safe_question, self._blocked(trace, "INPUT"), {}, blocked, blocked)
             plan = self._call_boss(trace, question, "plan")
             verdict = self._review_work(trace, plan, question, 0)
             retries = 0
@@ -197,7 +230,7 @@ class ChatSession:
                     check = {"verdict": "fail", "reasons": [f"presenter error: {e}"]}
                     trace.add("presenter", "write_answer", {"attempt": attempt}, check, duration_ms=_ms_since(t0))
                     continue
-                trace.add("presenter", "write_answer", {"attempt": attempt}, {"answer": answer},
+                trace.add("presenter", "write_answer", {"attempt": attempt}, {"answer": guardrail.redact_pii(answer)},
                           duration_ms=_ms_since(t0))
                 t0 = time.perf_counter()
                 check = reviewer.check_answer(answer, trace, lang=self.lang)
@@ -214,10 +247,20 @@ class ChatSession:
             disclaimer = text(self.lang, "disclaimer", name=self.persona["name"])
             if disclaimer not in answer:
                 answer += "\n\n" + disclaimer
+            if self._guard(trace, answer, "OUTPUT"):
+                if self._streamed and self.on_delta:
+                    self.on_delta("", True)  # the blocked draft was already streamed: clear it
+                check = {"verdict": "blocked", "reasons": ["answer blocked by the Bedrock Guardrail"]}
+                return self._finish(trace, safe_question, self._blocked(trace, "OUTPUT"), plan, verdict, check)
             trace.add("pipeline", "final_answer", None, {"answer": answer, "work_verdict": verdict["verdict"],
                                                          "answer_verdict": check["verdict"]})
+            return self._finish(trace, question, answer, plan, verdict, check)
         finally:
             agent_tools.CONTEXT["trace"] = None
+
+    def _finish(self, trace, question, answer, plan, verdict, check) -> dict:
+        """Save the trace and record the turn in the session history (a blocked turn keeps the redacted question)."""
+        agent_tools.CONTEXT["trace"] = None
         saved = trace.save(self.runs_dir)
         self.history.append({"question": question, "answer": answer})
         return {"answer": answer, "plan": plan, "work_verdict": verdict, "answer_verdict": check,
