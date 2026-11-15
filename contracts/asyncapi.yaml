@@ -1,0 +1,100 @@
+asyncapi: 3.0.0
+info:
+  title: AlphaForge AI Chat WebSocket
+  version: 0.1.0
+  description: |
+    Streaming chat protocol shared by web and mobile clients.
+    All payload schemas live in `openapi.yaml` (`components/schemas/Ws*`) and are
+    referenced here, so there is one source of truth.
+
+    **Connect:** call `POST /ws-ticket` (REST, Bearer token), then open
+    `wss://<host>/ws?ticket=<ticket>`. Tickets expire after 30 seconds and work once.
+
+    **Flow:** the client sends `message.send`, `message.edit` or `message.regenerate`.
+    The server answers with `message.start`, then any number of `message.delta`,
+    `tool.call` and `tool.result`, then `message.end`. `generation.cancel` stops a
+    running generation; the message then ends with status `cancelled`.
+    Send `ping` every 25 seconds; the server answers `pong`.
+servers:
+  local:
+    host: localhost:8000
+    protocol: ws
+    description: Local development
+channels:
+  chat:
+    address: /ws
+    description: One socket per signed-in user. Many conversations can use it.
+    messages:
+      send: { $ref: "#/components/messages/MessageSend" }
+      edit: { $ref: "#/components/messages/MessageEdit" }
+      regenerate: { $ref: "#/components/messages/MessageRegenerate" }
+      cancel: { $ref: "#/components/messages/GenerationCancel" }
+      ping: { $ref: "#/components/messages/Ping" }
+      start: { $ref: "#/components/messages/MessageStart" }
+      delta: { $ref: "#/components/messages/MessageDelta" }
+      toolCall: { $ref: "#/components/messages/ToolCall" }
+      toolResult: { $ref: "#/components/messages/ToolResult" }
+      end: { $ref: "#/components/messages/MessageEnd" }
+      error: { $ref: "#/components/messages/Error" }
+      pong: { $ref: "#/components/messages/Pong" }
+operations:
+  sendToServer:
+    action: receive
+    channel: { $ref: "#/channels/chat" }
+    summary: Messages the client sends
+    messages:
+      - $ref: "#/channels/chat/messages/send"
+      - $ref: "#/channels/chat/messages/edit"
+      - $ref: "#/channels/chat/messages/regenerate"
+      - $ref: "#/channels/chat/messages/cancel"
+      - $ref: "#/channels/chat/messages/ping"
+  receiveFromServer:
+    action: send
+    channel: { $ref: "#/channels/chat" }
+    summary: Messages the server sends
+    messages:
+      - $ref: "#/channels/chat/messages/start"
+      - $ref: "#/channels/chat/messages/delta"
+      - $ref: "#/channels/chat/messages/toolCall"
+      - $ref: "#/channels/chat/messages/toolResult"
+      - $ref: "#/channels/chat/messages/end"
+      - $ref: "#/channels/chat/messages/error"
+      - $ref: "#/channels/chat/messages/pong"
+components:
+  messages:
+    MessageSend:
+      name: message.send
+      payload: { $ref: "openapi.yaml#/components/schemas/WsMessageSend" }
+    MessageEdit:
+      name: message.edit
+      payload: { $ref: "openapi.yaml#/components/schemas/WsMessageEdit" }
+    MessageRegenerate:
+      name: message.regenerate
+      payload: { $ref: "openapi.yaml#/components/schemas/WsMessageRegenerate" }
+    GenerationCancel:
+      name: generation.cancel
+      payload: { $ref: "openapi.yaml#/components/schemas/WsGenerationCancel" }
+    Ping:
+      name: ping
+      payload: { $ref: "openapi.yaml#/components/schemas/WsPing" }
+    MessageStart:
+      name: message.start
+      payload: { $ref: "openapi.yaml#/components/schemas/WsMessageStart" }
+    MessageDelta:
+      name: message.delta
+      payload: { $ref: "openapi.yaml#/components/schemas/WsMessageDelta" }
+    ToolCall:
+      name: tool.call
+      payload: { $ref: "openapi.yaml#/components/schemas/WsToolCall" }
+    ToolResult:
+      name: tool.result
+      payload: { $ref: "openapi.yaml#/components/schemas/WsToolResult" }
+    MessageEnd:
+      name: message.end
+      payload: { $ref: "openapi.yaml#/components/schemas/WsMessageEnd" }
+    Error:
+      name: error
+      payload: { $ref: "openapi.yaml#/components/schemas/WsError" }
+    Pong:
+      name: pong
+      payload: { $ref: "openapi.yaml#/components/schemas/WsPong" }

@@ -1,0 +1,7 @@
+extends: ["spectral:oas"]
+rules:
+  # Our WebSocket payload schemas live in components and are not used by REST paths.
+  oas3-unused-component: off
+  # Style-only rules; summaries are enough for this project.
+  info-contact: off
+  operation-description: off
