@@ -11,11 +11,12 @@ import type {
 import { api, createChatSocket } from "./api";
 import { Answer } from "./Answer";
 import { AppBar } from "./AppBar";
-import { Explainer } from "./Explainer";
+import { Evidence, Recommended } from "./Explainer";
 import { useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
 import { personaById } from "./personas";
 import { Trace } from "./Trace";
+import { useViewMode } from "./view";
 
 interface Progress {
   stage: GenerationStage;
@@ -28,6 +29,13 @@ interface TraceView {
   focus: number;
 }
 
+/** Per-answer toggles. `full` / `evidence` undefined = follow the global Simple / Detailed default. */
+interface AnswerView {
+  full?: boolean;
+  evidence?: boolean;
+  trace: TraceView;
+}
+
 interface ErrorState {
   key: Key;
   vars?: Record<string, string>;
@@ -35,10 +43,13 @@ interface ErrorState {
 }
 
 const CLOSED_TRACE: TraceView = { open: false, highlight: [], focus: 0 };
+const DEFAULT_VIEW: AnswerView = { trace: CLOSED_TRACE };
 
 export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () => void }) {
   const { t, lang, code } = useI18n();
   const health = useHealth();
+  const { mode } = useViewMode();
+  const detailed = mode === "detailed";
   const persona = personaById(personaId);
   const name = persona?.name ?? personaId;
 
@@ -46,7 +57,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
   const [messages, setMessages] = useState<Message[]>([]); // every branch
   const [activeLeafId, setActiveLeafId] = useState<string | null>(null);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
-  const [traceView, setTraceView] = useState<Record<string, TraceView>>({});
+  const [views, setViews] = useState<Record<string, AnswerView>>({});
   const [status, setStatus] = useState<SocketStatus>("idle");
   const [error, setError] = useState<ErrorState | null>(null);
   const [text, setText] = useState("");
@@ -111,6 +122,11 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
       });
   }, [status, conversationId]);
 
+  // Changing Simple / Detailed resets every answer's two toggles to the new default.
+  useEffect(() => {
+    setViews((v) => Object.fromEntries(Object.entries(v).map(([id, x]) => [id, { trace: x.trace }])));
+  }, [mode]);
+
   const path = useMemo(() => activePath(messages, activeLeafId), [messages, activeLeafId]);
   const generating = messages.some((m) => m.status === "streaming");
   const canAct = status === "open" && !!conversationId && !generating;
@@ -127,8 +143,12 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
   const citeFor = useCallback((id: string) => {
     let fn = citeFns.current.get(id);
     if (!fn) {
+      // A cited step lives in the trace, inside the evidence: open both.
       fn = (steps: number[]) =>
-        setTraceView((v) => ({ ...v, [id]: { open: true, highlight: steps, focus: (v[id]?.focus ?? 0) + 1 } }));
+        setViews((v) => {
+          const cur = v[id] ?? DEFAULT_VIEW;
+          return { ...v, [id]: { ...cur, evidence: true, trace: { open: true, highlight: steps, focus: cur.trace.focus + 1 } } };
+        });
       citeFns.current.set(id, fn);
     }
     return fn;
@@ -182,6 +202,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
   return (
     <div className="page chat-page">
       <AppBar
+        showView
         left={
           <>
             <button className="back" onClick={onBack}>
@@ -218,8 +239,24 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
           {path.map((m) => {
             const siblings = siblingsOf(messages, m);
             const index = siblings.findIndex((s) => s.id === m.id);
-            const view = traceView[m.id] ?? CLOSED_TRACE;
+            const view = views[m.id] ?? DEFAULT_VIEW;
+            const showFull = view.full ?? detailed;
+            const showEvidence = view.evidence ?? detailed;
             const prog = progress[m.id];
+            const setView = (patch: Partial<AnswerView>) =>
+              setViews((v) => ({ ...v, [m.id]: { ...(v[m.id] ?? DEFAULT_VIEW), ...patch } }));
+            const trace = m.role === "assistant" && (
+              <Trace
+                trace={m.trace}
+                open={view.trace.open}
+                highlight={view.trace.highlight}
+                focus={view.trace.focus}
+                onToggle={(open) => {
+                  if (view.trace.open !== open) setView({ trace: { ...view.trace, open } });
+                }}
+              />
+            );
+            const evidenceId = `evidence-${m.id}`;
             return (
               <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}${m.final ? " has-final" : ""}`}>
                 <div className="msg-head">
@@ -262,28 +299,56 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                     <p className="user-text">{m.content}</p>
                   ))}
 
-                {m.role === "assistant" && m.status === "streaming" && (
-                  <StageLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
-                )}
-                {m.role === "assistant" && m.content && (
-                  <Answer content={m.content} trace={m.trace} onCite={citeFor(m.id)} />
-                )}
-
-                {m.status === "cancelled" && <small className="tag">{t("chat.stopped")}</small>}
-                {m.status === "error" && <small className="tag error">⚠ {t("chat.interrupted")}</small>}
-
-                {m.final && <Explainer f={m.final} onCite={citeFor(m.id)} />}
                 {m.role === "assistant" && (
-                  <Trace
-                    trace={m.trace}
-                    open={view.open}
-                    highlight={view.highlight}
-                    focus={view.focus}
-                    onToggle={(open) =>
-                      setTraceView((v) => (v[m.id]?.open === open ? v : { ...v, [m.id]: { ...(v[m.id] ?? CLOSED_TRACE), open } }))
-                    }
-                  />
+                  <div className={m.final ? "msg-grid" : undefined}>
+                    <div className="msg-main">
+                      {m.status === "streaming" && (
+                        <StageLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
+                      )}
+                      {m.content && (
+                        <Answer
+                          id={m.id}
+                          content={m.content}
+                          trace={m.trace}
+                          onCite={citeFor(m.id)}
+                          showFull={showFull}
+                          onToggleFull={() => setView({ full: !showFull })}
+                        />
+                      )}
+                      {m.status === "cancelled" && <small className="tag">{t("chat.stopped")}</small>}
+                      {m.status === "error" && <small className="tag error">⚠ {t("chat.interrupted")}</small>}
+                      {!m.final && trace}
+                    </div>
+                    {m.final && (
+                      <aside className="msg-evidence">
+                        <Recommended f={m.final} onCite={citeFor(m.id)} />
+                        <button
+                          type="button"
+                          className="toggle toggle-evidence"
+                          aria-expanded={showEvidence}
+                          aria-controls={evidenceId}
+                          onClick={() => setView({ evidence: !showEvidence })}
+                        >
+                          <span className="toggle-icon" aria-hidden="true">
+                            {showEvidence ? "▾" : "▸"}
+                          </span>
+                          <span>
+                            {showEvidence ? t("ev.hide") : t("ev.show")}
+                            {!showEvidence && <small>{t("ev.hint")}</small>}
+                          </span>
+                        </button>
+                        {showEvidence && (
+                          <div id={evidenceId}>
+                            <Evidence f={m.final} onCite={citeFor(m.id)}>
+                              {trace}
+                            </Evidence>
+                          </div>
+                        )}
+                      </aside>
+                    )}
+                  </div>
                 )}
+
 
                 <div className="actions">
                   {m.role === "user" && editingId !== m.id && (

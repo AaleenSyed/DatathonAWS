@@ -80,8 +80,10 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
   price vs 200-observation average, drawdown from the 12-month high. Industry baskets are compared with an
   equal-weight mix of their members' benchmarks.
 - **Suitability statuses**: `conflict` (excluded asset type or proposed weight above a cap), `flag` (standalone
-  vol / 2022 drawdown above a portfolio limit, or ESG review), `info` (portfolio-level reminder, e.g. bonds
-  minimum), `pass`, `not_applicable`, `not_evaluated`. Standalone vol above a portfolio limit is a `flag`, not a
+  vol / 2022 drawdown above a portfolio limit, or ESG review), `info` (portfolio-level reminder: a bonds
+  minimum, or a cap to respect when no weight is proposed, e.g. "keep at most 15.0%"), `pass`, `not_applicable`,
+  `not_evaluated`. Caps (crypto, single stock, sector) only give `conflict` or `pass` once a weight is proposed;
+  without one they are `info`, never `flag`. Standalone vol above a portfolio limit is a `flag`, not a
   `conflict`: a small slice can still fit a lower-risk portfolio. A proposed weight that leaves less than the
   bonds minimum for the rest is a `conflict`. A one-asset industry (e.g. Utilities = FTS.TO) counts as a single
   stock. The 2022 stress check is `not_evaluated` when the analysis ends before 2022-12-31. Overall verdict:

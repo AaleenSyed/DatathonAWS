@@ -56,7 +56,8 @@ redirect to `/chat`. Each chat page creates a new conversation (conversations li
 | `src/health.ts` | `GET /health` once per page (demo banner) |
 | `src/personas.ts` | Persona ids, names and ages for routing and headers before `GET /personas` answers |
 | `src/PersonaPicker.tsx` | Cards with the translated description and the assumed limits from `GET /personas` |
-| `src/AppBar.tsx` | Wordmark, EN/FR switch, light/dark switch |
+| `src/AppBar.tsx` | Wordmark, Simple/Detailed switch (chat page), EN/FR switch, light/dark switch |
+| `src/view.tsx` | Simple/Detailed mode (`localStorage.viewMode`): default of "Show full analysis" and "Show the evidence" |
 | `src/Chat.tsx` | Conversation state, WebSocket events, branches (edit / regenerate), live stage line |
 | `src/Answer.tsx` | Markdown answer (`react-markdown` + `remark-gfm`); claim tags become chips |
 | `src/cite.ts` | Claim-tag parsing, same regexes as `server/explainer.py` (`TAG`, `STEP_NUMS`, `MAX_RANGE`) |
@@ -80,7 +81,14 @@ Claim tags written by the presenter are rendered as chips: `[fact: step 3, 7]` �
 "Fact · step N" chip in the panel) opens the trace and highlights those steps. Steps that are not in the trace
 are dropped, as in the explainer.
 
-The panel under each answer:
+**Summary first.** The presenter starts every answer with `## Summary` / `## Résumé` (at most 3 bullets).
+`splitSummary` in `src/cite.ts` shows that summary and the recommended sector cards; the rest of the answer is
+behind "Show full analysis", and everything below is behind "Show the evidence". The Simple / Detailed switch
+sets the default of both toggles for every answer (Simple = closed); clicking a claim chip opens the evidence
+and the trace. Answers without a summary are shown whole. At 1280 px and wider an answer uses two columns:
+the text on the left, the evidence in a sticky panel on the right; narrower windows stack them.
+
+The evidence:
 
 - **Recommended sectors** and **What you asked about**: one card per `TargetSummary` (risk label, volatility,
   max drawdown, total return, 12-month momentum and trend, members, period and currency). Building blocks

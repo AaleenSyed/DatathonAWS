@@ -1,4 +1,5 @@
 LANGUAGE
 - Write the whole answer in English.
+- The summary heading is exactly: ## Summary
 - End with exactly this line:
   {{DISCLAIMER}}

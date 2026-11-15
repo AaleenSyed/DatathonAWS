@@ -52,6 +52,42 @@ T = {
            "limits": "Les rendements passés ne prédisent pas les rendements futurs, et les paniers sectoriels "
                      "sont des simplifications équipondérées de l’univers."},
 }
+T["en"].update({
+    "summary": "Summary",
+    "s_conflict": "{target} conflicts with {name}'s profile: {rule}: {value} vs a limit of {limit}.",
+    "s_flag": "{target} on its own is above {name}'s limits: {rule}: {value} vs a limit of {limit}.",
+    "s_rec": "Recommended for {name}: **{rec}**{pair}; its main risk is an annualized volatility of {vol}.",
+    "s_rec_range": "Recommended for {name}: **{rec}**{pair}; its members' annualized volatility ranges from "
+                   "{lo} to {hi}.",
+    "s_pair": ", paired with **{block}** as a building block",
+    "s_fit": "This fits a {risk} risk tolerance and a {horizon} year horizon; past returns do not predict "
+             "quick gains.",
+})
+T["fr"].update({
+    "summary": "Résumé",
+    "s_conflict": "{target} entre en conflit avec le profil de {name} : {rule} : {value} pour une limite de {limit}.",
+    "s_flag": "{target} dépasse à lui seul les limites de {name} : {rule} : {value} pour une limite de {limit}.",
+    "s_rec": "Recommandé pour {name} : **{rec}**{pair}; son principal risque est une volatilité annualisée "
+             "de {vol}.",
+    "s_rec_range": "Recommandé pour {name} : **{rec}**{pair}; la volatilité annualisée de ses membres va de "
+                   "{lo} à {hi}.",
+    "s_pair": ", jumelé à **{block}** comme bloc de base",
+    "s_fit": "Cela convient à une tolérance au risque {risk} et à un horizon de {horizon} ans; les rendements "
+             "passés ne prédisent pas des gains rapides.",
+})
+RISK_FR = {"high": "élevée", "moderate": "modérée", "low-moderate": "faible à modérée"}
+# Plain-language rule names (never show the code names in an answer)
+RULE = {
+    "en": {"crypto_max": "crypto cap", "single_stock_max": "single-stock cap", "sector_max": "sector cap",
+           "min_asset_classes": "minimum number of asset classes", "vol_max": "volatility limit",
+           "bonds_min": "bonds minimum", "bonds_cash_min": "bonds and cash minimum",
+           "stress_2022_max_drawdown": "2022 drawdown limit", "esg_review": "ESG review"},
+    "fr": {"crypto_max": "plafond crypto", "single_stock_max": "plafond par titre",
+           "sector_max": "plafond sectoriel", "min_asset_classes": "nombre minimal de catégories d’actifs",
+           "vol_max": "limite de volatilité", "bonds_min": "minimum en obligations",
+           "bonds_cash_min": "minimum en obligations et encaisse", "stress_2022_max_drawdown": "limite de baisse en 2022",
+           "esg_review": "examen ESG"},
+}
 STATUS_FR = {"conflict": "conflit", "flag": "signalement", "info": "information", "pass": "conforme"}
 TREND_FR = {"above 200-day average": "au-dessus de la moyenne sur 200 jours",
             "below 200-day average": "sous la moyenne sur 200 jours"}
@@ -108,6 +144,16 @@ def write(trace, plan: dict, persona: dict, lang: str) -> str:
     def status(s):
         return STATUS_FR.get(s, s) if lang == "fr" else s
 
+    def rule_name(r):
+        return RULE[lang].get(r, r.replace("_", " "))
+
+    def shown(value):
+        return (", ".join(f"{k} {pct(v)}" for k, v in value.items()) if isinstance(value, dict)
+                else pct(value) if isinstance(value, (int, float)) else "-")
+
+    def limit_s(limit):
+        return pct(limit) if isinstance(limit, (int, float)) else str(limit)
+
     def latest(action, target=None):
         found = [s for s in trace.steps if s["actor"].startswith("worker:") and s["action"] == action
                  and s["output"].get("status") == "ok"
@@ -115,17 +161,52 @@ def write(trace, plan: dict, persona: dict, lang: str) -> str:
         return found[-1] if found else None
 
     recs = plan.get("recommended_sectors") or []
-    lines = [f"*{t['demo']}*", "", f"**{t['rec']}**"]
+    name = persona["name"]
+
+    # ---- Summary: at most 3 bullets (conflict first, recommendation + one risk number, fit) ----
+    summary = []
+    for target in plan.get("requested_targets") or []:
+        s = latest("check_suitability", target)
+        d = s["output"]["data"] if s else {}
+        if d.get("overall") in ("conflict", "flag"):
+            c = next((c for c in d["checks"] if c["status"] == d["overall"] and c["rule"] != "esg_review"), None)
+            if c:
+                summary.append(t[f"s_{d['overall']}"].format(target=target, name=name, rule=rule_name(c["rule"]),
+                                                             value=shown(c["value"]), limit=limit_s(c["limit"]))
+                               + f" [fact: step {s['step']}]")
+                break
+    sector_steps = {r: latest("analyze_sector", r) for r in recs}
+    blocks = [r for r, s in sector_steps.items() if s and "range" in s["output"]["data"]]
+    main = next((r for r in recs if r not in blocks), recs[0] if recs else None)
+    if main and sector_steps.get(main):
+        a = sector_steps[main]
+        d = a["output"]["data"]
+        block = next((b for b in blocks if b != main), None)
+        pair = t["s_pair"].format(block=block) if block else ""
+        cites = [a["step"]] + [s["step"] for r in recs if (s := latest("check_suitability", r))]
+        if "range" in d:
+            v = d["range"]["annualized_vol"]
+            text = t["s_rec_range"].format(name=name, rec=main, pair=pair, lo=pct(v["min"]), hi=pct(v["max"]))
+        else:
+            text = t["s_rec"].format(name=name, rec=main, pair=pair, vol=pct(d["annualized_vol"]))
+        summary.append(text + f" [fact: step {', '.join(map(str, dict.fromkeys(cites)))}]")
+    user = next((s for s in trace.steps if s["actor"] == "user"), None)
+    risk = RISK_FR.get(persona["risk_tolerance"], persona["risk_tolerance"]) if lang == "fr" else persona["risk_tolerance"]
+    summary.append(t["s_fit"].format(risk=risk, horizon=persona["horizon_years"])
+                   + (f" [fact: step {user['step']}]" if user else " [assumption]"))
+
+    lines = [f"*{t['demo']}*", "", f"## {t['summary']}"] + [f"- {x}" for x in summary[:3]]
+    lines += ["", f"**{t['rec']}**"]
     suit_recs = [latest("check_suitability", r) for r in recs]
     cite = ", ".join(str(s["step"]) for s in suit_recs if s)
-    lines.append(t["fit"].format(name=persona["name"], recs=", ".join(f"**{r}**" for r in recs))
+    lines.append(t["fit"].format(name=name, recs=", ".join(f"**{r}**" for r in recs))
                  + (f" [fact: step {cite}]" if cite else ""))
     for target in plan.get("requested_targets") or []:
         s = latest("check_suitability", target)
         if s and s["output"]["data"]["overall"] in ("conflict", "flag"):
             d = s["output"]["data"]
-            rules = ", ".join(c["rule"] for c in d["checks"] if c["status"] == d["overall"])
-            lines.append(t["conflict"].format(name=persona["name"], target=target, status=status(d["overall"]),
+            rules = ", ".join(rule_name(c["rule"]) for c in d["checks"] if c["status"] == d["overall"])
+            lines.append(t["conflict"].format(name=name, target=target, status=status(d["overall"]),
                                               rules=rules) + f" [fact: step {s['step']}]")
 
     lines += ["", f"**{t['why']}**"]
@@ -156,12 +237,9 @@ def write(trace, plan: dict, persona: dict, lang: str) -> str:
         for c in s["output"]["data"]["checks"]:
             if c["status"] not in ("conflict", "flag") or c["rule"] == "esg_review":
                 continue
-            value = c["value"]
-            shown = (", ".join(f"{k} {pct(v)}" for k, v in value.items()) if isinstance(value, dict)
-                     else pct(value) if isinstance(value, (int, float)) else "-")
-            limit = pct(c["limit"]) if isinstance(c["limit"], (int, float)) else str(c["limit"])
-            lines.append(f"- {target}, " + t["rule"].format(rule=c["rule"], status=status(c["status"]), value=shown,
-                                                           limit=limit) + f" [fact: step {s['step']}]")
+            lines.append(f"- {target}, " + t["rule"].format(rule=rule_name(c["rule"]), status=status(c["status"]),
+                                                           value=shown(c["value"]), limit=limit_s(c["limit"]))
+                         + f" [fact: step {s['step']}]")
 
     lines += ["", f"**{t['assets']}**"]
     sectors = latest("list_sectors")

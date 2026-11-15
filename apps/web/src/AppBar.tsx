@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useI18n } from "./i18n";
+import { useViewMode, type ViewMode } from "./view";
 
 export function Wordmark() {
   return (
@@ -65,13 +66,39 @@ function LanguageToggle() {
   );
 }
 
-/** Top bar shared by every page: wordmark (or custom left content), language and theme switches. */
-export function AppBar({ left, right }: { left?: ReactNode; right?: ReactNode }) {
+/** Simple / Detailed: the default of "Show full analysis" and "Show the evidence" for every answer. */
+function ViewToggle() {
+  const { t } = useI18n();
+  const { mode, setMode } = useViewMode();
+  const options: { value: ViewMode; label: string; hint: string }[] = [
+    { value: "simple", label: t("view.simple"), hint: t("view.simpleHint") },
+    { value: "detailed", label: t("view.detailed"), hint: t("view.detailedHint") },
+  ];
+  return (
+    <div className="segmented" role="group" aria-label={t("view.label")}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={mode === o.value}
+          title={o.hint}
+          onClick={() => setMode(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Top bar shared by every page: wordmark (or custom left content), view, language and theme switches. */
+export function AppBar({ left, right, showView = false }: { left?: ReactNode; right?: ReactNode; showView?: boolean }) {
   return (
     <div className="appbar">
       <div className="appbar-left">{left ?? <Wordmark />}</div>
       <div className="appbar-right">
         {right}
+        {showView && <ViewToggle />}
         <LanguageToggle />
         <ThemeToggle />
       </div>

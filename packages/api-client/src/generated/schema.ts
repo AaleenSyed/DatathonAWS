@@ -337,7 +337,8 @@ export interface components {
         };
         /**
          * @description conflict = hard rule broken at the proposed weight; flag = above a portfolio-level limit on its own, or needs
-         *     review; info = portfolio-level reminder; pass = within the limit; not_applicable; not_evaluated = data missing.
+         *     review; info = portfolio-level reminder (a minimum to fill, or a cap to respect when no weight is proposed);
+         *     pass = within the limit; not_applicable; not_evaluated = data missing.
          * @enum {string}
          */
         SuitabilityStatus: "conflict" | "flag" | "info" | "pass" | "not_applicable" | "not_evaluated";

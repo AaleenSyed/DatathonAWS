@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import type {
   ExplainerPayload,
   MarketContext,
@@ -9,7 +9,8 @@ import type {
 } from "@alphaforge/api-client";
 import { CiteChip } from "./Answer";
 import { fmtDate, fmtLimit, num, pct, stepList } from "./format";
-import { useI18n } from "./i18n";
+import { sourceParts } from "./cite";
+import { useI18n, type Key } from "./i18n";
 
 type OnCite = (steps: number[]) => void;
 
@@ -264,9 +265,9 @@ function Suitability({ results, onCite }: { results: SuitabilityResult[]; onCite
                       {code("rule", c.rule)}
                       {c.explanation && <small lang="en">{c.explanation}</small>}
                     </th>
-                    <td>{fmtLimit(locale, c.rule, c.limit, sector, "—")}</td>
-                    <td>{fmtLimit(locale, c.rule, c.value, sector, "—")}</td>
-                    <td>
+                    <td data-label={t("t.limit")}>{fmtLimit(locale, c.rule, c.limit, sector, "—")}</td>
+                    <td data-label={t("t.value")}>{fmtLimit(locale, c.rule, c.value, sector, "—")}</td>
+                    <td data-label={t("t.status")}>
                       <Badge kind="status" value={c.status} />
                     </td>
                   </tr>
@@ -365,31 +366,91 @@ function ReviewView({ r }: { r: Review }) {
   );
 }
 
-// ---------- Whole panel ----------
+// ---------- Claims ----------
 
-/** Structured explanation of one answer (ExplainerPayload, built from the trace by server/explainer.py). */
-export const Explainer = memo(function Explainer({ f, onCite }: { f: ExplainerPayload; onCite: OnCite }) {
-  const { t, code, locale } = useI18n();
+/** "Yahoo Finance · 2021–2026 · CAD"; the full source text is in the tooltip. */
+function SourceLabel({ source }: { source: string }) {
+  const { t } = useI18n();
+  const { providers, years, currency } = sourceParts(source);
+  const names = providers.map((p) => (p.startsWith("src.") ? t(p as Key) : p));
+  const label = [names.join(" + ") || t("src.other"), years, currency].filter(Boolean).join(" · ");
   return (
-    <div className="explainer">
-      {f.recommendedSectors.length > 0 && (
-        <section>
-          <h4>{t("sec.recommended")}</h4>
-          <div className="target-grid">
-            {f.recommendedSectors.map((s) => (
-              <TargetCard key={s.name} s={s} onCite={onCite} />
-            ))}
-          </div>
-        </section>
-      )}
-      {f.requestedTargets.length > 0 && (
+    <span className="source-label" title={source} tabIndex={0}>
+      {label}
+    </span>
+  );
+}
+
+function Claims({ f, onCite }: { f: ExplainerPayload; onCite: OnCite }) {
+  const { t } = useI18n();
+  if (!f.claims.length) return null;
+  return (
+    <details className="panel">
+      <summary>{t("sec.claims", { n: f.claims.length })}</summary>
+      <ul className="claims">
+        {f.claims.map((c, i) => (
+          <li key={i}>
+            <CiteChip kind={c.kind} steps={c.traceSteps} onCite={onCite} /> <span>{c.text}</span>
+            {c.sources.length > 0 && (
+              <span className="sources">
+                {[...new Set(c.sources)].map((s, j) => (
+                  <SourceLabel key={j} source={s} />
+                ))}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+// ---------- Panels ----------
+
+function TargetGrid({ items, onCite }: { items: TargetSummary[]; onCite: OnCite }) {
+  return (
+    <div className="target-grid">
+      {items.map((s) => (
+        <TargetCard key={s.name} s={s} onCite={onCite} />
+      ))}
+    </div>
+  );
+}
+
+/** Recommended sector cards: always shown next to the summary. */
+export const Recommended = memo(function Recommended({ f, onCite }: { f: ExplainerPayload; onCite: OnCite }) {
+  const { t } = useI18n();
+  if (!f.recommendedSectors.length) return null;
+  return (
+    <section className="explainer recommended">
+      <h4>{t("sec.recommended")}</h4>
+      <TargetGrid items={f.recommendedSectors} onCite={onCite} />
+    </section>
+  );
+});
+
+/**
+ * Everything behind "Show the evidence": other targets, conflicts, risk charts, profile check, market context,
+ * claims, review, limitations, raw worker warnings, run info, and the trace (`children`).
+ */
+export const Evidence = memo(function Evidence({
+  f,
+  onCite,
+  children,
+}: {
+  f: ExplainerPayload;
+  onCite: OnCite;
+  children?: ReactNode;
+}) {
+  const { t, code, locale } = useI18n();
+  const shown = new Set(f.recommendedSectors.map((s) => s.name));
+  const others = f.requestedTargets.filter((s) => !shown.has(s.name));
+  return (
+    <div className="explainer evidence">
+      {others.length > 0 && (
         <section>
           <h4>{t("sec.requested")}</h4>
-          <div className="target-grid">
-            {f.requestedTargets.map((s) => (
-              <TargetCard key={s.name} s={s} onCite={onCite} />
-            ))}
-          </div>
+          <TargetGrid items={others} onCite={onCite} />
         </section>
       )}
       {f.conflicts.length > 0 && (
@@ -406,27 +467,7 @@ export const Explainer = memo(function Explainer({ f, onCite }: { f: ExplainerPa
       <RiskCharts f={f} onCite={onCite} />
       <Suitability results={f.suitability} onCite={onCite} />
       {f.marketContext && <Market m={f.marketContext} onCite={onCite} />}
-
-      {f.claims.length > 0 && (
-        <details className="panel">
-          <summary>{t("sec.claims", { n: f.claims.length })}</summary>
-          <ul className="claims">
-            {f.claims.map((c, i) => (
-              <li key={i}>
-                <CiteChip kind={c.kind} steps={c.traceSteps} onCite={onCite} /> <span>{c.text}</span>
-                {c.sources.length > 0 && (
-                  <ul className="sources" lang="en">
-                    {c.sources.map((s, j) => (
-                      <li key={j}>{s}</li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
+      <Claims f={f} onCite={onCite} />
       <ReviewView r={f.review} />
 
       <details className="panel">
@@ -436,17 +477,20 @@ export const Explainer = memo(function Explainer({ f, onCite }: { f: ExplainerPa
             <li key={c}>{code("caveat", c)}</li>
           ))}
         </ul>
-        {f.limitations.length > 0 && (
-          <>
-            <h5>{t("lim.warnings")}</h5>
-            <ul lang="en">
-              {f.limitations.map((l, i) => (
-                <li key={i}>{l}</li>
-              ))}
-            </ul>
-          </>
-        )}
       </details>
+      {f.limitations.length > 0 && (
+        <details className="panel">
+          <summary>{t("sec.warnings", { n: f.limitations.length })}</summary>
+          <p className="note">{t("lim.warnings")}</p>
+          <ul lang="en">
+            {f.limitations.map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {children}
 
       <p className="run-info">
         {t("run.info", { id: f.run.runId, date: fmtDate(locale, f.run.analysisDate) })}

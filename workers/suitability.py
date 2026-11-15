@@ -3,8 +3,10 @@
 Deterministic, no LLM. Every limit in personas.py for the persona appears in the output (never skipped).
 Status per rule:
   conflict       hard rule broken (excluded asset type, or proposed weight above a cap)
-  flag           exceeds a limit on its own (e.g. standalone vol above the portfolio limit) or needs review
-  info           portfolio-level reminder (e.g. bonds >= 50% still needed alongside this target)
+  flag           the target on its own breaks a portfolio-level limit (standalone vol or 2022 drawdown above the
+                 persona limit) or needs review (ESG). A cap with no proposed weight is never a flag.
+  info           portfolio-level reminder: a cap to respect when no weight is proposed ("keep at most 15.0%"),
+                 or a minimum still to fill (e.g. bonds >= 50% alongside this target)
   pass           within the limit
   not_applicable rule does not concern this target
   not_evaluated  data missing (reason given)
@@ -59,8 +61,8 @@ def _risk(kind, target, start, end):
 
 
 def _against_cap(rule, cap, proposed, what):
-    if proposed is None:
-        return _check(rule, cap, None, "flag", f"{what}: at most {_pct(cap)} of the portfolio (no weight proposed)")
+    if proposed is None:  # nothing is broken yet: a reminder of the cap, not a flag
+        return _check(rule, cap, None, "info", f"{what}: keep at most {_pct(cap)} of the portfolio (no weight proposed)")
     status = "conflict" if proposed > cap else "pass"
     return _check(rule, cap, proposed, status,
                   f"{what}: proposed {_pct(proposed)} vs cap {_pct(cap)} -> {'above' if status == 'conflict' else 'within'} cap")

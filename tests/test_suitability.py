@@ -48,10 +48,42 @@ def test_crypto_excluded_for_robert_and_mateo(persona):
     assert c["crypto_max"]["status"] == "conflict" and d["overall"] == "conflict"
 
 
-@pytest.mark.parametrize("w,status", [(0.10, "pass"), (0.15, "pass"), (0.16, "conflict"), (None, "flag")])
+@pytest.mark.parametrize("w,status", [(0.10, "pass"), (0.15, "pass"), (0.16, "conflict"), (None, "info")])
 def test_amira_crypto_cap(w, status):
     _, c = run("amira", "Crypto asset", w)
     assert c["crypto_max"]["status"] == status
+
+
+# ---------- caps without a proposed weight are reminders, not flags ----------
+
+@pytest.mark.parametrize("persona,target,rule,cap", [
+    ("amira", "Crypto asset", "crypto_max", "15.0%"),
+    ("amira", "Information Technology", "sector_max", "50.0%"),
+    ("amira", "NVDA", "single_stock_max", "15.0%"),
+    ("robert", "NVDA", "single_stock_max", "10.0%"),
+    ("robert", "Utilities", "single_stock_max", "10.0%"),  # one-asset industry = single stock
+])
+def test_unweighted_cap_is_info(persona, target, rule, cap):
+    _, c = run(persona, target)
+    assert c[rule]["status"] == "info" and c[rule]["value"] is None
+    assert f"keep at most {cap}" in c[rule]["explanation"]
+
+
+def test_amira_tech_without_weight_has_no_flag():
+    d, c = run("amira", "Information Technology")
+    assert not [r for r, x in c.items() if x["status"] in ("flag", "conflict")]
+    assert d["overall"] == "pass"
+
+
+def test_portfolio_level_limits_still_flag_without_weight():
+    d, c = run("robert", "NVDA")  # NVDA alone: vol and 2022 drawdown above Robert's limits
+    assert c["vol_max"]["status"] == "flag" and c["stress_2022_max_drawdown"]["status"] == "flag"
+    assert c["single_stock_max"]["status"] == "info" and d["overall"] == "flag"
+
+
+def test_crypto_still_excluded_without_weight():
+    _, c = run("robert", "Crypto asset")  # a 0% limit is an exclusion, not a cap
+    assert c["crypto_max"]["status"] == "conflict"
 
 
 @pytest.mark.parametrize("w,status", [(0.5, "pass"), (0.6, "conflict")])

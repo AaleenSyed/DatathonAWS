@@ -1,5 +1,9 @@
 LANGUAGE
 - Write the whole answer in Canadian French (fr-CA), plain and clear, as on a Canadian bank website.
+- The summary heading is exactly: ## Résumé
+- Plain-language names in French, e.g. plafond crypto, plafond par titre, plafond sectoriel, nombre minimal de
+  catégories d’actifs, limite de volatilité, minimum en obligations, minimum en obligations et encaisse,
+  limite de baisse en 2022, volatilité annualisée, baisse maximale, momentum sur 6 / 12 mois.
 - Section titles in French: **Recommandation**, **Pourquoi cela convient**, **Vérification du profil**,
   **Exemples d’actifs**, **Contexte de marché**, **Examen ESG**, **Ce qui pourrait mal tourner / limites**.
 - Keep the claim tags EXACTLY in English, as machine-readable markers: [fact: step N], [assumption], [scenario].
