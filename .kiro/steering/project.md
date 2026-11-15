@@ -1,21 +1,21 @@
-# AlphaForge AI: PolyFinances Datathon 2026 prototype
 
+# AlphaForge AI: PolyFinances Datathon 2026 prototype
+ 
 Self-explaining agentic decision-support tool. A user picks a fictional investor persona
 (Amira, Mateo, Robert), makes a request or asks a question, and the system analyzes public
 financial data, checks the request against the persona's constraints, and explains its
 conclusion with sources, assumptions, and limitations.
-
+ 
 Simulation only. No real transactions. Never presented as personalized financial advice.
-
+ 
 ## Deadlines
 - Repo + README due Sunday Nov 15, 23:59. AWS account is deleted Monday Nov 16, 13:59.
 - Deliverables: prototype, repo/README, ~5 min video, technical doc, one-pager.
-
 ## Judging grid (optimize for this)
 Solution quality/innovation 20% · Agentic + explainability 20% · Data rigour/validation/viz 20% ·
 UX/UI 10% · AWS integration 15% (ELIGIBILITY REQUIREMENT: AWS must play a real, demonstrable role) ·
 Pitch/business value 15%. Complexity and number of agents are NOT rewarded for their own sake.
-
+ 
 ## Personas (from the official brief; numeric limits are our team's assumptions, document them)
 - **Amira**, 26, software engineer. Risk HIGH, horizon 15+ yrs. Long-term growth; likes AI,
   emerging tech, crypto; still wants diversification, not 100% tech.
@@ -33,8 +33,62 @@ Pitch/business value 15%. Complexity and number of agents are NOT rewarded for t
   Test: challenge a request that conflicts with his profile, explain the risk, don't just agree.
   Assumed limits: crypto 0%, single stock ≤ 10%, annualized vol ≤ 10%, bonds/cash ≥ 50%,
   max drawdown in 2022 stress ≤ 15%.
-
 All persona data lives in `personas.py`. Profiles are fictional.
+ 
+## Goal (current)
+A CHATBOT. The user picks the persona that best fits their investment profile (Amira, Mateo,
+Robert), then chats with it: asks questions in plain language, follow-ups included. For each
+question the system recommends a SPECIFIC INDUSTRY/SECTOR (e.g. Utilities, Consumer Staples,
+Information Technology, Bonds) that fits the persona, with detailed reasons backed by data:
+sector risk numbers, example assets from the universe, how it fits the persona's horizon,
+risk tolerance and preferences, and what could go wrong. If the question conflicts with the
+persona (e.g. Robert asking about crypto), the bot says so and explains why.
+Everything is framed as an educational simulation for a fictional persona, never personal advice.
+ 
+## User flow
+1. Pick a persona (Amira, Mateo, Robert).
+2. Chat: ask a question ("Where should I look for growth?", "Is tech too risky for me?",
+   "Can I put money in NVDA?"). The conversation keeps context across turns.
+3. Each answer: recommended industry/sector + reasons (facts with sources, assumptions,
+   risks/limitations) + example assets in that sector + any profile conflicts flagged.
+   The full trace (who did what, with which data) is available for every answer.
+## Agent pipeline (boss → workers → reviewer → presenter)
+```
+User (persona + request)
+  → BOSS (LLM, Sonnet 5): builds a plan (tickers, checks, order), dispatches workers
+  → WORKERS (deterministic Python scripts, NOT LLMs):
+       data_retriever   → prices in CAD, FX, macro, asset info + source + period
+       risk_analyst     → per asset AND per sector: return, vol, max drawdown, correlation,
+                          2022 stress test, risk label (sector grouping rules below; document this)
+       market_context   → business-cycle phase (FRED rules), sector momentum/trend/relative
+                          strength (from prices), fear vs hope (VIX, credit spreads, sentiment)
+       suitability      → compare results to persona limits, flag conflicts with numbers
+       news_sentiment (LATER) → headlines (AgentCore Web Search / yfinance) scored fear/neutral/
+                          hope by Claude Haiku 4.5 structured output, per sector, cited URLs
+       ethics (LATER)   → curated esg_evidence.csv + AgentCore Web Search, cited URLs
+  → REVIEWER: checks the work; on FAIL sends the task back to the worker/boss with reasons
+       (max 2 retries, then proceed with an explicit "incomplete" note)
+  → PRESENTER (LLM, Sonnet 5): writes the final answer using ONLY worker outputs
+```
+- Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the
+  chat history (multi-turn) for the session.
+- Workers live in `workers/` (one file each). Each returns a dict with `status`, `data`,
+  `source`, `period`, `currency`, and `warnings`; on bad input `{"status": "error", "error": ...}`,
+  never raise.
+- Reviewer (`reviewer.py`): mostly deterministic checks: every requested ticker analyzed,
+  every number has source + period, all persona limits evaluated, no data dated after the
+  analysis date. Optional small LLM check (Haiku 4.5) that the presenter text matches the
+  numbers. Returns `{"verdict": "pass"|"fail", "reasons": [...]}`.
+- Presenter: tags each claim `fact` (source + trace step), `assumption`, or `scenario`;
+  includes limitations and the simulation/no-advice disclaimer.
+- Every step appends to a run trace (step, actor, input, output summary, timestamp), saved as
+  JSON locally and to `s3://$DATA_BUCKET/runs/`. The trace is the explainability evidence.
+- Bedrock Guardrail on user input and LLM output (personalized advice to the real user, real
+  trades, PII). Persona-fit rules stay in `suitability`, not the guardrail.
+## Risk labels (team assumption, document in README)
+Annualized volatility (adj_close daily returns; 252 days, crypto 365):
+< 10% Low · 10–20% Moderate · 20–35% High · > 35% Very High.
+Max drawdown is a second check: if max drawdown is worse than -30%, bump the label up one level.
 
 ## Goal (current)
 A CHATBOT. The user picks the persona that best fits their investment profile (Amira, Mateo,
@@ -98,6 +152,23 @@ Max drawdown is a second check: if max drawdown is worse than -30%, bump the lab
 Every source must be documented in the README: origin, URL, retrieval date, processing,
 license/terms, limitations.
 
+## Sector grouping (team assumption, document in README)
+Groups come from the organizers' `sector` column in assets_universe.csv: exact label first, otherwise the
+text before " (" (e.g. "Bonds" = XBB.TO, ZST.TO, AGG, TLT; "Broad market" = XIU.TO, SPY, QQQ, ESGV).
+The kind comes from the existing `asset_class` column (no new classification):
+- **Industry** = every member is `equity` (Financials, Energy, Information Technology, ...). This is what the
+  chatbot recommends. Metrics = equal-weight basket, rebalanced daily, on common dates, plus per-member metrics.
+- **Building block** = `etf_*` or `crypto` (Bonds, Broad market, Gold, Crypto asset). Paired with an industry
+  in the answer. No blended figure: each member's metrics plus the min–max range (e.g. near-cash ZST.TO and
+  long-Treasury TLT are too different to average).
+- No fund-size (AUM) or other outside weights: today's snapshot applied to 2021–2026 would be look-ahead.
+- One-asset groups get the warning "sector = 1 asset, not diversified"; the presenter must repeat it.
+- USD-listed assets also report vol in USD (`listing_currency_vol`, `fx_effect`) so the answer can say how much
+  of the CAD risk is the exchange rate.
+ 
+## Data plan (by tier)
+Every source must be documented in the README: origin, URL, retrieval date, processing,
+license/terms, limitations.
 **Tier 1 (now, phases 1–3)**
 - Starter CSVs (prices, FX, macro, dividends, universe). Core of all risk numbers.
 - Extra FRED series via `data/fetch_fred_extra.py` → `data/macro_extra.csv` (same long format
@@ -183,7 +254,7 @@ Demo questions (must work by the end of phase 3):
   diversification enforced; explains crypto limits.
 - Mateo: "Which industry gives balanced growth for me?" → balanced recommendation; Energy
   flagged for ESG review.
-
+  
 ## Data (starter dataset, in `data/`, gitignored; do not commit CSVs)
 Files: assets_universe.csv, prices_daily.csv, corporate_actions.csv, fx_usdcad_daily.csv,
 macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
@@ -200,9 +271,13 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
   revised vintages, CNQ.TO 1.021 "split" on 2022-08-22 is likely a special distribution,
   no ESG/news/fundamentals in the starter set.
 - Data also uploaded to S3 (bucket name in `.env` as `DATA_BUCKET`); app can load from S3 or local.
-
+ 
 ## AWS conventions
 - Region: `us-east-1`, always.
+- **All LLM calls in the app go through Amazon Bedrock** (AWS integration is an eligibility
+  requirement). Never call the Anthropic API, OpenAI API or any other model provider directly,
+  never use an `ANTHROPIC_API_KEY`, and never hard-code a model the datathon account can't call
+  (Fable, Sonnet 5.5, Haiku 5.5). This applies no matter which AI assistant writes the code.
 - Bedrock via boto3 Converse API (never InvokeModel). Use `global.` inference profile IDs.
 - Models: default `global.amazon.nova-2-lite-v1:0` for cheap tests;
   `global.anthropic.claude-sonnet-5` for the agent; `global.anthropic.claude-haiku-4-5-20251001-v1:0`
@@ -219,15 +294,23 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
 - No Bedrock Agents Classic, no Bedrock Flows, no AgentCore deploy unless everything else works.
 - Credentials come from the environment (Workshop Studio temp creds or CloudShell/Kiro).
   NEVER write AWS keys into code, `.env` committed files, or the repo.
-
 ## Code conventions
 - Python 3.11+. Keep it simple: a working demo beats abstractions.
 - Every number shown to the user carries its source, period, and currency.
 - Every tool result includes a `source` field and the date range actually used.
 - Prompts and system prompts live in `prompts/` as text files, not inline strings.
-
+## Team workflow (git)
+- Each person works in their own folder and their own branch (e.g. `aaleen`, `frontend`).
+  Never commit on someone else's branch; check `git branch` before committing.
+- Merge into `main` only when a phase passes its tests, via pull request on GitHub
+  (or `git checkout main && git pull && git merge <branch> && git push`). One person merges at a time.
+- `git pull origin main` before starting work; commit and push small and often.
+- Before every commit, `git status`: no `.env`, no data CSVs (except sources_metadata.csv /
+  esg_evidence.csv), no build output (`dist/`, `node_modules/`), no credentials.
+- Split work by file/phase so two people never edit the same file at the same time.
 ## Commands
 - Install: `pip install -r requirements.txt`
 - Chat (terminal, phases 3–5): `python chat.py`
 - UI (phase 6): `streamlit run app.py --server.address localhost`
 - Test: `python -m pytest -q`
+ 
