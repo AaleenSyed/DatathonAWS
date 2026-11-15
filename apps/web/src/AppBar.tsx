@@ -2,15 +2,27 @@ import { useState, type ReactNode } from "react";
 import { useI18n } from "./i18n";
 import { useViewMode, type ViewMode } from "./view";
 
+/** Original mark: a four-point spark over a rising line (no real brand's logo). */
 export function Wordmark() {
   return (
     <span className="wordmark">
-      <span className="wordmark-mark" aria-hidden="true">
-        A
+      <svg className="wordmark-mark" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+        <rect width="32" height="32" rx="9" fill="currentColor" />
+        <path d="M16 6.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z"
+          fill="var(--on-accent)" />
+        <path d="M7.5 25.5h17" stroke="var(--on-accent)" strokeWidth="1.8" strokeLinecap="round" opacity=".7" />
+      </svg>
+      <span className="wordmark-text">
+        AlphaForge <span className="wordmark-ai">AI</span>
       </span>
-      AlphaForge <span className="wordmark-ai">AI</span>
     </span>
   );
+}
+
+/** Footer on every page: simulation notice and data sources. */
+export function Footer() {
+  const { t } = useI18n();
+  return <footer className="site-footer">{t("footer.text")}</footer>;
 }
 
 function ThemeToggle() {

@@ -10,11 +10,12 @@ import type {
 } from "@alphaforge/api-client";
 import { api, createChatSocket } from "./api";
 import { Answer } from "./Answer";
-import { AppBar } from "./AppBar";
+import { AppBar, Footer } from "./AppBar";
 import { Evidence, Recommended } from "./Explainer";
 import { refreshHealth, useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
 import { personaById } from "./personas";
+import { answerTone } from "./Status";
 import { Trace } from "./Trace";
 import { useViewMode } from "./view";
 
@@ -43,6 +44,12 @@ interface ErrorState {
 }
 
 const CLOSED_TRACE: TraceView = { open: false, highlight: [], focus: 0 };
+const SUGGESTIONS = [1, 2, 3] as const;
+// The four steps shown in the progress line; each server stage maps to one of them.
+const PHASES = ["planning", "analyzing", "reviewing", "writing"] as const;
+const PHASE_OF: Record<GenerationStage, number> = {
+  queued: 0, planning: 0, analyzing: 1, reviewing: 2, writing: 3, checking: 3, done: 4,
+};
 const DEFAULT_VIEW: AnswerView = { trace: CLOSED_TRACE };
 
 export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () => void }) {
@@ -202,10 +209,8 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
     if (err) setError({ key: "chat.errBranch" });
   }
 
-  const example = t(`chat.ex.${personaId}` as Key);
-
   return (
-    <div className="page chat-page">
+    <div className={`page chat-page view-${mode}`}>
       <AppBar
         showView
         left={
@@ -228,17 +233,11 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
         <section className="messages" aria-live="polite">
           {path.length === 0 && (
             <div className="empty">
-              <h2>{t("chat.emptyTitle")}</h2>
+              <span className={`avatar avatar-lg avatar-${personaId}`} aria-hidden="true">
+                {name[0]}
+              </span>
+              <h2>{t("chat.emptyTitle", { name })}</h2>
               <p>{t("chat.emptyHint", { name })}</p>
-              <p className="try">
-                <span className="muted">
-                  {t("chat.try")}
-                  {t("colon")}
-                </span>
-                <button type="button" className="suggestion" disabled={!canAct} onClick={() => sendMessage(example)}>
-                  {t("chat.quoted", { q: example })}
-                </button>
-              </p>
             </div>
           )}
           {path.map((m) => {
@@ -308,8 +307,9 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                   <div className={m.final ? "msg-grid" : undefined}>
                     <div className="msg-main">
                       {m.status === "streaming" && (
-                        <StageLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
+                        <ProgressLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
                       )}
+                      {m.status === "streaming" && !m.content && <Skeleton />}
                       {m.content && (
                         <Answer
                           id={m.id}
@@ -318,6 +318,8 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                           onCite={citeFor(m.id)}
                           showFull={showFull}
                           onToggleFull={() => setView({ full: !showFull })}
+                          tone={answerTone(m.final)}
+                          streaming={m.status === "streaming"}
                         />
                       )}
                       {m.status === "cancelled" && <small className="tag">{t("chat.stopped")}</small>}
@@ -407,14 +409,24 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
             </button>
           )}
         </form>
-        <p className="composer-note">{t("app.disclaimer")}</p>
+        <div className="suggestions" role="group" aria-label={t("sug.label")}>
+          {SUGGESTIONS.map((i) => {
+            const q = t(`sug.${personaId}.${i}` as Key);
+            return (
+              <button key={i} type="button" className="suggestion" disabled={!canAct} onClick={() => sendMessage(q)}>
+                {q}
+              </button>
+            );
+          })}
+        </div>
+        <Footer />
       </main>
     </div>
   );
 }
 
-/** What the pipeline is doing now, with the number of trace steps so far and the latest one. */
-function StageLine({
+/** Slim progress line (Planning -> Analysing -> Reviewing -> Writing), the current stage text and latest step. */
+function ProgressLine({
   progress,
   trace,
   actorLabel,
@@ -425,23 +437,40 @@ function StageLine({
 }) {
   const { t } = useI18n();
   const stage = progress?.stage ?? "planning";
+  const current = PHASE_OF[stage] ?? 0;
   const last = trace[trace.length - 1];
   return (
-    <div className="stage" role="status">
-      <span className="typing" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
-      <div>
-        <strong>{t(`stage.${stage}` as Key, { n: Math.max(progress?.steps ?? 0, trace.length) })}</strong>
+    <div className="progress" role="status">
+      <ol className="progress-steps" aria-label={t("prog.label")}>
+        {PHASES.map((p, i) => (
+          <li key={p} className={i < current ? "done" : i === current ? "current" : ""}
+            aria-current={i === current ? "step" : undefined}>
+            <span className="progress-bar" aria-hidden="true" />
+            <span className="progress-name">{t(`prog.${p}`)}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="progress-text">
+        {t(`stage.${stage}` as Key, { n: Math.max(progress?.steps ?? 0, trace.length) })}
         {last && (
           <small>
-            {last.step}. {actorLabel(last.actor)} · <code>{last.action}</code>
+            {" "}
+            · {last.step}. {actorLabel(last.actor)}
           </small>
         )}
-        <small className="muted">{t("stage.note")}</small>
-      </div>
+      </p>
+    </div>
+  );
+}
+
+/** Grey placeholder lines until the first answer text arrives. */
+function Skeleton() {
+  return (
+    <div className="skeleton" aria-hidden="true">
+      <span style={{ width: "38%" }} />
+      <span style={{ width: "92%" }} />
+      <span style={{ width: "84%" }} />
+      <span style={{ width: "66%" }} />
     </div>
   );
 }

@@ -133,7 +133,18 @@ French key is missing.
 
 ## Look and colours
 
-Colours come from the bnc.ca palette, defined as CSS variables at the top of `src/styles.css` (light and dark;
-the theme follows the system and can be switched in the top bar). Navy `#00314D` for text and buttons, red
-`#E41C23` for the logo mark and conflicts, ice blue `#D9EEF4` for the user's messages. In the chat the assistant
-is called "Agent"; the header shows whose profile is checked ("Profile: Robert").
+An original "clean and calm" theme (no real brand's colours, fonts or logo), defined as CSS variables at the top
+of `src/styles.css`, with a matching warm dark theme (follows the system; switch in the top bar). Light: warm
+off-white background `#F7F5F0`, white cards, near-black text `#1C1C1C`, one green accent `#1F6F50`; caution amber
+and conflict red are used only for statuses. Every text/background pair meets WCAG AA (4.5:1). Headings use
+Georgia where installed, else the bundled Source Serif 4; body text uses the bundled Inter (both SIL Open Font
+License, served by Vite, no font CDN). Numbers use tabular figures.
+
+- Status pills (`src/Status.tsx`): Pass (green check), Caution (amber, = `flag`), Conflict (red cross), Info, N/A,
+  the same in cards, tables and the review.
+- The summary is a hero card whose left border follows the answer: any conflict red, any caution amber, else green.
+- While an answer streams: a 4-step progress line (Planning, Analysing, Reviewing, Writing), skeleton lines until
+  the first text, then a blinking cursor at the end of the text.
+- One-click questions: 3 per persona under the message bar (`sug.<persona>.<n>` in `src/i18n.tsx`).
+- Claim chips are quiet grey outlines in Simple mode and coloured in Detailed mode.
+- In the chat the assistant is called "Agent"; the header shows whose profile is checked ("Profile: Robert").

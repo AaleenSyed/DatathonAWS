@@ -1,23 +1,35 @@
 import { useEffect, useState } from "react";
 import type { Persona, PersonaId } from "@alphaforge/api-client";
 import { api } from "./api";
-import { AppBar } from "./AppBar";
+import { AppBar, Footer } from "./AppBar";
 import { fmtLimit } from "./format";
 import { useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
 import { PERSONAS } from "./personas";
+
+// Risk and horizon come from GET /personas (personas.py); the fallbacks keep the cards complete without it.
+const FALLBACK: Record<PersonaId, { risk: string; horizon: string }> = {
+  amira: { risk: "high", horizon: "15+" },
+  mateo: { risk: "moderate", horizon: "8-12" },
+  robert: { risk: "low-moderate", horizon: "3-5" },
+};
 
 export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
   const { t, code, locale } = useI18n();
   const health = useHealth();
   // Limits come from personas.py through GET /personas. Without the backend the cards still work, without limits.
   const [loaded, setLoaded] = useState<Persona[] | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
     api
       .GET("/personas")
-      .then(({ data }) => live && data && setLoaded(data.items))
-      .catch(() => undefined);
+      .then(({ data }) => {
+        if (!live) return;
+        if (data) setLoaded(data.items);
+        else setFailed(true);
+      })
+      .catch(() => live && setFailed(true));
     return () => {
       live = false;
     };
@@ -36,14 +48,26 @@ export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
           {PERSONAS.map((fallback) => {
             const p = loaded?.find((x) => x.id === fallback.id);
             const limits = Object.entries(p?.limits ?? {});
+            const risk = p?.riskTolerance ?? FALLBACK[fallback.id].risk;
+            const horizon = (p?.horizonYears ?? FALLBACK[fallback.id].horizon).replace("-", "–");
             return (
-              <button key={fallback.id} className="card" onClick={() => onPick(fallback.id)}>
-                <span className="avatar" aria-hidden="true">
-                  {fallback.name[0]}
+              <button key={fallback.id} className={`card card-${fallback.id}`} onClick={() => onPick(fallback.id)}>
+                <span className="card-head">
+                  <span className={`avatar avatar-${fallback.id}`} aria-hidden="true">
+                    {fallback.name[0]}
+                  </span>
+                  <span className="card-title">
+                    <strong>{t("persona.nameAge", { name: p?.name ?? fallback.name, age: p?.age ?? fallback.age })}</strong>
+                    <span className="card-goal">{t(`goal.${fallback.id}` as Key)}</span>
+                  </span>
                 </span>
-                <strong>{t("persona.nameAge", { name: p?.name ?? fallback.name, age: p?.age ?? fallback.age })}</strong>
+                <span className="tags">
+                  <span className="tag-pill">{t(`tag.risk.${risk}` as Key)}</span>
+                  <span className="tag-pill">{t("tag.horizon", { h: horizon })}</span>
+                  <span className="tag-pill">{t(`tag.pref.${fallback.id}` as Key)}</span>
+                </span>
                 <span className="card-blurb">{t(`persona.${fallback.id}` as Key)}</span>
-                {limits.length > 0 && (
+                {limits.length > 0 ? (
                   <span className="card-limits">
                     <span className="card-limits-title">{t("picker.limits")}</span>
                     {limits.map(([rule, value]) => (
@@ -59,6 +83,14 @@ export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
                       </span>
                     )}
                   </span>
+                ) : (
+                  !failed && (
+                    <span className="card-limits skeleton" aria-label={t("loading")}>
+                      <span style={{ width: "40%" }} />
+                      <span style={{ width: "90%" }} />
+                      <span style={{ width: "75%" }} />
+                    </span>
+                  )
                 )}
                 <span className="card-cta">
                   {t("picker.cta")} <span aria-hidden="true">→</span>
@@ -68,8 +100,8 @@ export function PersonaPicker({ onPick }: { onPick: (id: PersonaId) => void }) {
           })}
         </div>
         {loaded && <p className="disclaimer">{t("picker.limitsNote")}</p>}
-        <p className="disclaimer">{t("app.disclaimer")}</p>
       </main>
+      <Footer />
     </div>
   );
 }

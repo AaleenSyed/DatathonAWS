@@ -11,6 +11,7 @@ import { CiteChip } from "./Answer";
 import { fmtDate, fmtLimit, num, pct, stepList } from "./format";
 import { sourceParts } from "./cite";
 import { useI18n, type Key } from "./i18n";
+import { StatusChip, ToneIcon } from "./Status";
 
 type OnCite = (steps: number[]) => void;
 
@@ -19,8 +20,23 @@ const isNum = (x: unknown): x is number => typeof x === "number" && Number.isFin
 function Badge({ kind, value }: { kind: "status" | "risk"; value: string | null | undefined }) {
   const { code } = useI18n();
   if (!value) return null;
-  const cls = kind === "status" ? `st st-${value}` : `risk risk-${value.toLowerCase().replace(/\s+/g, "-")}`;
-  return <span className={cls}>{code(kind, value)}</span>;
+  if (kind === "status") return <StatusChip status={value} />;
+  return <span className={`pill risk risk-${value.toLowerCase().replace(/\s+/g, "-")}`}>{code(kind, value)}</span>;
+}
+
+/** Small bar under the volatility row: 0 to 60% (or more), with the persona's limit as a tick when it has one. */
+function VolBar({ value, limit }: { value: number | null; limit: number | null }) {
+  const { t, locale } = useI18n();
+  if (!isNum(value)) return null;
+  const max = Math.max(0.6, value, limit ?? 0);
+  const over = limit != null && value > limit;
+  return (
+    <div className="volbar" role="img"
+      aria-label={limit != null ? `${pct(locale, value)} ${over ? t("chart.over") : t("chart.within")} (${pct(locale, limit)})` : pct(locale, value)}>
+      <div className={`volbar-fill${limit == null ? "" : over ? " over" : " within"}`} style={{ width: `${(value / max) * 100}%` }} />
+      {limit != null && <div className="volbar-limit" style={{ left: `${(limit / max) * 100}%` }} />}
+    </div>
+  );
 }
 
 function Steps({ steps, onCite }: { steps: number[]; onCite: OnCite }) {
@@ -29,7 +45,7 @@ function Steps({ steps, onCite }: { steps: number[]; onCite: OnCite }) {
 
 // ---------- Target cards ----------
 
-function TargetCard({ s, onCite }: { s: TargetSummary; onCite: OnCite }) {
+function TargetCard({ s, onCite, volLimit }: { s: TargetSummary; onCite: OnCite; volLimit: number | null }) {
   const { t, code, locale } = useI18n();
   const metric = (label: string, value: number | null, key: "annualizedVol" | "maxDrawdown" | "totalReturn") => {
     const r = s.range?.[key];
@@ -63,6 +79,7 @@ function TargetCard({ s, onCite }: { s: TargetSummary; onCite: OnCite }) {
           </div>
         )}
         {metric(t("m.vol"), s.annualizedVol, "annualizedVol")}
+        {!s.range && <VolBar value={s.annualizedVol} limit={volLimit} />}
         {metric(t("m.mdd"), s.maxDrawdown, "maxDrawdown")}
         {metric(t("m.ret"), s.totalReturn, "totalReturn")}
         {isNum(s.momentum12m) && (
@@ -340,7 +357,8 @@ function ReviewView({ r }: { r: Review }) {
   const { t } = useI18n();
   const row = (label: string, v: Review["work"], retries: number) => (
     <li>
-      <span className={`st st-${v.verdict === "pass" ? "pass" : "conflict"}`}>
+      <span className={`pill tone-${v.verdict === "pass" ? "pass" : "conflict"}`}>
+        <ToneIcon tone={v.verdict === "pass" ? "pass" : "conflict"} />
         {v.verdict === "pass" ? t("rv.pass") : t("rv.fail")}
       </span>{" "}
       {label}
@@ -407,11 +425,12 @@ function Claims({ f, onCite }: { f: ExplainerPayload; onCite: OnCite }) {
 
 // ---------- Panels ----------
 
-function TargetGrid({ items, onCite }: { items: TargetSummary[]; onCite: OnCite }) {
+function TargetGrid({ items, onCite, f }: { items: TargetSummary[]; onCite: OnCite; f: ExplainerPayload }) {
+  const volLimit = isNum(f.personaLimits.vol_max) ? f.personaLimits.vol_max : null;
   return (
     <div className="target-grid">
       {items.map((s) => (
-        <TargetCard key={s.name} s={s} onCite={onCite} />
+        <TargetCard key={s.name} s={s} onCite={onCite} volLimit={volLimit} />
       ))}
     </div>
   );
@@ -424,7 +443,7 @@ export const Recommended = memo(function Recommended({ f, onCite }: { f: Explain
   return (
     <section className="explainer recommended">
       <h4>{t("sec.recommended")}</h4>
-      <TargetGrid items={f.recommendedSectors} onCite={onCite} />
+      <TargetGrid items={f.recommendedSectors} onCite={onCite} f={f} />
     </section>
   );
 });
@@ -450,7 +469,7 @@ export const Evidence = memo(function Evidence({
       {others.length > 0 && (
         <section>
           <h4>{t("sec.requested")}</h4>
-          <TargetGrid items={others} onCite={onCite} />
+          <TargetGrid items={others} onCite={onCite} f={f} />
         </section>
       )}
       {f.conflicts.length > 0 && (
