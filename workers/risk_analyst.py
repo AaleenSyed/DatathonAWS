@@ -109,8 +109,8 @@ def analyze_asset(ticker: str, start: str, end: str, currency: str = "CAD") -> d
         if df is None:
             return res
         p = df[ticker].dropna()
-        if len(p) < 2:
-            return _err(f"{ticker}: fewer than 2 prices between {start} and {end}")
+        if len(p) < 3:  # 2 prices = 1 return: volatility undefined (NaN)
+            return _err(f"{ticker}: fewer than 3 prices between {start} and {end}")
         info = next(r for r in _universe() if r["ticker"] == ticker)
         dpy = DAYS_CRYPTO if info["asset_class"] == "crypto" else DAYS_STOCK
         warnings = list(res["warnings"])
@@ -175,8 +175,8 @@ def analyze_sector(sector: str, start: str, end: str, currency: str = "CAD") -> 
             warnings.append(f"members without data excluded: {missing}")
         tickers = [t for t in tickers if t in df.columns]
         df = df[tickers].dropna()  # common dates only
-        if len(df) < 2:
-            return _err(f"sector '{sector}': fewer than 2 common dates between {start} and {end}")
+        if len(df) < 3:
+            return _err(f"sector '{sector}': fewer than 3 common dates between {start} and {end}")
         w = 1 / len(tickers)
         index = equal_weight_index(df)
         if len(index) - 1 < 252:

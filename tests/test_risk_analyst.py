@@ -193,3 +193,10 @@ def test_future_data_does_not_change_results(monkeypatch):
         return pd.concat([df, fut])
     monkeypatch.setattr(dr, "_load", with_future)
     assert ok(ra.analyze_asset("SPY", "2022-01-01", "2022-06-30")) == before
+
+
+@has_data
+def test_two_prices_is_not_enough():
+    r = ra.analyze_asset("SPY", "2022-06-01", "2022-06-02")  # 2 trading days -> 1 return -> vol undefined
+    json.dumps(r, allow_nan=False)
+    assert r["status"] == "error"

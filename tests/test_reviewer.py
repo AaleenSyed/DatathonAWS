@@ -16,7 +16,7 @@ def ok(data=None, end=AS_OF, source="src"):
 def suit(target, persona="robert", members=None):
     from personas import PERSONAS
     checks = [{"rule": r} for r in PERSONAS[persona]["limits"]]
-    return ok({"checks": checks, "members": members or [target]})
+    return ok({"checks": checks, "members": members or [target], "overall": "flag"})
 
 
 def full_trace(persona="robert", extra=()):
@@ -149,3 +149,127 @@ def test_supported_numbers_pass(text):
 def test_unsupported_numbers_or_citations_fail(text, needle):
     v = reviewer.check_answer(text, answer_trace())
     assert v["verdict"] == "fail" and needle in " ".join(v["reasons"])
+
+
+# ---------- regressions from the phase 1-3 review ----------
+
+@pytest.mark.parametrize("text", [
+    "NVDA volatility is 9% [fact: step 1]",            # small number with % must be checked
+    "max drawdown only -5.0% [fact: step 1]",          # decimals / negatives are not bare counts
+])
+def test_small_numbers_are_checked(text):
+    assert reviewer.check_answer(text, answer_trace())["verdict"] == "fail"
+
+
+def two_step_trace():
+    t = RunTrace("robert", "q", AS_OF)
+    t.add("worker:risk_analyst", "analyze_asset", {"ticker": "NVDA"}, ok({"annualized_vol": 0.5112}))
+    t.add("worker:risk_analyst", "analyze_asset", {"ticker": "XBB.TO"}, ok({"annualized_vol": 0.0661}))
+    t.add("boss", "plan", None, {"note": "NVDA 77.7%"})
+    return t
+
+
+def test_number_must_come_from_cited_step():
+    t = two_step_trace()
+    assert reviewer.check_answer("NVDA vol 51.1% [fact: step 1]", t)["verdict"] == "pass"
+    assert reviewer.check_answer("NVDA vol 51.1% [fact: step 2]", t)["verdict"] == "fail"  # wrong step
+    assert reviewer.check_answer("NVDA vol 51.1% (no tag)", t)["verdict"] == "pass"         # any worker step
+
+
+def test_citation_must_be_a_worker_step():
+    v = reviewer.check_answer("NVDA 77.7% [fact: step 3]", two_step_trace())  # boss step is not evidence
+    assert v["verdict"] == "fail" and any("not a worker or user step" in r for r in v["reasons"])
+
+
+@has_data
+def test_stress_test_alone_is_not_sector_analysis():
+    t = full_trace()
+    t.steps = [s for s in t.steps if not (s["action"] == "analyze_sector")]
+    t.add("worker:risk_analyst", "stress_test_2022", {"tickers_or_sector": "Bonds"}, ok())
+    assert any("'Bonds' is missing a successful analyze_sector" in r
+               for r in reviewer.review_work(t, PLAN, "robert", Q, AS_OF)["reasons"])
+
+
+@has_data
+def test_all_esg_names_must_be_checked():
+    t = full_trace("mateo")
+    t.add("worker:suitability", "check_suitability", {"target": "XOM"}, suit("XOM", "mateo", ["XOM"]))
+    reasons = reviewer.review_work(t, PLAN, "mateo", Q, AS_OF)["reasons"]
+    assert any("['ENB.TO', 'CNQ.TO']" in r for r in reasons)
+
+
+@has_data
+def test_unexplained_error_fails_but_retry_or_note_passes():
+    err = ("worker:risk_analyst", "analyze_asset", {"ticker": "AMD"}, {"status": "error", "error": "unknown"})
+    t = full_trace(extra=[err])
+    assert any("neither retried" in r for r in reviewer.review_work(t, PLAN, "robert", Q, AS_OF)["reasons"])
+    noted = {**PLAN, "requested_targets": ["NVDA", "AMD"], "reasoning_notes": "AMD is not in the universe"}
+    assert reviewer.review_work(t, noted, "robert", Q, AS_OF)["verdict"] == "pass"
+    t2 = full_trace(extra=[("worker:risk_analyst", "analyze_sector", {"sector": "Nope"},
+                            {"status": "error", "error": "unknown"}),
+                           ("worker:risk_analyst", "analyze_sector", {"sector": "nope"}, ok())])
+    assert reviewer.review_work(t2, PLAN, "robert", Q, AS_OF)["verdict"] == "pass"  # retried successfully
+
+
+@has_data
+@pytest.mark.parametrize("q,expected", [("Royal Bank or TD?", ["TD.TO"]), ("is nvda.", ["NVDA"])])
+def test_extract_targets_more(q, expected):
+    assert reviewer.extract_targets(q) == expected
+
+
+@has_data
+def test_recommended_sector_with_conflict_fails():
+    t = full_trace()
+    bonds = [s for s in t.steps if s["action"] == "check_suitability" and s["input"]["target"] == "Bonds"][0]
+    bonds["output"]["data"]["overall"] = "conflict"
+    assert any("suitability conflict" in r for r in reviewer.review_work(t, PLAN, "robert", Q, AS_OF)["reasons"])
+
+
+# ---------- regressions from the verification pass ----------
+
+def test_user_step_and_mixed_citation_forms():
+    t = RunTrace("robert", "q", AS_OF)
+    t.add("user", "question", None, {"persona_profile": {"limits": {"vol_max": 0.10}}})
+    t.add("worker:risk_analyst", "analyze_asset", {"ticker": "NVDA"}, ok({"annualized_vol": 0.5112}))
+    t.add("worker:risk_analyst", "analyze_asset", {"ticker": "XBB.TO"}, ok({"annualized_vol": 0.0661, "d": "2022-12-30"}))
+    for text in ["NVDA 51.1% vs 10% limit [fact: step 1, step 2]",                 # user step is citable
+                 "NVDA 51.1% [fact: step 2]. XBB.TO vol is 6.6%.",                    # untagged 2nd sentence
+                 "NVDA 51.1% in the 2022 stress [fact: step 2]",                      # year from elsewhere
+                 "phase mid, NVDA 51.1% [assumption, fact: step 2]",                  # combined tag
+                 "| NVDA | 51.1% | [fact: step 2] |"]:                                # table row
+        assert reviewer.check_answer(text, t)["verdict"] == "pass", text
+    for text in ["XBB.TO 6.6% [assumption, fact: step 2]",                            # combined tag is scoped
+                 "NVDA 9 % [fact: step 2]"]:                                          # "9 %" is checked
+        assert reviewer.check_answer(text, t)["verdict"] == "fail", text
+
+
+@has_data
+def test_weighted_probe_conflict_does_not_block_sector():
+    t = full_trace()
+    t.add("worker:suitability", "check_suitability", {"target": "Bonds", "proposed_weight": 0.9},
+          {**suit("Bonds"), "data": {**suit("Bonds")["data"], "overall": "conflict"}})
+    assert reviewer.review_work(t, PLAN, "robert", Q, AS_OF)["verdict"] == "pass"  # unweighted check is "flag"
+
+
+@has_data
+def test_error_retried_with_corrected_name_or_explained():
+    t = full_trace(extra=[("worker:risk_analyst", "analyze_sector", {"sector": "Tech"},
+                           {"status": "error", "error": "unknown"})])
+    plan = {**PLAN, "recommended_sectors": ["Bonds", "Information Technology"]}
+    for action, key in (("analyze_sector", "sector"), ("sector_momentum", "sector_or_ticker"),
+                        ("check_suitability", "target")):
+        t.add(f"worker:{action}", action, {key: "Information Technology"},
+              suit("Information Technology") if "suit" in action else ok())
+    assert reviewer.review_work(t, plan, "robert", Q, AS_OF)["verdict"] == "pass"
+    t2 = full_trace(extra=[("worker:risk_analyst", "correlation", {"tickers": ["NVDA", "AMD"]},
+                            {"status": "error", "error": "unknown AMD"}),
+                           ("worker:risk_analyst", "correlation", {"tickers": ["SPY", "TLT"]}, ok())])
+    assert reviewer.review_work(t2, PLAN, "robert", Q, AS_OF)["verdict"] == "fail"   # unrelated success
+    noted = {**PLAN, "reasoning_notes": "correlation of NVDA and AMD failed: AMD is not in the universe"}
+    assert reviewer.review_work(t2, noted, "robert", Q, AS_OF)["verdict"] == "pass"
+
+
+@has_data
+def test_notes_match_whole_words():
+    plan = {**PLAN, "requested_targets": ["NVDA", "AI"], "reasoning_notes": "the request fails the limits"}
+    assert any("'AI'" in r for r in reviewer.review_work(full_trace(), plan, "robert", Q, AS_OF)["reasons"])

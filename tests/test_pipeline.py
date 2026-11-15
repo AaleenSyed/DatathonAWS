@@ -141,3 +141,12 @@ def test_persona_is_fixed_by_session(tmp_path):
 def test_unknown_persona():
     with pytest.raises(ValueError):
         pipeline.ChatSession("bob", boss=FakeBoss(), presenter=FakePresenter())
+
+
+def test_no_stress_tool_before_end_of_2022(tmp_path):
+    at.CONTEXT.update(trace=None, persona="robert", as_of="2022-06-30")
+    try:
+        r = at.stress_test_2022("SPY")
+    finally:
+        at.CONTEXT["as_of"] = "2026-11-12"
+    assert r["status"] == "error" and "before the end of 2022" in r["error"]

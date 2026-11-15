@@ -82,6 +82,10 @@ def stress_test_2022(target: str) -> dict:
     Args:
         target: a ticker or sector group name
     """
+    if CONTEXT["as_of"] < ra.STRESS_END:
+        return _run("risk_analyst", "stress_test_2022", lambda **k: {
+            "status": "error", "error": f"analysis date {CONTEXT['as_of']} is before the end of 2022"},
+            tickers_or_sector=target)
     return _run("risk_analyst", "stress_test_2022", ra.stress_test_2022, tickers_or_sector=target)
 
 

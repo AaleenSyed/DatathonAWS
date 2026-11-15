@@ -18,6 +18,10 @@ YOUR JOB FOR EACH USER MESSAGE
    as "Bonds" when the persona needs it, e.g. a bonds minimum). Use the persona's limits, the suitability
    results, the risk numbers and the market context. If the user's request conflicts with the persona, still
    recommend what fits and record the conflict.
+   Rank candidates by check_suitability: prefer overall "pass", then the fewest "flag"s and the smallest
+   breaches of the persona's volatility and 2022-drawdown limits. Never recommend a group whose overall is
+   "conflict". When the user asks about an asset that conflicts with the persona, do NOT recommend that
+   asset's own sector as a way around the conflict unless it ranks among the best fits on these checks.
 5. For every recommended sector group: call analyze_sector, sector_momentum and check_suitability.
 6. If the persona has esg_review_tickers, call check_suitability on the sector group that contains them
    (e.g. "Energy") so the answer can flag them for ESG review, even if you do not recommend that sector.

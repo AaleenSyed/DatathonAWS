@@ -68,7 +68,8 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
     separately with the min–max range; no blended figure (e.g. near-cash ZST.TO vs long-Treasury TLT).
 - **USD assets** also report volatility in USD, to show how much of the CAD risk comes from the exchange rate.
 - **2022 stress test**: last 2021 close (2021-12-31) to last 2022 close.
-- **Monthly macro** counts as published 21 days after the end of its reference month.
+- **Monthly macro** counts as published 21 days after the end of its reference month; RECPROUSM156N 35 days
+  (its Sep 2026 value was "Updated: Nov 2, 2026" on the FRED series page, retrieved 2026-11-14).
 - **Business-cycle phase** (historical tendency, labelled `assumption`, never a prediction), checked in order:
   Recession risk (SAHMREALTIME ≥ 0.5 or RECPROUSM156N ≥ 30) → Early cycle (recession signal in the past 12 months
   and INDPRO above its value 3 months earlier) → Late cycle (T10Y2Y < 0 now or in the past 12 months) → Mid cycle.
@@ -81,19 +82,34 @@ Full list with URLs, retrieval dates, processing, terms and limitations: `data/s
 - **Suitability statuses**: `conflict` (excluded asset type or proposed weight above a cap), `flag` (standalone
   vol / 2022 drawdown above a portfolio limit, or ESG review), `info` (portfolio-level reminder, e.g. bonds
   minimum), `pass`, `not_applicable`, `not_evaluated`. Standalone vol above a portfolio limit is a `flag`, not a
-  `conflict`: a small slice can still fit a lower-risk portfolio.
+  `conflict`: a small slice can still fit a lower-risk portfolio. A proposed weight that leaves less than the
+  bonds minimum for the rest is a `conflict`. A one-asset industry (e.g. Utilities = FTS.TO) counts as a single
+  stock. The 2022 stress check is `not_evaluated` when the analysis ends before 2022-12-31. Overall verdict:
+  `conflict` > `flag` > `incomplete` (something not evaluated) > `pass`.
 
 - **Pipeline**: the boss assumes a 50% share when the user implies "a big part" without a number (stated in the
   answer). Plain words map to targets with a small alias list (crypto, bitcoin, tech, bonds, gold...) in `reviewer.py`.
-- **Answer check**: every number in the answer must match a worker result (as written or ×100, within its rounding);
-  `[fact: step N]` must point to an existing step. Max 2 rewrites, then a visible reviewer note.
+- **Answer check**: every number must match a worker result (as written or ×100, within its rounding). On a line
+  tagged `[fact: step N]` it must come from the cited step(s); citations must point to worker steps. Bare counts
+  0–12 ("3 asset classes") are exempt, but not percentages or decimals. Max 2 rewrites, then a visible reviewer note.
+- **Work review**: requested and recommended targets need a real risk analysis (not just a stress test) and a
+  suitability check; recommended sectors also need momentum and must not have a suitability `conflict`; every
+  ESG-review name must be checked; a worker error must be retried successfully or explained in the boss notes.
 
 ## Limitations
 - Survivorship bias: the universe was picked in 2026.
 - FRED values are revised vintages, not what was known at the time.
 - CNQ.TO 1.021 "split" on 2022-08-22 is likely a special distribution.
-- The answer check verifies numbers and citations, not units or wording: a right number with a wrong unit or
-  meaning can pass. Every answer has a full trace to audit it.
+- The answer check verifies numbers and citations, not units, signs or wording: a right number with a wrong unit,
+  sign or meaning can pass, and a whole-number percent can match some unrelated value in the cited step by chance.
+  Every answer has a full trace to audit it.
+- Target words are matched literally: "I have little energy..." makes the reviewer require an Energy analysis
+  (extra tool calls, not a wrong answer).
+- Inside a sector, member metrics use the sector's common dates, so a member's volatility can differ slightly from
+  its standalone `analyze_asset` value (e.g. NVDA 51.4% vs 51.1%).
+- One active chat session per process: `agent_tools.CONTEXT` (persona, analysis date, current trace) is a module
+  global. A UI serving several users in one process must run sessions one at a time or move this to per-session state.
+- Until the Bedrock Guardrail (phase 4), the user's question is stored as typed in `runs/` and `s3://…/runs/`.
 - Several sectors have only one asset (Communication Services, Health Care, Industrials, Utilities, Gold).
 - No ESG, news or fundamentals data in the starter set; ESG-review flags for Mateo have no evidence until the
   ethics worker (phase 5).

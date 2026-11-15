@@ -19,6 +19,9 @@ load_dotenv(DATA_DIR.parent / ".env")
 
 FX_STALE_DAYS = 5
 MACRO_PUBLICATION_LAG_DAYS = 21  # team assumption (CLAUDE.md): monthly data published ~3 weeks after month end
+# Per-series overrides, from the FRED series page: RECPROUSM156N's Sep 2026 value was "Updated: Nov 2, 2026"
+# (~33 days after month end; retrieved 2026-11-14), so 21 days would use it before it existed.
+PUBLICATION_LAG_OVERRIDES = {"RECPROUSM156N": 35}
 CURRENCIES = ("CAD", "USD")
 
 
@@ -206,14 +209,15 @@ def get_macro(series_ids, start: str, end: str, as_of: str | None = None) -> dic
                 continue
             monthly = df["frequency"].str.contains("monthly", case=False)
             df["available_date"] = df["date"]
+            lag = PUBLICATION_LAG_OVERRIDES.get(sid, MACRO_PUBLICATION_LAG_DAYS)
             df.loc[monthly, "available_date"] = (df.loc[monthly, "date"] + pd.offsets.MonthEnd(0)
-                                                 + pd.Timedelta(days=MACRO_PUBLICATION_LAG_DAYS))
+                                                 + pd.Timedelta(days=lag))
             df = df[(df["date"] >= s) & (df["date"] <= e) & (df["available_date"] <= cutoff)]
             if df.empty:
                 warnings.append(f"{sid}: no values published by {cutoff.date()} in range")
                 continue
             if monthly.any():
-                warnings.append(f"{sid}: monthly, assumed published {MACRO_PUBLICATION_LAG_DAYS} days after month end")
+                warnings.append(f"{sid}: monthly, assumed published {lag} days after month end")
             sources.update(df["source"].unique())
             units[sid] = str(df["unit"].iloc[0])
             data[sid] = [{"date": d.strftime("%Y-%m-%d"), "available_date": a.strftime("%Y-%m-%d"), "value": _clean(v)}
