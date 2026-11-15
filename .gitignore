@@ -8,3 +8,7 @@ data/*.csv
 
 node_modules/
 runs/
+dist/
+.expo/
+*.tsbuildinfo
+!data/esg_evidence.csv
