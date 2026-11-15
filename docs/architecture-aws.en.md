@@ -7,41 +7,9 @@ AWS credentials come from the environment, never from the repo.
 
 ## Diagram
 
-```mermaid
-flowchart LR
-    U([User<br/>browser]) -->|HTTPS| WEB
+![AWS architecture diagram](architecture-aws.en.svg)
 
-    subgraph APP["Application (Workshop Studio, us-east-1)"]
-        WEB["React + Vite UI<br/>EN / FR"]
-        API["FastAPI backend<br/>REST + WebSocket"]
-        BOSS["Boss<br/>Strands agent"]
-        WORK["Python workers<br/>deterministic, no LLM<br/>risk · 2022 stress · cycle · suitability"]
-        REV["Reviewer<br/>deterministic checks<br/>max 2 retries"]
-        PRES["Presenter"]
-        WEB <-->|REST / WebSocket| API
-        API --> BOSS --> WORK --> REV
-        REV -- fail --> BOSS
-        REV -- pass --> PRES
-    end
-
-    subgraph AWS["AWS services"]
-        GR{{"Amazon Bedrock Guardrails<br/>ApplyGuardrail"}}
-        HAIKU["Amazon Bedrock<br/>Converse<br/>Claude Haiku 4.5"]
-        SONNET["Amazon Bedrock<br/>ConverseStream<br/>Claude Sonnet 4.6"]
-        S3[("Amazon S3<br/>data/: market CSVs<br/>runs/: JSON traces")]
-        COG["Amazon Cognito<br/>ID-token verification<br/>(ready, not wired)"]
-    end
-
-    API -->|1. question| GR
-    BOSS -->|2. plan + tool calls| HAIKU
-    WORK -->|3. read data| S3
-    PRES -->|4. streamed answer| SONNET
-    API -->|5. answer| GR
-    API -->|6. run trace| S3
-    API -.->|auth| COG
-
-    FRED["FRED<br/>public macro data"] -.->|fetch_fred_extra.py| S3
-```
+PNG: [architecture-aws.en.png](architecture-aws.en.png)
 
 ## AWS services used
 

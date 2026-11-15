@@ -7,41 +7,9 @@ modèles n'est appelé. Les identifiants AWS viennent de l'environnement, jamais
 
 ## Schéma
 
-```mermaid
-flowchart LR
-    U([Utilisateur<br/>navigateur]) -->|HTTPS| WEB
+![Schéma de l'architecture AWS](architecture-aws.fr.svg)
 
-    subgraph APP["Application (Workshop Studio, us-east-1)"]
-        WEB["Interface React + Vite<br/>EN / FR"]
-        API["Backend FastAPI<br/>REST + WebSocket"]
-        BOSS["Patron<br/>agent Strands"]
-        WORK["Travailleurs Python<br/>déterministes, sans LLM<br/>risque · stress 2022 · cycle · conformité"]
-        REV["Réviseur<br/>vérifications déterministes<br/>max 2 reprises"]
-        PRES["Présentateur"]
-        WEB <-->|REST / WebSocket| API
-        API --> BOSS --> WORK --> REV
-        REV -- échec --> BOSS
-        REV -- réussite --> PRES
-    end
-
-    subgraph AWS["Services AWS"]
-        GR{{"Amazon Bedrock Guardrails<br/>ApplyGuardrail"}}
-        HAIKU["Amazon Bedrock<br/>Converse<br/>Claude Haiku 4.5"]
-        SONNET["Amazon Bedrock<br/>ConverseStream<br/>Claude Sonnet 4.6"]
-        S3[("Amazon S3<br/>data/ : CSV de marché<br/>runs/ : traces JSON")]
-        COG["Amazon Cognito<br/>vérification des jetons ID<br/>(prête, non branchée)"]
-    end
-
-    API -->|1. question| GR
-    BOSS -->|2. plan + appels d'outils| HAIKU
-    WORK -->|3. lecture des données| S3
-    PRES -->|4. réponse en continu| SONNET
-    API -->|5. réponse| GR
-    API -->|6. trace d'exécution| S3
-    API -.->|authentification| COG
-
-    FRED["FRED<br/>données macro publiques"] -.->|fetch_fred_extra.py| S3
-```
+PNG: [architecture-aws.fr.png](architecture-aws.fr.png)
 
 ## Services AWS utilisés
 
