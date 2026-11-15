@@ -95,3 +95,32 @@ def test_numbers_match_risk_analyst():
 def test_errors_are_dicts(args):
     r = assert_plain(su.check(*args))
     assert r["status"] == "error" and r["error"]
+
+
+# ---------- regressions from the phase 1-3 review ----------
+
+def test_bonds_minimum_conflicts_with_large_weight():
+    _, c = run("mateo", "Utilities", 0.9)       # leaves 10% < 30% bonds
+    assert c["bonds_min"]["status"] == "conflict"
+    _, c = run("robert", "Broad market", 0.9)   # leaves 10% < 50% bonds/cash
+    assert c["bonds_cash_min"]["status"] == "conflict"
+    _, c = run("mateo", "Utilities", 0.7)       # leaves exactly 30%
+    assert c["bonds_min"]["status"] == "info"
+
+
+def test_one_asset_industry_is_a_single_stock():
+    _, c = run("robert", "Utilities", 0.5)
+    assert c["single_stock_max"]["status"] == "conflict" and "FTS.TO" in c["single_stock_max"]["explanation"]
+
+
+def test_no_2022_stress_before_end_of_2022():
+    r = assert_plain(su.check("robert", "NVDA", end="2022-06-30"))
+    c = {x["rule"]: x for x in r["data"]["checks"]}
+    assert c["stress_2022_max_drawdown"]["status"] == "not_evaluated"
+    assert r["period"]["end"] <= "2022-06-30"
+    assert not any("251" in w for w in r["warnings"])  # no leak from the 2022 stress window
+
+
+def test_not_evaluated_is_not_overall_pass():
+    r = assert_plain(su.check("mateo", "ZST.TO", start="2030-01-01", end="2030-12-31"))  # nothing else fires
+    assert r["data"]["overall"] == "incomplete"

@@ -42,11 +42,11 @@ def _target(target):
 
 
 def _risk(kind, target, start, end):
-    """{name: {annualized_vol, max_drawdown}} for the full window and for 2022, plus the raw results."""
-    if kind == "asset":
-        full, stress = ra.analyze_asset(target, start, end), ra.stress_test_2022(target)
-    else:
-        full, stress = ra.analyze_sector(target, start, end), ra.stress_test_2022(target)
+    """{name: {annualized_vol, max_drawdown}} for the full window and for 2022, plus the raw results.
+    The 2022 stress test is only used when 2022 ends on/before `end` (no look-ahead)."""
+    full = ra.analyze_asset(target, start, end) if kind == "asset" else ra.analyze_sector(target, start, end)
+    stress = (ra.stress_test_2022(target) if end >= ra.STRESS_END
+              else {"status": "error", "error": f"2022 stress test needs data to {ra.STRESS_END}; analysis ends {end}"})
     out = {}
     if full["status"] == "ok":
         d = full["data"]
@@ -99,12 +99,18 @@ def check(persona: str, target: str, proposed_weight: float | None = None,
             return _err(f"unknown ticker or sector '{target}'")
         classes = {m["asset_class"] for m in members}
         is_crypto = classes == {"crypto"}
-        is_single_stock = kind == "asset" and classes == {"equity"}
+        # a one-asset industry (e.g. Utilities = FTS.TO) is a single stock in practice
+        is_single_stock = classes == {"equity"} and len(members) == 1
         is_bond = classes == {"etf_bond"}
         sector = members[0]["sector"] if kind == "asset" else name
         risk, full, stress = _risk(kind, target, start, end)
-        warnings = [w for r in (full, stress) if r["status"] == "ok" for w in r["warnings"]]
-        warnings += [f"risk data: {r['error']}" for r in (full, stress) if r["status"] != "ok"]
+        warnings = list(full["warnings"]) if full["status"] == "ok" else [f"risk data: {full['error']}"]
+        if stress["status"] == "ok":
+            warnings += [f"2022 stress test (fixed window {stress['period']['start']} to {stress['period']['end']}): {w}"
+                         for w in stress["warnings"]] or [
+                f"2022 stress test uses the fixed window {stress['period']['start']} to {stress['period']['end']}"]
+        else:
+            warnings.append(f"2022 stress data: {stress['error']}")
 
         checks = []
         for rule, limit in p["limits"].items():
@@ -117,7 +123,8 @@ def check(persona: str, target: str, proposed_weight: float | None = None,
                 else:
                     checks.append(_against_cap(rule, limit, proposed_weight, "crypto"))
             elif rule == "single_stock_max":
-                checks.append(_against_cap(rule, limit, proposed_weight, f"single stock {name}") if is_single_stock
+                checks.append(_against_cap(rule, limit, proposed_weight, f"single stock {members[0]['ticker']}")
+                              if is_single_stock
                               else _check(rule, limit, None, "not_applicable", "target is not a single stock"))
             elif rule == "sector_max":
                 cap = limit.get(sector)
@@ -134,9 +141,16 @@ def check(persona: str, target: str, proposed_weight: float | None = None,
                                             label=f"annualized vol ({start} to {end}, CAD):"))
             elif rule in ("bonds_min", "bonds_cash_min"):
                 what = "bonds" if rule == "bonds_min" else "bonds/cash"
-                checks.append(_check(rule, limit, None, "pass" if is_bond else "info",
-                                     f"target counts toward the {_pct(limit)} {what} minimum" if is_bond else
-                                     f"portfolio still needs at least {_pct(limit)} in {what} alongside this target"))
+                if is_bond:
+                    checks.append(_check(rule, limit, proposed_weight, "pass",
+                                         f"target counts toward the {_pct(limit)} {what} minimum"))
+                elif proposed_weight is not None and proposed_weight > 1 - limit:
+                    checks.append(_check(rule, limit, proposed_weight, "conflict",
+                                         f"proposed {_pct(proposed_weight)} leaves less than the {_pct(limit)} "
+                                         f"{what} minimum for the rest of the portfolio"))
+                else:
+                    checks.append(_check(rule, limit, proposed_weight, "info",
+                                         f"portfolio still needs at least {_pct(limit)} in {what} alongside this target"))
             elif rule == "stress_2022_max_drawdown":
                 checks.append(_numeric_rule(rule, limit, risk, "max_drawdown_2022", better_low=False,
                                             label="max drawdown in 2022 (CAD):"))
@@ -150,13 +164,15 @@ def check(persona: str, target: str, proposed_weight: float | None = None,
                                  f"ESG review needed for {review} (evidence comes from the ethics worker, "
                                  "not available yet)" if review else "no ESG-review names in target"))
 
-        worst = min((c["status"] for c in checks), key=SEVERITY.index)
-        overall = worst if worst in ("conflict", "flag") else "pass"
+        statuses = {c["status"] for c in checks}
+        overall = ("conflict" if "conflict" in statuses else "flag" if "flag" in statuses
+                   else "incomplete" if "not_evaluated" in statuses else "pass")
         data = {"persona": p["name"], "target": name, "target_kind": kind, "members": tickers,
                 "proposed_weight": proposed_weight, "checks": checks, "overall": overall,
                 "counts": {s: sum(c["status"] == s for c in checks) for s in SEVERITY}}
         src = PERSONA_SOURCE + ("; risk: " + full["source"] if full["status"] == "ok" else "")
-        return {"status": "ok", "data": data, "source": src, "period": {"start": start, "end": end},
+        period = full["period"] if full["status"] == "ok" else {"start": start, "end": end}
+        return {"status": "ok", "data": data, "source": src, "period": period,
                 "currency": "CAD", "warnings": warnings}
     except Exception as e:
         return _err(f"suitability check failed: {e}")

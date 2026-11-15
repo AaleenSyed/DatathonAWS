@@ -130,3 +130,21 @@ def test_macro_daily_series_dated_same_day():
 def test_fx_ok():
     r = json_safe(dr.get_fx("2022-01-01", "2022-01-31"))
     assert r["status"] == "ok" and all(1 < x["usdcad"] < 2 for x in r["data"])
+
+
+def test_recession_probability_uses_longer_lag():
+    if not (dr.DATA_DIR / "macro_extra.csv").exists():
+        pytest.skip("macro_extra.csv not fetched")
+    rows = dr.get_macro("RECPROUSM156N", "2025-01-01", "2026-11-12")["data"]["RECPROUSM156N"]
+    for r in rows:
+        month_end = pd.Timestamp(r["date"]) + pd.offsets.MonthEnd(0)
+        assert pd.Timestamp(r["available_date"]) == month_end + pd.Timedelta(days=dr.PUBLICATION_LAG_OVERRIDES["RECPROUSM156N"])
+
+
+def test_recession_probability_hidden_until_published():
+    if not (dr.DATA_DIR / "macro_extra.csv").exists():
+        pytest.skip("macro_extra.csv not fetched")
+    # Sep 2026 value: month end 2026-09-30 + 35 days = 2026-11-04. Hidden on 11-03, visible on 11-04.
+    before = dr.get_macro("RECPROUSM156N", "2026-01-01", "2026-11-03", as_of="2026-11-03")["data"]["RECPROUSM156N"]
+    after = dr.get_macro("RECPROUSM156N", "2026-01-01", "2026-11-04", as_of="2026-11-04")["data"]["RECPROUSM156N"]
+    assert before[-1]["date"] < "2026-09-01" and after[-1]["date"] == "2026-09-01"

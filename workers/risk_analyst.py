@@ -19,6 +19,7 @@ DAYS_STOCK, DAYS_CRYPTO = 252, 365
 # 2022 return measured from the last 2021 close (2021-12-31) to the last 2022 close
 STRESS_START, STRESS_END = "2021-12-31", "2022-12-31"
 LABELS = ["Low", "Moderate", "High", "Very High"]
+SHORT_HISTORY_DAYS = 350  # a full year of trading data spans ~362+ calendar days (holidays at the edges)
 RANGE_METRICS = ("annualized_vol", "max_drawdown", "total_return")
 
 
@@ -73,6 +74,14 @@ def _universe() -> list[dict]:
     return dr.get_universe().get("data", [])
 
 
+def _short(idx) -> str | None:
+    """Warning when the data spans less than about a year. Measured in calendar days, not returns: a full
+    calendar year has only ~251 trading days, so "< 252 returns" wrongly flagged e.g. the 2022 stress test."""
+    days = (idx.max() - idx.min()).days
+    return (f"data covers only {days} calendar days (less than about 1 year); annualized metrics less reliable"
+            if days < SHORT_HISTORY_DAYS else None)
+
+
 def _period(idx) -> dict:
     return {"start": idx.min().strftime("%Y-%m-%d"), "end": idx.max().strftime("%Y-%m-%d")}
 
@@ -109,13 +118,13 @@ def analyze_asset(ticker: str, start: str, end: str, currency: str = "CAD") -> d
         if df is None:
             return res
         p = df[ticker].dropna()
-        if len(p) < 2:
-            return _err(f"{ticker}: fewer than 2 prices between {start} and {end}")
+        if len(p) < 3:  # 2 prices = 1 return: volatility undefined (NaN)
+            return _err(f"{ticker}: fewer than 3 prices between {start} and {end}")
         info = next(r for r in _universe() if r["ticker"] == ticker)
         dpy = DAYS_CRYPTO if info["asset_class"] == "crypto" else DAYS_STOCK
         warnings = list(res["warnings"])
-        if len(p) - 1 < 252:
-            warnings.append(f"{ticker}: only {len(p) - 1} daily returns (< 252), metrics less reliable")
+        if _short(p.index):
+            warnings.append(f"{ticker}: {_short(p.index)}")
         data = {"ticker": ticker, "name": info["name"], "asset_class": info["asset_class"],
                 "sector": info["sector"], **metrics(p, dpy)}
         local = info["currency"]
@@ -175,12 +184,12 @@ def analyze_sector(sector: str, start: str, end: str, currency: str = "CAD") -> 
             warnings.append(f"members without data excluded: {missing}")
         tickers = [t for t in tickers if t in df.columns]
         df = df[tickers].dropna()  # common dates only
-        if len(df) < 2:
-            return _err(f"sector '{sector}': fewer than 2 common dates between {start} and {end}")
+        if len(df) < 3:
+            return _err(f"sector '{sector}': fewer than 3 common dates between {start} and {end}")
         w = 1 / len(tickers)
         index = equal_weight_index(df)
-        if len(index) - 1 < 252:
-            warnings.append(f"only {len(index) - 1} daily returns (< 252), metrics less reliable")
+        if _short(index.index):
+            warnings.append(_short(index.index))
         warnings.append("sector = equal-weight basket of universe assets, rebalanced daily, common dates only")
         data = {"sector": sector, "kind": kind, "members": tickers, "weights": {t: w for t in tickers},
                 **metrics(index, DAYS_STOCK),
