@@ -44,6 +44,8 @@ sector risk numbers, example assets from the universe, how it fits the persona's
 risk tolerance and preferences, and what could go wrong. If the question conflicts with the
 persona (e.g. Robert asking about crypto), the bot says so and explains why.
 Everything is framed as an educational simulation for a fictional persona, never personal advice.
+Messages that need no analysis (greetings, "what can you help me with?", "what does volatility mean?", off-topic)
+get a short conversational reply from the intent router instead of a report.
  
 ## User flow
 1. Pick a persona (Amira, Mateo, Robert).
@@ -52,9 +54,14 @@ Everything is framed as an educational simulation for a fictional persona, never
 3. Each answer: recommended industry/sector + reasons (facts with sources, assumptions,
    risks/limitations) + example assets in that sector + any profile conflicts flagged.
    The full trace (who did what, with which data) is available for every answer.
-## Agent pipeline (boss → workers → reviewer → presenter)
+## Agent pipeline (router → boss → workers → reviewer → presenter)
 ```
 User (persona + request)
+  → Bedrock Guardrail (input)
+  → INTENT ROUTER (router.py; rules, then LLM Haiku 4.5, ROUTER_MODEL): intent = analysis | smalltalk | about |
+       explain | off_topic (+ rule-only unclear in demo mode). Non-analysis → short reply (Haiku, checked in code:
+       no digit / % / universe asset; then output guardrail; fixed texts.py text on any failure or in demo mode)
+       → done, no boss/presenter, final: null. Runs outside RUN_LOCK. When unsure → analysis.
   → BOSS (LLM, Haiku 4.5): builds a plan in 2 turns (coarse tools in parallel, then the plan)
   → WORKERS (deterministic Python scripts, NOT LLMs):
        data_retriever   → prices in CAD, FX, macro, asset info + source + period
@@ -73,6 +80,11 @@ User (persona + request)
        and never compares numbers itself
   → PRESENTER (LLM, Sonnet 4.6, streamed): writes the final answer using ONLY worker outputs
 ```
+- Router (`router.py`, prompt `prompts/router_system.txt`): rules first (greeting/about regexes, ticker or
+  sector, investing keywords, short follow-up after an analysis), then one Strands call with structured output
+  `{intent, confidence, reason, reply}`; non-`high` confidence → analysis. Sees the profile in words only (no
+  ages, years or limits) and the last 4 turns. Short-reply turns stay out of the boss/presenter history.
+  `ROUTER_LLM=0` = rules only. Live check: `RUN_LIVE=1 python -m pytest -s tests/test_live_router.py`.
 - Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the
   chat history (multi-turn) for the session.
 - Workers live in `workers/` (one file each). Each returns a dict with `status`, `data`,
@@ -225,7 +237,7 @@ macro_rates.csv, sources_metadata.csv. Window 2021-11-12 → 2026-11-12.
   (Fable, Sonnet 5.5, Haiku 5.5). This applies no matter which AI assistant writes the code.
 - Bedrock via boto3 Converse API (never InvokeModel). Use `global.` inference profile IDs.
 - Models: default `global.amazon.nova-2-lite-v1:0` for cheap tests;
-  boss `global.anthropic.claude-haiku-4-5-20251001-v1:0` (BOSS_MODEL; fastest model with every benchmark
+  router and boss `global.anthropic.claude-haiku-4-5-20251001-v1:0` (ROUTER_MODEL / BOSS_MODEL; fastest model with every benchmark
   plan right, see scripts/benchmark.py); presenter `global.anthropic.claude-sonnet-4-6` (PRESENTER_MODEL,
   streamed, maxTokens 1500); `global.anthropic.claude-sonnet-5` also works for both. NOT available: Sonnet 5.5, Haiku 5.5, Fable.
 - Sonnet 5 / Opus 5 / Opus 5.5: do NOT pass `temperature` or `topP`; set `maxTokens` ≥ 1000

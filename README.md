@@ -19,26 +19,36 @@ produced it.
 | 1. Foundations: personas, data retriever, risk analyst | Done |
 | 2. Suitability and market context workers | Done |
 | 3. Chat pipeline: boss, reviewer, presenter, run trace, terminal chat | Done |
+| 3b. Intent router: conversational replies (greetings, questions about the assistant, concept explanations, off-topic) before the pipeline | Done |
 | 4. Bedrock Guardrail on the question and the answer, PII redaction in traces | Done (needs a guardrail ID in `.env`) |
 | 5. News sentiment and ethics workers | Not built; designs in `guardrails/03_workers_news_sentiment.md` and `03_workers_ethics.md` |
 | 6. Web app: FastAPI backend + React frontend, EN/FR | Done |
 | 7. Docs: this README, technical doc, one-pager, video | In progress |
 
-Tests: 269 pass (5 live Bedrock tests run only with `RUN_LIVE=1`).
+Tests: 535 pass (13 live Bedrock tests run only with `RUN_LIVE=1`).
 
 ## How it works
 
 ```
 User question (persona fixed by the session)
   → Bedrock Guardrail (input)
+  → INTENT ROUTER: rules (ticker, sector, investing keyword, short follow-up), then one Claude Haiku 4.5 call;
+      conversation (smalltalk, about, explain, off_topic) → short reply checked in code and by the output guardrail → done
+      investing question or follow-up ↓
   → BOSS: Claude Haiku 4.5 on Bedrock, a Strands agent; calls every tool it needs in one parallel turn, then returns a plan
   → WORKERS: deterministic Python, no LLM; risk, 2022 stress test, suitability, sector ranking, market context
   → REVIEWER: deterministic checks of the work; on failure the boss gets the reasons (max 2 retries)
+  → COMPARISONS: ranks and comparison sentences computed in Python (comparisons.py), reused by the presenter
   → PRESENTER: Claude Sonnet 4.6 on Bedrock, streamed; writes the answer from the worker results only
   → REVIEWER: every number in the answer must appear in the cited worker step (max 1 rewrite)
   → Bedrock Guardrail (output) → answer + structured explanation + full run trace (local and S3)
 ```
 
+- **Analysis only when it is needed.** `router.py` answers conversation directly: "hi", "what can you help me
+  with?", "what does volatility mean?" or "what color is the sky?" get a short reply in about 1.5 s instead of a
+  report. Obvious investing questions skip the model call; when unsure, the router chooses the analysis. An
+  explanation ends with an offer, and "yes" runs the analysis on the earlier question. Live test: 29/29 EN/FR
+  messages routed correctly, no investing question answered as chat (`tests/test_live_router.py`).
 - **The LLMs never compute numbers.** All the math is in `workers/`, which is plain Python with unit tests. The
   boss chooses which tools to call and what to recommend; the presenter turns the results into prose.
 - **Recommendations are consistent.** `rank_sectors_for_persona` ranks every industry by the persona's rules:
@@ -56,9 +66,9 @@ User question (persona fixed by the session)
 
 | Service | Use |
 |---|---|
-| Amazon Bedrock, Converse API (via Strands) | Boss agent, Claude Haiku 4.5 (`global.` inference profile) |
+| Amazon Bedrock, Converse API (via Strands) | Claude Haiku 4.5 (`global.` inference profile): the intent router (classification and conversational reply, structured output) and the boss agent |
 | Amazon Bedrock, ConverseStream | Presenter, Claude Sonnet 4.6; the text is streamed to the browser |
-| Amazon Bedrock Guardrails, ApplyGuardrail | Filters the question and the final answer: denied topics (personal advice to the real user, real trades), PII, content and prompt-attack filters |
+| Amazon Bedrock Guardrails, ApplyGuardrail | Filters the question, the final answer and every conversational reply: denied topics (personal advice to the real user, real trades), PII, content and prompt-attack filters |
 | Amazon S3 | Run traces (`s3://$DATA_BUCKET/runs/<run_id>.json`, linked in the UI); data files can be read from `s3://$DATA_BUCKET/data/` |
 | Amazon Cognito | ID-token verification implemented and tested in `server/auth.py`; no user pool configured yet, so the server runs in dev mode |
 
@@ -132,14 +142,15 @@ React + Vite in `apps/web/`, talking to the FastAPI backend in `server/` over th
 | `workers/market_context.py` | Business-cycle phase (FRED rules), fear vs hope, sector momentum / trend / relative strength |
 | `workers/suitability.py` | Checks a ticker or sector against a persona's limits: pass / info / flag / conflict per rule |
 | `agent_tools.py` | Workers as Strands `@tool`s: coarse `assess_target`, `rank_sectors_for_persona`, `market_snapshot` and the fine tools. The boss gets compact results; the trace keeps the full output. Persona and dates are fixed by the session |
-| `pipeline.py` | `ChatSession`: guardrail → boss → reviewer (max 2 retries) → presenter → answer check (max 1 retry) → guardrail → trace |
+| `router.py` | Intent router: rules first, then one Haiku call (intent, confidence, reply); replies with a digit, `%` or universe asset are rejected and replaced by fixed EN/FR texts (`texts.py`), also used in demo mode |
+| `pipeline.py` | `ChatSession`: guardrail → router (short reply, or →) boss → reviewer (max 2 retries) → comparisons → presenter → answer check (max 1 retry) → guardrail → trace |
 | `reviewer.py` | Deterministic checks: work coverage, sources, periods, persona limits, ESG check, no look-ahead; every answer number must be in the cited worker step; no promised returns |
 | `presenter.py` | Streamed answer with claim tags, from the plan-relevant trace steps |
 | `guardrail.py` | Bedrock ApplyGuardrail on input and output; PII redaction before anything is written to the trace |
 | `run_trace.py` | Run trace with per-step durations and LLM-call timing, saved to `runs/` and S3 |
 | `server/` | FastAPI REST + WebSocket backend, explainer, demo agent, auth |
 | `apps/web/`, `packages/api-client/` | React app and its typed client, generated from `contracts/` |
-| `prompts/` | Boss and presenter system prompts, language rules |
+| `prompts/` | Router, boss and presenter system prompts, language rules |
 | `AGENT_GUARDRAILS.md`, `guardrails/` | Rules for every agent (summary, then one file per agent) |
 | `scripts/` | `benchmark.py`, `sanity_check.py` (31 independent number checks), `inspect_target.py` |
 | `tests/` | Unit, pipeline, contract and server tests; live Bedrock tests behind `RUN_LIVE=1` |
@@ -250,13 +261,17 @@ They form 13 sector groups:
   Every answer has a full trace for auditing.
 - **The guardrail fails open.** If the Bedrock Guardrail API errors, the answer still goes through and the trace
   records it. Persona-fit rules stay in the suitability worker either way.
-- **Conversational replies.** Replies to greetings, questions about the assistant and general concept explanations are written by Claude Haiku 4.5 without data; code rejects any such reply containing a digit, a % sign or an asset from the universe. Only analysis answers carry figures, each with source and period.
+- **Conversational replies.** Replies to greetings, questions about the assistant and general concept explanations
+  are written by Claude Haiku 4.5 without data; code rejects any such reply containing a digit, a % sign or an asset
+  from the universe. Only analysis answers carry figures, each with source and period. Numbers spelled out in words
+  pass the code check (only the prompt and the guardrail cover them), and French replies sometimes use "tu" instead
+  of "vous". In demo mode, a message with no investing signal gets a fixed "not sure I can help" reply.
 - **Literal word matching.** Target words are matched literally: "I have little energy..." makes the reviewer
   require an Energy analysis. This costs extra tool calls, not a wrong answer.
 - **Member metrics:** inside a sector, they use the sector's common dates, so a member's volatility can differ
   slightly from its standalone value (NVDA 51.4% vs 51.1%).
 - **Server limits:**
-  - One run at a time per server process (`agent_tools.CONTEXT` is process-wide); other questions wait as
-    "queued".
+  - One analysis at a time per server process (`agent_tools.CONTEXT` is process-wide); other analyses wait as
+    "queued". The router and conversational replies run outside that lock, so a greeting never waits.
   - Conversations live in memory and are lost on restart (traces stay in `runs/` and S3).
   - Sign-in is not wired, so the server must not be exposed publicly in dev mode.
