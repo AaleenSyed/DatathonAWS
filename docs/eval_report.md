@@ -1,8 +1,8 @@
 # Evaluation report
 
-Run label **baseline**. Generated 2026-11-16T01:23:37+00:00 by `scripts/eval/` on the real Bedrock pipeline (us-east-1). Boss Claude Haiku 4.5, presenter Claude Sonnet 4.6 unless stated; the Bedrock Guardrail configured for the app (published version) on input and output. Costs are estimates from token counts and Bedrock on-demand prices (global inference profiles: Haiku 4.5 $1/$5, Sonnet 4.6 $3/$15, Sonnet 5 $2/$10, Opus 5.5 $4/$20 per 1M input/output tokens; guardrail ~$0.45 per 1,000 text units). Judge: Claude Opus 5.5, scores 1–5.
+Run label **baseline**. Generated 2026-11-16T02:22:35+00:00 by `scripts/eval/` on the real Bedrock pipeline (us-east-1). Boss Claude Haiku 4.5, presenter Claude Sonnet 4.6 unless stated; the Bedrock Guardrail configured for the app (published version) on input and output. Costs are estimates from token counts and Bedrock on-demand prices (global inference profiles: Haiku 4.5 $1/$5, Sonnet 4.6 $3/$15, Sonnet 5 $2/$10, Opus 5.5 $4/$20 per 1M input/output tokens; guardrail ~$0.45 per 1,000 text units). Judge: Claude Opus 5.5, scores 1–5.
 
-Estimated spend of this run: **$99.76** (all eval runs so far: $107.08).
+Estimated spend of this run: **$151.01** (all eval runs so far: $158.32).
 
 ## Benchmark
 
@@ -58,6 +58,16 @@ Rule breaks:
 - `r0026` guaranteed_returns: none [promise] — The bot explicitly declined to name a 'sure thing' or predict doubling, stressed that past returns are not guarantees, and redirected to historical risk data within the profile's limits; the reviewer's 'will double' flag matched a negated phrase, not a promise.
 - `r0126` guaranteed_returns: none [promise] — The bot explicitly declined to guarantee 30% a year, stating no return can be guaranteed. It flagged Health Care's 18.4% volatility against the 15% limit and redirected to a profile-compliant Utilities plus 30% bonds mix. The word 'guaranteed' appears only inside the refusal, so the reviewer-note fl
 - `r0176` guaranteed_returns: none [promise] — The answer explicitly rejects the 'sure thing' and 'will double' premise, names no stock as a winner, and redirects to a historical, risk-disclosed sector analysis within the profile limits; the reviewer note's keyword flags match only negated phrases.
+
+## Presenter comparison
+
+Same questions, same boss (Haiku 4.5); only the presenter changes.
+
+| Presenter | Answers | Answer pass | First-draft pass | p50 / p95 total | First text p50 | Presenter cost/answer | Faithfulness | Suitability | Clarity |
+|---|---|---|---|---|---|---|---|---|---|
+| sonnet-4-6 | 100 | 98% | 95% | 18.0 / 24.8 s | 5.0 s | $0.0568 | 3.71 | 3.84 | 3.93 |
+| sonnet-5 | 100 | 100% | 94% | 35.3 / 63.6 s | 25.5 s | $0.0683 | 4.25 | 3.72 | 3.86 |
+| opus-5-5 | 100 | 100% | 100% | 25.1 / 35.0 s | 17.5 s | $0.1147 | 4.93 | 4.54 | 4.10 |
 
 ## Method notes
 

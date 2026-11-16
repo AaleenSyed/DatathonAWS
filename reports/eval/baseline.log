@@ -1581,3 +1581,597 @@ uploaded 3 files to s3://datathon-alphaforge-654654326432/runs/eval/
 [compare_presenters] 62/300 p0020-opus-5-5 ok mateo 31.8s work=pass answer=pass | $0.1425 | spend $112.86 | eta 36 min
 [compare_presenters] 63/300 p0021-opus-5-5 ok robert 21.3s work=pass answer=pass | $0.1114 | spend $112.97 | eta 37 min
 [compare_presenters] 64/300 p0022-sonnet-4-6 ok custom-low 16.9s work=pass answer=pass | $0.0710 | spend $113.04 | eta 36 min
+[compare_presenters] 65/300 p0022-sonnet-5 ok custom-low 15.3s work=pass answer=pass | $0.0596 | spend $113.10 | eta 35 min
+[compare_presenters] 66/300 p0023-sonnet-4-6 ok custom-moderate 15.2s work=pass answer=pass | $0.0586 | spend $113.16 | eta 35 min
+[compare_presenters] 67/300 p0023-sonnet-5 ok custom-moderate 20.2s work=pass answer=pass | $0.0569 | spend $113.22 | eta 35 min
+[compare_presenters] 68/300 p0022-opus-5-5 ok custom-low 32.2s work=pass answer=pass | $0.1523 | spend $113.37 | eta 35 min
+[compare_presenters] 69/300 p0023-opus-5-5 ok custom-moderate 20.3s work=pass answer=pass | $0.1051 | spend $113.48 | eta 35 min
+[compare_presenters] 70/300 p0024-sonnet-4-6 ok custom-high 15.5s work=pass answer=pass | $0.0626 | spend $113.54 | eta 34 min
+[compare_presenters] 71/300 p0025-sonnet-4-6 ok amira 16.4s work=pass answer=pass | $0.0592 | spend $113.60 | eta 34 min
+[compare_presenters] 72/300 p0024-opus-5-5 ok custom-high 19.1s work=pass answer=pass | $0.1081 | spend $113.71 | eta 34 min
+[compare_presenters] 73/300 p0025-opus-5-5 ok amira 25.0s work=pass answer=pass | $0.1242 | spend $113.83 | eta 34 min
+[compare_presenters] 74/300 p0025-sonnet-5 ok amira 28.8s work=pass answer=pass | $0.0679 | spend $113.90 | eta 34 min
+[compare_presenters] 75/300 p0024-sonnet-5 ok custom-high 51.9s work=pass answer=pass | $0.1181 | spend $114.02 | eta 33 min
+[compare_presenters] 76/300 p0026-sonnet-4-6 ok mateo 20.3s work=pass answer=pass | $0.0804 | spend $114.10 | eta 34 min
+[compare_presenters] 77/300 p0026-sonnet-5 ok mateo 31.8s work=pass answer=pass | $0.0802 | spend $114.18 | eta 34 min
+[compare_presenters] 78/300 p0026-opus-5-5 ok mateo 29.4s work=pass answer=pass | $0.1372 | spend $114.31 | eta 33 min
+[compare_presenters] 79/300 p0027-sonnet-4-6 ok robert 31.7s work=pass answer=pass | $0.1476 | spend $114.46 | eta 33 min
+[compare_presenters] 80/300 p0027-opus-5-5 ok robert 22.7s work=pass answer=pass | $0.1385 | spend $114.60 | eta 33 min
+[compare_presenters] 81/300 p0028-sonnet-4-6 ok custom-low 17.4s work=pass answer=pass | $0.0641 | spend $114.67 | eta 33 min
+[compare_presenters] 82/300 p0028-opus-5-5 ok custom-low 21.2s work=pass answer=pass | $0.1147 | spend $114.78 | eta 33 min
+[compare_presenters] 83/300 p0027-sonnet-5 ok robert 60.5s work=pass answer=pass | $0.1144 | spend $114.89 | eta 33 min
+[compare_presenters] 84/300 p0029-sonnet-4-6 ok custom-moderate 28.3s work=pass answer=fail | $0.1186 | spend $115.01 | eta 34 min
+[compare_presenters] 85/300 p0029-opus-5-5 ok custom-moderate 19.1s work=pass answer=pass | $0.1117 | spend $115.12 | eta 34 min
+[compare_presenters] 86/300 p0029-sonnet-5 ok custom-moderate 44.9s work=pass answer=pass | $0.0900 | spend $115.21 | eta 33 min
+[compare_presenters] 87/300 p0028-sonnet-5 ok custom-low 83.1s work=pass answer=pass | $0.1583 | spend $115.37 | eta 33 min
+[compare_presenters] 88/300 p0030-sonnet-4-6 ok custom-high 20.7s work=pass answer=pass | $0.0763 | spend $115.45 | eta 33 min
+[compare_presenters] 89/300 p0030-opus-5-5 ok custom-high 32.8s work=pass answer=pass | $0.1592 | spend $115.61 | eta 33 min
+[compare_presenters] 90/300 p0031-sonnet-4-6 ok amira 15.8s work=pass answer=pass | $0.0721 | spend $115.68 | eta 33 min
+[compare_presenters] 91/300 p0030-sonnet-5 ok custom-high 40.3s work=pass answer=pass | $0.0871 | spend $115.77 | eta 32 min
+[compare_presenters] 92/300 p0031-opus-5-5 ok amira 23.0s work=pass answer=pass | $0.1324 | spend $115.90 | eta 32 min
+[compare_presenters] 93/300 p0032-sonnet-4-6 ok mateo 20.0s work=pass answer=pass | $0.0767 | spend $115.98 | eta 32 min
+[compare_presenters] 94/300 p0031-sonnet-5 ok amira 49.9s work=pass answer=pass | $0.0962 | spend $116.07 | eta 32 min
+[compare_presenters] 95/300 p0032-opus-5-5 ok mateo 26.5s work=pass answer=pass | $0.1440 | spend $116.22 | eta 32 min
+[compare_presenters] 96/300 p0033-sonnet-4-6 ok robert 18.2s work=pass answer=pass | $0.0737 | spend $116.29 | eta 32 min
+[compare_presenters] 97/300 p0032-sonnet-5 ok mateo 50.2s work=pass answer=pass | $0.1054 | spend $116.40 | eta 32 min
+[compare_presenters] 98/300 p0033-sonnet-5 ok robert 43.5s work=pass answer=pass | $0.0928 | spend $116.49 | eta 32 min
+[compare_presenters] 99/300 p0034-sonnet-4-6 ok custom-low 23.0s work=pass answer=pass | $0.0738 | spend $116.56 | eta 32 min
+[compare_presenters] 100/300 p0033-opus-5-5 ok robert 34.0s work=pass answer=pass | $0.1535 | spend $116.72 | eta 31 min
+[compare_presenters] 101/300 p0035-sonnet-4-6 ok custom-moderate 16.2s work=pass answer=pass | $0.0601 | spend $116.78 | eta 31 min
+[compare_presenters] 102/300 p0034-opus-5-5 ok custom-low 28.7s work=pass answer=pass | $0.1329 | spend $116.91 | eta 31 min
+[compare_presenters] 103/300 p0034-sonnet-5 ok custom-low 35.1s work=pass answer=pass | $0.0806 | spend $116.99 | eta 31 min
+[compare_presenters] 104/300 p0035-opus-5-5 ok custom-moderate 19.5s work=pass answer=pass | $0.1074 | spend $117.10 | eta 31 min
+[compare_presenters] 105/300 p0036-sonnet-4-6 ok custom-high 15.7s work=pass answer=pass | $0.0673 | spend $117.16 | eta 30 min
+[compare_presenters] 106/300 p0035-sonnet-5 ok custom-moderate 31.8s work=pass answer=pass | $0.0758 | spend $117.24 | eta 30 min
+[compare_presenters] 107/300 p0036-sonnet-5 ok custom-high 16.3s work=pass answer=pass | $0.0645 | spend $117.30 | eta 30 min
+[compare_presenters] 108/300 p0037-sonnet-4-6 ok amira 19.3s work=pass answer=pass | $0.0783 | spend $117.38 | eta 30 min
+[compare_presenters] 109/300 p0036-opus-5-5 ok custom-high 23.2s work=pass answer=pass | $0.1356 | spend $117.52 | eta 29 min
+[compare_presenters] 110/300 p0037-sonnet-5 ok amira 14.5s work=pass answer=pass | $0.0572 | spend $117.58 | eta 29 min
+[compare_presenters] 111/300 p0038-sonnet-4-6 ok mateo 17.5s work=pass answer=pass | $0.0722 | spend $117.65 | eta 29 min
+[compare_presenters] 112/300 p0037-opus-5-5 ok amira 22.0s work=pass answer=pass | $0.1215 | spend $117.77 | eta 29 min
+[compare_presenters] 113/300 p0039-sonnet-4-6 ok robert 18.8s work=pass answer=pass | $0.0784 | spend $117.85 | eta 29 min
+[compare_presenters] 114/300 p0038-opus-5-5 ok mateo 27.5s work=pass answer=pass | $0.1441 | spend $117.99 | eta 29 min
+[compare_presenters] 115/300 p0038-sonnet-5 ok mateo 41.0s work=pass answer=pass | $0.0815 | spend $118.07 | eta 28 min
+[compare_presenters] 116/300 p0039-sonnet-5 ok robert 17.3s work=pass answer=pass | $0.0685 | spend $118.14 | eta 28 min
+[compare_presenters] 117/300 p0040-sonnet-4-6 ok custom-low 19.3s work=pass answer=pass | $0.0770 | spend $118.22 | eta 28 min
+[compare_presenters] 118/300 p0039-opus-5-5 ok robert 29.4s work=pass answer=pass | $0.1313 | spend $118.35 | eta 28 min
+[compare_presenters] 119/300 p0041-sonnet-4-6 ok custom-moderate 17.4s work=pass answer=pass | $0.0707 | spend $118.42 | eta 28 min
+[compare_presenters] 120/300 p0040-opus-5-5 ok custom-low 32.0s work=pass answer=pass | $0.1432 | spend $118.56 | eta 28 min
+[compare_presenters] 121/300 p0040-sonnet-5 ok custom-low 56.9s work=pass answer=pass | $0.1172 | spend $118.68 | eta 28 min
+[compare_presenters] 122/300 p0041-sonnet-5 ok custom-moderate 36.7s work=pass answer=pass | $0.0798 | spend $118.76 | eta 28 min
+[compare_presenters] 123/300 p0042-sonnet-4-6 ok custom-high 20.9s work=pass answer=pass | $0.0701 | spend $118.83 | eta 27 min
+[compare_presenters] 124/300 p0041-opus-5-5 ok custom-moderate 37.6s work=pass answer=pass | $0.1526 | spend $118.98 | eta 27 min
+[compare_presenters] 125/300 p0043-sonnet-4-6 ok amira 15.5s work=pass answer=pass | $0.0613 | spend $119.05 | eta 27 min
+[compare_presenters] 126/300 p0042-opus-5-5 ok custom-high 24.4s work=pass answer=pass | $0.1184 | spend $119.16 | eta 27 min
+[compare_presenters] 127/300 p0042-sonnet-5 ok custom-high 39.4s work=pass answer=pass | $0.0886 | spend $119.25 | eta 27 min
+[compare_presenters] 128/300 p0043-opus-5-5 ok amira 25.1s work=pass answer=pass | $0.1204 | spend $119.37 | eta 27 min
+[compare_presenters] 129/300 p0044-sonnet-4-6 ok mateo 16.6s work=pass answer=pass | $0.0647 | spend $119.44 | eta 26 min
+[compare_presenters] 130/300 p0043-sonnet-5 ok amira 40.5s work=pass answer=pass | $0.0776 | spend $119.51 | eta 26 min
+[compare_presenters] 131/300 p0045-sonnet-4-6 ok robert 21.5s work=pass answer=pass | $0.0843 | spend $119.60 | eta 26 min
+[compare_presenters] 132/300 p0044-opus-5-5 ok mateo 31.2s work=pass answer=pass | $0.1342 | spend $119.73 | eta 26 min
+[compare_presenters] 133/300 p0044-sonnet-5 ok mateo 35.5s work=pass answer=pass | $0.0882 | spend $119.82 | eta 26 min
+[compare_presenters] 134/300 p0045-sonnet-5 ok robert 26.6s work=pass answer=pass | $0.0700 | spend $119.89 | eta 26 min
+[compare_presenters] 135/300 p0046-sonnet-4-6 ok custom-low 22.4s work=pass answer=pass | $0.0733 | spend $119.96 | eta 25 min
+[compare_presenters] 136/300 p0045-opus-5-5 ok robert 31.3s work=pass answer=pass | $0.1461 | spend $120.11 | eta 25 min
+[compare_presenters] 137/300 p0047-sonnet-4-6 ok custom-moderate 15.8s work=pass answer=pass | $0.0589 | spend $120.17 | eta 25 min
+[compare_presenters] 138/300 p0046-opus-5-5 ok custom-low 39.6s work=pass answer=pass | $0.1614 | spend $120.33 | eta 25 min
+[compare_presenters] 139/300 p0047-sonnet-5 ok custom-moderate 23.7s work=pass answer=pass | $0.0594 | spend $120.39 | eta 25 min
+[compare_presenters] 140/300 p0046-sonnet-5 ok custom-low 60.6s work=pass answer=pass | $0.1057 | spend $120.50 | eta 25 min
+[compare_presenters] 141/300 p0047-opus-5-5 ok custom-moderate 22.9s work=pass answer=pass | $0.1141 | spend $120.61 | eta 25 min
+[compare_presenters] 142/300 p0048-sonnet-4-6 ok custom-high 18.1s work=pass answer=pass | $0.0794 | spend $120.69 | eta 24 min
+[compare_presenters] 143/300 p0049-sonnet-4-6 ok amira 16.8s work=pass answer=pass | $0.0624 | spend $120.75 | eta 24 min
+[compare_presenters] 144/300 p0048-sonnet-5 ok custom-high 30.5s work=pass answer=pass | $0.0845 | spend $120.84 | eta 24 min
+[compare_presenters] 145/300 p0048-opus-5-5 ok custom-high 28.7s work=pass answer=pass | $0.1390 | spend $120.98 | eta 24 min
+[compare_presenters] 146/300 p0050-sonnet-4-6 ok mateo 19.2s work=pass answer=pass | $0.0732 | spend $121.05 | eta 24 min
+[compare_presenters] 147/300 p0049-opus-5-5 ok amira 23.8s work=pass answer=pass | $0.1184 | spend $121.17 | eta 24 min
+[compare_presenters] 148/300 p0049-sonnet-5 ok amira 35.3s work=pass answer=pass | $0.0749 | spend $121.24 | eta 23 min
+[compare_presenters] 149/300 p0051-sonnet-4-6 ok robert 19.5s work=pass answer=pass | $0.0691 | spend $121.31 | eta 23 min
+[compare_presenters] 150/300 p0050-opus-5-5 ok mateo 23.8s work=pass answer=pass | $0.1245 | spend $121.44 | eta 23 min
+[compare_presenters] 151/300 p0051-sonnet-5 ok robert 14.8s work=pass answer=pass | $0.0522 | spend $121.49 | eta 23 min
+[compare_presenters] 152/300 p0050-sonnet-5 ok mateo 43.3s work=pass answer=pass | $0.0948 | spend $121.58 | eta 23 min
+[compare_presenters] 153/300 p0051-opus-5-5 ok robert 20.5s work=pass answer=pass | $0.1098 | spend $121.69 | eta 23 min
+[compare_presenters] 154/300 p0052-sonnet-4-6 ok custom-low 20.3s work=pass answer=pass | $0.0765 | spend $121.77 | eta 22 min
+[compare_presenters] 155/300 p0053-sonnet-4-6 ok custom-moderate 18.7s work=pass answer=pass | $0.0662 | spend $121.84 | eta 22 min
+[compare_presenters] 156/300 p0052-opus-5-5 ok custom-low 34.1s work=pass answer=pass | $0.1504 | spend $121.99 | eta 22 min
+[compare_presenters] 157/300 p0052-sonnet-5 ok custom-low 56.6s work=pass answer=pass | $0.1067 | spend $122.09 | eta 22 min
+[compare_presenters] 158/300 p0054-sonnet-4-6 ok custom-high 14.4s work=pass answer=pass | $0.0682 | spend $122.16 | eta 22 min
+[compare_presenters] 159/300 p0053-opus-5-5 ok custom-moderate 36.9s work=pass answer=pass | $0.1446 | spend $122.30 | eta 22 min
+[compare_presenters] 160/300 p0053-sonnet-5 ok custom-moderate 41.4s work=pass answer=pass | $0.0866 | spend $122.39 | eta 22 min
+[compare_presenters] 161/300 p0055-sonnet-4-6 ok amira 15.3s work=pass answer=pass | $0.0675 | spend $122.46 | eta 22 min
+[compare_presenters] 162/300 p0054-opus-5-5 ok custom-high 24.2s work=pass answer=pass | $0.1340 | spend $122.59 | eta 21 min
+[compare_presenters] 163/300 p0054-sonnet-5 ok custom-high 33.6s work=pass answer=pass | $0.1166 | spend $122.71 | eta 21 min
+[compare_presenters] 164/300 p0056-sonnet-4-6 ok mateo 19.5s work=pass answer=pass | $0.0803 | spend $122.79 | eta 21 min
+[compare_presenters] 165/300 p0055-opus-5-5 ok amira 27.1s work=pass answer=pass | $0.1279 | spend $122.92 | eta 21 min
+[compare_presenters] 166/300 p0055-sonnet-5 ok amira 37.0s work=pass answer=pass | $0.0867 | spend $123.00 | eta 21 min
+[compare_presenters] 167/300 p0057-sonnet-4-6 ok robert 22.2s work=pass answer=pass | $0.0675 | spend $123.07 | eta 21 min
+[compare_presenters] 168/300 p0056-sonnet-5 ok mateo 28.3s work=pass answer=pass | $0.0794 | spend $123.15 | eta 20 min
+[compare_presenters] 169/300 p0056-opus-5-5 ok mateo 28.6s work=pass answer=pass | $0.1360 | spend $123.29 | eta 20 min
+[compare_presenters] 170/300 p0058-sonnet-4-6 ok custom-low 18.3s work=pass answer=pass | $0.0643 | spend $123.35 | eta 20 min
+[compare_presenters] 171/300 p0057-opus-5-5 ok robert 23.8s work=pass answer=pass | $0.1242 | spend $123.48 | eta 20 min
+[compare_presenters] 172/300 p0058-opus-5-5 ok custom-low 24.0s work=pass answer=pass | $0.1171 | spend $123.59 | eta 20 min
+[compare_presenters] 173/300 p0058-sonnet-5 ok custom-low 31.5s work=pass answer=pass | $0.0730 | spend $123.67 | eta 20 min
+[compare_presenters] 174/300 p0057-sonnet-5 ok robert 56.3s work=pass answer=pass | $0.1001 | spend $123.77 | eta 19 min
+[compare_presenters] 175/300 p0059-sonnet-4-6 ok custom-moderate 17.4s work=pass answer=pass | $0.0592 | spend $123.83 | eta 19 min
+[compare_presenters] 176/300 p0059-opus-5-5 ok custom-moderate 25.2s work=pass answer=pass | $0.1166 | spend $123.94 | eta 19 min
+[compare_presenters] 177/300 p0059-sonnet-5 ok custom-moderate 28.5s work=pass answer=pass | $0.0646 | spend $124.01 | eta 19 min
+[compare_presenters] 178/300 p0060-sonnet-4-6 ok custom-high 19.6s work=pass answer=pass | $0.0675 | spend $124.07 | eta 19 min
+[compare_presenters] 179/300 p0061-sonnet-4-6 ok amira 21.5s work=pass answer=pass | $0.0686 | spend $124.14 | eta 19 min
+[compare_presenters] 180/300 p0060-opus-5-5 ok custom-high 31.8s work=pass answer=pass | $0.1398 | spend $124.28 | eta 19 min
+[compare_presenters] 181/300 p0060-sonnet-5 ok custom-high 54.8s work=pass answer=pass | $0.0979 | spend $124.38 | eta 19 min
+[compare_presenters] 182/300 p0061-opus-5-5 ok amira 31.2s work=pass answer=pass | $0.1235 | spend $124.50 | eta 18 min
+[compare_presenters] 183/300 p0062-sonnet-4-6 ok mateo 19.7s work=pass answer=pass | $0.0609 | spend $124.56 | eta 18 min
+[compare_presenters] 184/300 p0061-sonnet-5 ok amira 48.7s work=pass answer=pass | $0.0920 | spend $124.66 | eta 18 min
+[compare_presenters] 185/300 p0062-opus-5-5 ok mateo 22.0s work=pass answer=pass | $0.1123 | spend $124.77 | eta 18 min
+[compare_presenters] 186/300 p0062-sonnet-5 ok mateo 35.4s work=pass answer=pass | $0.0744 | spend $124.84 | eta 18 min
+[compare_presenters] 187/300 p0063-sonnet-4-6 ok robert 24.7s work=pass answer=pass | $0.0780 | spend $124.92 | eta 17 min
+[compare_presenters] 188/300 p0064-sonnet-4-6 ok custom-low 18.8s work=pass answer=pass | $0.0769 | spend $125.00 | eta 17 min
+[compare_presenters] 189/300 p0063-opus-5-5 ok robert 22.5s work=pass answer=pass | $0.1211 | spend $125.12 | eta 17 min
+[compare_presenters] 190/300 p0063-sonnet-5 ok robert 28.7s work=pass answer=pass | $0.0801 | spend $125.20 | eta 17 min
+[compare_presenters] 191/300 p0064-sonnet-5 ok custom-low 22.4s work=pass answer=pass | $0.0635 | spend $125.26 | eta 17 min
+[compare_presenters] 192/300 p0065-sonnet-4-6 ok custom-moderate 18.8s work=pass answer=pass | $0.0668 | spend $125.33 | eta 17 min
+[compare_presenters] 193/300 p0064-opus-5-5 ok custom-low 33.5s work=pass answer=pass | $0.1573 | spend $125.49 | eta 17 min
+[compare_presenters] 194/300 p0065-opus-5-5 ok custom-moderate 24.2s work=pass answer=pass | $0.1180 | spend $125.61 | eta 16 min
+[compare_presenters] 195/300 p0065-sonnet-5 ok custom-moderate 32.4s work=pass answer=pass | $0.0986 | spend $125.70 | eta 16 min
+[compare_presenters] 196/300 p0066-sonnet-4-6 ok custom-high 19.1s work=pass answer=pass | $0.0733 | spend $125.78 | eta 16 min
+[compare_presenters] 197/300 p0067-sonnet-4-6 ok amira 13.6s work=pass answer=pass | $0.0594 | spend $125.84 | eta 16 min
+[compare_presenters] 198/300 p0066-opus-5-5 ok custom-high 23.9s work=pass answer=pass | $0.1344 | spend $125.97 | eta 16 min
+[compare_presenters] 199/300 p0067-sonnet-5 ok amira 15.5s work=pass answer=pass | $0.0534 | spend $126.02 | eta 16 min
+[compare_presenters] 200/300 p0066-sonnet-5 ok custom-high 40.8s work=pass answer=pass | $0.0898 | spend $126.11 | eta 15 min
+[compare_presenters] 201/300 p0068-sonnet-4-6 ok mateo 15.8s work=pass answer=pass | $0.0658 | spend $126.18 | eta 15 min
+[compare_presenters] 202/300 p0067-opus-5-5 ok amira 24.9s work=pass answer=pass | $0.1210 | spend $126.30 | eta 15 min
+[compare_presenters] 203/300 p0069-sonnet-4-6 ok robert 17.1s work=pass answer=pass | $0.0633 | spend $126.36 | eta 15 min
+[compare_presenters] 204/300 p0068-opus-5-5 ok mateo 33.2s work=pass answer=pass | $0.1438 | spend $126.51 | eta 15 min
+[compare_presenters] 205/300 p0069-sonnet-5 ok robert 26.1s work=pass answer=pass | $0.0633 | spend $126.57 | eta 15 min
+[compare_presenters] 206/300 p0068-sonnet-5 ok mateo 63.3s work=pass answer=pass | $0.1051 | spend $126.68 | eta 15 min
+[compare_presenters] 207/300 p0069-opus-5-5 ok robert 21.8s work=pass answer=pass | $0.1135 | spend $126.79 | eta 14 min
+[compare_presenters] 208/300 p0070-sonnet-4-6 ok custom-low 21.9s work=pass answer=pass | $0.0869 | spend $126.88 | eta 14 min
+[compare_presenters] 209/300 p0071-sonnet-4-6 ok custom-moderate 14.8s work=pass answer=pass | $0.0578 | spend $126.93 | eta 14 min
+[compare_presenters] 210/300 p0070-opus-5-5 ok custom-low 32.5s work=pass answer=pass | $0.1499 | spend $127.08 | eta 14 min
+[compare_presenters] 211/300 p0070-sonnet-5 ok custom-low 43.9s work=pass answer=pass | $0.1003 | spend $127.18 | eta 14 min
+[compare_presenters] 212/300 p0071-opus-5-5 ok custom-moderate 18.4s work=pass answer=pass | $0.1019 | spend $127.29 | eta 14 min
+[compare_presenters] 213/300 p0071-sonnet-5 ok custom-moderate 24.8s work=pass answer=pass | $0.0640 | spend $127.35 | eta 13 min
+[compare_presenters] 214/300 p0072-sonnet-4-6 ok custom-high 16.4s work=pass answer=pass | $0.0704 | spend $127.42 | eta 13 min
+[compare_presenters] 215/300 p0073-sonnet-4-6 ok amira 16.9s work=pass answer=pass | $0.0699 | spend $127.49 | eta 13 min
+[compare_presenters] 216/300 p0072-sonnet-5 ok custom-high 28.8s work=pass answer=pass | $0.0751 | spend $127.57 | eta 13 min
+[compare_presenters] 217/300 p0072-opus-5-5 ok custom-high 27.1s work=pass answer=pass | $0.1419 | spend $127.71 | eta 13 min
+[compare_presenters] 218/300 p0074-sonnet-4-6 ok mateo 20.6s work=pass answer=pass | $0.0737 | spend $127.78 | eta 13 min
+[compare_presenters] 219/300 p0073-sonnet-5 ok amira 32.5s work=pass answer=pass | $0.0754 | spend $127.86 | eta 12 min
+[compare_presenters] 220/300 p0073-opus-5-5 ok amira 28.6s work=pass answer=pass | $0.1326 | spend $127.99 | eta 12 min
+[compare_presenters] 221/300 p0075-sonnet-4-6 ok robert 15.5s work=pass answer=pass | $0.0666 | spend $128.06 | eta 12 min
+[compare_presenters] 222/300 p0074-opus-5-5 ok mateo 22.7s work=pass answer=pass | $0.1337 | spend $128.19 | eta 12 min
+[compare_presenters] 223/300 p0075-sonnet-5 ok robert 13.8s work=pass answer=pass | $0.0563 | spend $128.25 | eta 12 min
+[compare_presenters] 224/300 p0075-opus-5-5 ok robert 22.8s work=pass answer=pass | $0.1243 | spend $128.37 | eta 12 min
+[compare_presenters] 225/300 p0076-sonnet-4-6 ok custom-low 22.6s work=pass answer=pass | $0.0791 | spend $128.45 | eta 12 min
+[compare_presenters] 226/300 p0076-opus-5-5 ok custom-low 36.9s work=pass answer=pass | $0.1460 | spend $128.60 | eta 12 min
+[compare_presenters] 227/300 p0074-sonnet-5 ok mateo 100.7s work=pass answer=pass | $0.0912 | spend $128.69 | eta 11 min
+[compare_presenters] 228/300 p0076-sonnet-5 ok custom-low 56.4s work=pass answer=pass | $0.1028 | spend $128.79 | eta 11 min
+[compare_presenters] 229/300 p0077-sonnet-4-6 ok custom-moderate 18.7s work=pass answer=pass | $0.0720 | spend $128.86 | eta 11 min
+[compare_presenters] 230/300 p0078-sonnet-4-6 ok custom-high 18.0s work=pass answer=pass | $0.0693 | spend $128.93 | eta 11 min
+[compare_presenters] 231/300 p0077-opus-5-5 ok custom-moderate 27.7s work=pass answer=pass | $0.1400 | spend $129.07 | eta 11 min
+[compare_presenters] 232/300 p0077-sonnet-5 ok custom-moderate 40.1s work=pass answer=pass | $0.0853 | spend $129.16 | eta 11 min
+[compare_presenters] 233/300 p0079-sonnet-4-6 ok amira 13.7s work=pass answer=pass | $0.0630 | spend $129.22 | eta 10 min
+[compare_presenters] 234/300 p0078-opus-5-5 ok custom-high 22.0s work=pass answer=pass | $0.1148 | spend $129.33 | eta 10 min
+[compare_presenters] 235/300 p0078-sonnet-5 ok custom-high 30.6s work=pass answer=pass | $0.0714 | spend $129.41 | eta 10 min
+[compare_presenters] 236/300 p0079-sonnet-5 ok amira 20.5s work=pass answer=pass | $0.0616 | spend $129.47 | eta 10 min
+[compare_presenters] 237/300 p0080-sonnet-4-6 ok mateo 15.9s work=pass answer=pass | $0.0674 | spend $129.53 | eta 10 min
+[compare_presenters] 238/300 p0079-opus-5-5 ok amira 27.3s work=pass answer=pass | $0.1347 | spend $129.67 | eta 10 min
+[compare_presenters] 239/300 p0081-sonnet-4-6 ok robert 17.1s work=pass answer=pass | $0.0739 | spend $129.74 | eta 9 min
+[compare_presenters] 240/300 p0080-opus-5-5 ok mateo 24.9s work=pass answer=pass | $0.1281 | spend $129.87 | eta 9 min
+[compare_presenters] 241/300 p0081-opus-5-5 ok robert 22.6s work=pass answer=pass | $0.1321 | spend $130.00 | eta 9 min
+[compare_presenters] 242/300 p0081-sonnet-5 ok robert 27.4s work=pass answer=pass | $0.0744 | spend $130.08 | eta 9 min
+[compare_presenters] 243/300 p0082-sonnet-4-6 ok custom-low 21.6s work=pass answer=pass | $0.0662 | spend $130.14 | eta 9 min
+[compare_presenters] 244/300 p0082-sonnet-5 ok custom-low 37.6s work=pass answer=pass | $0.0836 | spend $130.23 | eta 9 min
+[compare_presenters] 245/300 p0080-sonnet-5 ok mateo 97.2s work=pass answer=pass | $0.1757 | spend $130.40 | eta 9 min
+[compare_presenters] 246/300 p0082-opus-5-5 ok custom-low 25.5s work=pass answer=pass | $0.1208 | spend $130.52 | eta 8 min
+[compare_presenters] 247/300 p0083-sonnet-4-6 ok custom-moderate 16.4s work=pass answer=pass | $0.0656 | spend $130.59 | eta 8 min
+[compare_presenters] 248/300 p0083-opus-5-5 ok custom-moderate 19.5s work=pass answer=pass | $0.1121 | spend $130.70 | eta 8 min
+[compare_presenters] 249/300 p0084-sonnet-4-6 ok custom-high 15.3s work=pass answer=pass | $0.0613 | spend $130.76 | eta 8 min
+[compare_presenters] 250/300 p0083-sonnet-5 ok custom-moderate 40.4s work=pass answer=pass | $0.0791 | spend $130.84 | eta 8 min
+[compare_presenters] 251/300 p0084-sonnet-5 ok custom-high 26.2s work=pass answer=pass | $0.0664 | spend $130.91 | eta 8 min
+[compare_presenters] 252/300 p0084-opus-5-5 ok custom-high 25.5s work=pass answer=pass | $0.1281 | spend $131.04 | eta 7 min
+[compare_presenters] 253/300 p0085-sonnet-4-6 ok amira 23.1s work=pass answer=pass | $0.1162 | spend $131.15 | eta 7 min
+[compare_presenters] 254/300 p0085-opus-5-5 ok amira 27.1s work=pass answer=pass | $0.1261 | spend $131.28 | eta 7 min
+[compare_presenters] 255/300 p0086-sonnet-4-6 ok mateo 17.5s work=pass answer=pass | $0.0772 | spend $131.36 | eta 7 min
+[compare_presenters] 256/300 p0085-sonnet-5 ok amira 37.2s work=pass answer=pass | $0.0783 | spend $131.43 | eta 7 min
+[compare_presenters] 257/300 p0087-sonnet-4-6 ok robert 16.2s work=pass answer=pass | $0.0624 | spend $131.50 | eta 7 min
+[compare_presenters] 258/300 p0086-opus-5-5 ok mateo 23.2s work=pass answer=pass | $0.1369 | spend $131.63 | eta 6 min
+[compare_presenters] 259/300 p0087-opus-5-5 ok robert 25.7s work=pass answer=pass | $0.1218 | spend $131.76 | eta 6 min
+[compare_presenters] 260/300 p0086-sonnet-5 ok mateo 56.9s work=pass answer=pass | $0.1110 | spend $131.87 | eta 6 min
+[compare_presenters] 261/300 p0088-sonnet-4-6 ok custom-low 20.1s work=pass answer=pass | $0.0773 | spend $131.94 | eta 6 min
+[compare_presenters] 262/300 p0088-sonnet-5 ok custom-low 17.8s work=pass answer=pass | $0.0632 | spend $132.01 | eta 6 min
+[compare_presenters] 263/300 p0087-sonnet-5 ok robert 69.7s work=pass answer=pass | $0.1417 | spend $132.15 | eta 6 min
+[compare_presenters] 264/300 p0089-sonnet-4-6 ok custom-moderate 21.3s work=pass answer=pass | $0.0771 | spend $132.23 | eta 6 min
+[compare_presenters] 265/300 p0088-opus-5-5 ok custom-low 28.6s work=pass answer=pass | $0.1397 | spend $132.37 | eta 5 min
+[compare_presenters] 266/300 p0090-sonnet-4-6 ok custom-high 26.6s work=pass answer=pass | $0.1180 | spend $132.48 | eta 5 min
+[compare_presenters] 267/300 p0089-opus-5-5 ok custom-moderate 29.8s work=pass answer=pass | $0.1320 | spend $132.62 | eta 5 min
+[compare_presenters] 268/300 p0090-opus-5-5 ok custom-high 22.2s work=pass answer=pass | $0.1195 | spend $132.73 | eta 5 min
+[compare_presenters] 269/300 p0089-sonnet-5 ok custom-moderate 61.5s work=pass answer=pass | $0.1155 | spend $132.85 | eta 5 min
+[compare_presenters] 270/300 p0090-sonnet-5 ok custom-high 31.9s work=pass answer=pass | $0.0800 | spend $132.93 | eta 5 min
+[compare_presenters] 271/300 p0091-sonnet-4-6 ok amira 14.5s work=pass answer=pass | $0.0592 | spend $132.99 | eta 5 min
+[compare_presenters] 272/300 p0091-sonnet-5 ok amira 24.0s work=pass answer=pass | $0.0604 | spend $133.05 | eta 4 min
+[compare_presenters] 273/300 p0091-opus-5-5 ok amira 19.5s work=pass answer=pass | $0.1084 | spend $133.16 | eta 4 min
+[compare_presenters] 274/300 p0092-sonnet-4-6 ok mateo 18.7s work=pass answer=pass | $0.0629 | spend $133.22 | eta 4 min
+[compare_presenters] 275/300 p0092-opus-5-5 ok mateo 22.4s work=pass answer=pass | $0.1154 | spend $133.34 | eta 4 min
+[compare_presenters] 276/300 p0092-sonnet-5 ok mateo 29.3s work=pass answer=pass | $0.0680 | spend $133.40 | eta 4 min
+[compare_presenters] 277/300 p0093-sonnet-4-6 ok robert 26.9s work=pass answer=pass | $0.0751 | spend $133.48 | eta 4 min
+[compare_presenters] 278/300 p0094-sonnet-4-6 ok custom-low 21.1s work=pass answer=pass | $0.0844 | spend $133.56 | eta 3 min
+[compare_presenters] 279/300 p0093-opus-5-5 ok robert 35.2s work=pass answer=pass | $0.1538 | spend $133.72 | eta 3 min
+[compare_presenters] 280/300 p0093-sonnet-5 ok robert 43.6s work=pass answer=pass | $0.0993 | spend $133.82 | eta 3 min
+[compare_presenters] 281/300 p0095-sonnet-4-6 ok custom-moderate 14.0s work=pass answer=pass | $0.0620 | spend $133.88 | eta 3 min
+[compare_presenters] 282/300 p0094-sonnet-5 ok custom-low 30.1s work=pass answer=pass | $0.0785 | spend $133.96 | eta 3 min
+[compare_presenters] 283/300 p0094-opus-5-5 ok custom-low 30.2s work=pass answer=pass | $0.1470 | spend $134.10 | eta 3 min
+[compare_presenters] 284/300 p0095-sonnet-5 ok custom-moderate 20.0s work=pass answer=pass | $0.0603 | spend $134.17 | eta 2 min
+[compare_presenters] 285/300 p0095-opus-5-5 ok custom-moderate 26.6s work=pass answer=pass | $0.1258 | spend $134.29 | eta 2 min
+[compare_presenters] 286/300 p0096-sonnet-4-6 ok custom-high 16.9s work=pass answer=pass | $0.0836 | spend $134.37 | eta 2 min
+[compare_presenters] 287/300 p0096-sonnet-5 ok custom-high 27.4s work=pass answer=pass | $0.0822 | spend $134.46 | eta 2 min
+[compare_presenters] 288/300 p0097-sonnet-4-6 ok amira 16.3s work=pass answer=pass | $0.0685 | spend $134.53 | eta 2 min
+[compare_presenters] 289/300 p0096-opus-5-5 ok custom-high 21.6s work=pass answer=pass | $0.1427 | spend $134.67 | eta 2 min
+[compare_presenters] 290/300 p0097-sonnet-5 ok amira 16.2s work=pass answer=pass | $0.0596 | spend $134.73 | eta 2 min
+[compare_presenters] 291/300 p0098-sonnet-4-6 ok mateo 17.4s work=pass answer=pass | $0.0632 | spend $134.79 | eta 1 min
+[compare_presenters] 292/300 p0097-opus-5-5 ok amira 22.6s work=pass answer=pass | $0.1244 | spend $134.92 | eta 1 min
+[compare_presenters] 293/300 p0099-sonnet-4-6 ok robert 16.9s work=pass answer=pass | $0.0749 | spend $134.99 | eta 1 min
+[compare_presenters] 294/300 p0098-opus-5-5 ok mateo 25.1s work=pass answer=pass | $0.1164 | spend $135.11 | eta 1 min
+[compare_presenters] 295/300 p0099-sonnet-5 ok robert 36.9s work=pass answer=pass | $0.0899 | spend $135.20 | eta 1 min
+[compare_presenters] 296/300 p0099-opus-5-5 ok robert 32.2s work=pass answer=pass | $0.1548 | spend $135.35 | eta 1 min
+[compare_presenters] 297/300 p0098-sonnet-5 ok mateo 63.1s work=pass answer=pass | $0.1020 | spend $135.45 | eta 0 min
+[compare_presenters] 298/300 p0100-sonnet-4-6 ok custom-low 17.2s work=pass answer=pass | $0.0651 | spend $135.52 | eta 0 min
+[compare_presenters] 299/300 p0100-opus-5-5 ok custom-low 20.0s work=pass answer=pass | $0.1107 | spend $135.63 | eta 0 min
+[compare_presenters] 300/300 p0100-sonnet-5 ok custom-low 47.4s work=pass answer=pass | $0.0879 | spend $135.72 | eta 0 min
+Exception ignored in: <Finalize object, dead>
+Traceback (most recent call last):
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/util.py", line 227, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/synchronize.py", line 87, in _cleanup
+    sem_unlink(name)
+FileNotFoundError: [Errno 2] No such file or directory
+Exception ignored in: <Finalize object, dead>
+Traceback (most recent call last):
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/util.py", line 227, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/synchronize.py", line 87, in _cleanup
+    sem_unlink(name)
+FileNotFoundError: [Errno 2] No such file or directory
+Exception ignored in: <Finalize object, dead>
+Traceback (most recent call last):
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/util.py", line 227, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/synchronize.py", line 87, in _cleanup
+    sem_unlink(name)
+FileNotFoundError: [Errno 2] No such file or directory
+Exception ignored in: <Finalize object, dead>
+Traceback (most recent call last):
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/util.py", line 227, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/synchronize.py", line 87, in _cleanup
+    sem_unlink(name)
+FileNotFoundError: [Errno 2] No such file or directory
+Exception ignored in: <Finalize object, dead>
+Traceback (most recent call last):
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/util.py", line 227, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/synchronize.py", line 87, in _cleanup
+    sem_unlink(name)
+FileNotFoundError: [Errno 2] No such file or directory
+[judge_compare_presenters] 300 items, 0 already done, 300 to run; spend so far $135.72 of $400.00
+[judge_compare_presenters] 1/300 p0001-opus-5-5 ok F5 S4 C4 | $0.0689 | spend $135.79 | eta 33 min
+[judge_compare_presenters] 2/300 p0001-sonnet-4-6 ok F5 S4 C4 | $0.0728 | spend $135.86 | eta 19 min
+[judge_compare_presenters] 3/300 p0001-sonnet-5 ok F3 S3 C4 | $0.0710 | spend $135.93 | eta 13 min
+[judge_compare_presenters] 4/300 p0002-opus-5-5 ok F5 S5 C4 | $0.1016 | spend $136.03 | eta 17 min
+[judge_compare_presenters] 5/300 p0002-sonnet-4-6 ok F4 S4 C4 | $0.1045 | spend $136.14 | eta 15 min
+[judge_compare_presenters] 6/300 p0002-sonnet-5 ok F4 S4 C4 | $0.1018 | spend $136.24 | eta 13 min
+[judge_compare_presenters] 7/300 p0003-opus-5-5 ok F5 S5 C4 | $0.0673 | spend $136.30 | eta 14 min
+[judge_compare_presenters] 8/300 p0003-sonnet-5 ok F5 S4 C4 | $0.0696 | spend $136.37 | eta 14 min
+[judge_compare_presenters] 9/300 p0003-sonnet-4-6 ok F4 S5 C4 | $0.0744 | spend $136.45 | eta 13 min
+[judge_compare_presenters] 10/300 p0004-opus-5-5 ok F5 S5 C4 | $0.0687 | spend $136.52 | eta 13 min
+[judge_compare_presenters] 11/300 p0004-sonnet-4-6 ok F3 S4 C4 | $0.0730 | spend $136.59 | eta 13 min
+[judge_compare_presenters] 12/300 p0004-sonnet-5 ok F2 S2 C3 | $0.0730 | spend $136.66 | eta 12 min
+[judge_compare_presenters] 13/300 p0005-opus-5-5 ok F5 S4 C5 | $0.0633 | spend $136.73 | eta 12 min
+[judge_compare_presenters] 14/300 p0005-sonnet-5 ok F5 S5 C4 | $0.0620 | spend $136.79 | eta 12 min
+[judge_compare_presenters] 15/300 p0005-sonnet-4-6 ok F4 S4 C4 | $0.0679 | spend $136.86 | eta 12 min
+[judge_compare_presenters] 16/300 p0006-opus-5-5 ok F5 S5 C5 | $0.0683 | spend $136.92 | eta 11 min
+[judge_compare_presenters] 17/300 p0006-sonnet-4-6 ok F3 S4 C4 | $0.0723 | spend $137.00 | eta 12 min
+[judge_compare_presenters] 18/300 p0006-sonnet-5 ok F4 S3 C4 | $0.0692 | spend $137.07 | eta 12 min
+[judge_compare_presenters] 19/300 p0007-opus-5-5 ok F5 S5 C4 | $0.0708 | spend $137.14 | eta 11 min
+[judge_compare_presenters] 20/300 p0008-opus-5-5 ok F5 S5 C4 | $0.0762 | spend $137.21 | eta 12 min
+[judge_compare_presenters] 21/300 p0007-sonnet-5 ok F3 S3 C4 | $0.0714 | spend $137.28 | eta 12 min
+[judge_compare_presenters] 22/300 p0007-sonnet-4-6 ok F4 S4 C4 | $0.0819 | spend $137.37 | eta 11 min
+[judge_compare_presenters] 23/300 p0008-sonnet-4-6 ok F2 S3 C4 | $0.0746 | spend $137.44 | eta 11 min
+[judge_compare_presenters] 24/300 p0008-sonnet-5 ok F4 S4 C3 | $0.0747 | spend $137.52 | eta 11 min
+[judge_compare_presenters] 25/300 p0009-opus-5-5 ok F5 S4 C4 | $0.0759 | spend $137.59 | eta 11 min
+[judge_compare_presenters] 26/300 p0009-sonnet-4-6 ok F5 S3 C4 | $0.0739 | spend $137.67 | eta 11 min
+[judge_compare_presenters] 27/300 p0009-sonnet-5 ok F5 S4 C4 | $0.0753 | spend $137.74 | eta 11 min
+[judge_compare_presenters] 28/300 p0010-opus-5-5 ok F5 S5 C4 | $0.0731 | spend $137.81 | eta 11 min
+[judge_compare_presenters] 29/300 p0010-sonnet-4-6 ok F3 S4 C4 | $0.0778 | spend $137.89 | eta 11 min
+[judge_compare_presenters] 30/300 p0010-sonnet-5 ok F5 S4 C4 | $0.0724 | spend $137.96 | eta 11 min
+[judge_compare_presenters] 31/300 p0011-opus-5-5 ok F5 S4 C3 | $0.0656 | spend $138.03 | eta 11 min
+[judge_compare_presenters] 32/300 p0011-sonnet-4-6 ok F4 S4 C3 | $0.0689 | spend $138.10 | eta 11 min
+[judge_compare_presenters] 33/300 p0011-sonnet-5 ok F4 S4 C4 | $0.0724 | spend $138.17 | eta 11 min
+[judge_compare_presenters] 34/300 p0012-opus-5-5 ok F5 S5 C4 | $0.0840 | spend $138.26 | eta 11 min
+[judge_compare_presenters] 35/300 p0012-sonnet-4-6 ok F4 S3 C4 | $0.0735 | spend $138.33 | eta 11 min
+[judge_compare_presenters] 36/300 p0012-sonnet-5 ok F4 S3 C4 | $0.0858 | spend $138.41 | eta 11 min
+[judge_compare_presenters] 37/300 p0013-opus-5-5 ok F5 S5 C4 | $0.0996 | spend $138.51 | eta 11 min
+[judge_compare_presenters] 38/300 p0013-sonnet-4-6 ok F4 S4 C4 | $0.1003 | spend $138.61 | eta 11 min
+[judge_compare_presenters] 39/300 p0014-opus-5-5 ok F5 S5 C4 | $0.0852 | spend $138.70 | eta 11 min
+[judge_compare_presenters] 40/300 p0013-sonnet-5 ok F4 S4 C4 | $0.1028 | spend $138.80 | eta 11 min
+[judge_compare_presenters] 41/300 p0014-sonnet-4-6 ok F4 S4 C4 | $0.0753 | spend $138.88 | eta 11 min
+[judge_compare_presenters] 42/300 p0014-sonnet-5 ok F4 S5 C4 | $0.0729 | spend $138.95 | eta 11 min
+[judge_compare_presenters] 43/300 p0015-opus-5-5 ok F5 S4 C4 | $0.0766 | spend $139.03 | eta 11 min
+[judge_compare_presenters] 44/300 p0015-sonnet-5 ok F5 S4 C4 | $0.0746 | spend $139.10 | eta 11 min
+[judge_compare_presenters] 45/300 p0015-sonnet-4-6 ok F4 S4 C4 | $0.0801 | spend $139.18 | eta 11 min
+[judge_compare_presenters] 46/300 p0016-opus-5-5 ok F5 S4 C4 | $0.1175 | spend $139.30 | eta 10 min
+[judge_compare_presenters] 47/300 p0016-sonnet-4-6 ok F2 S3 C3 | $0.1178 | spend $139.42 | eta 11 min
+[judge_compare_presenters] 48/300 p0016-sonnet-5 ok F5 S3 C3 | $0.1180 | spend $139.54 | eta 10 min
+[judge_compare_presenters] 49/300 p0017-opus-5-5 ok F5 S5 C4 | $0.0709 | spend $139.61 | eta 10 min
+[judge_compare_presenters] 50/300 p0017-sonnet-4-6 ok F4 S4 C4 | $0.0733 | spend $139.68 | eta 10 min
+[judge_compare_presenters] 51/300 p0018-opus-5-5 ok F5 S4 C3 | $0.0635 | spend $139.74 | eta 10 min
+[judge_compare_presenters] 52/300 p0017-sonnet-5 ok F5 S4 C4 | $0.0734 | spend $139.82 | eta 10 min
+[judge_compare_presenters] 53/300 p0018-sonnet-4-6 ok F3 S3 C3 | $0.0646 | spend $139.88 | eta 10 min
+[judge_compare_presenters] 54/300 p0019-opus-5-5 ok F5 S5 C4 | $0.0673 | spend $139.95 | eta 10 min
+[judge_compare_presenters] 55/300 p0018-sonnet-5 ok F4 S4 C4 | $0.0733 | spend $140.02 | eta 10 min
+[judge_compare_presenters] 56/300 p0019-sonnet-4-6 ok F4 S4 C4 | $0.0718 | spend $140.09 | eta 10 min
+[judge_compare_presenters] 57/300 p0019-sonnet-5 ok F3 S3 C4 | $0.0692 | spend $140.16 | eta 10 min
+[judge_compare_presenters] 58/300 p0020-opus-5-5 ok F5 S4 C4 | $0.0696 | spend $140.23 | eta 10 min
+[judge_compare_presenters] 59/300 p0020-sonnet-4-6 ok F4 S4 C4 | $0.0731 | spend $140.31 | eta 10 min
+[judge_compare_presenters] 60/300 p0021-opus-5-5 ok F4 S5 C5 | $0.0652 | spend $140.37 | eta 10 min
+[judge_compare_presenters] 61/300 p0020-sonnet-5 ok F5 S4 C4 | $0.0715 | spend $140.44 | eta 10 min
+[judge_compare_presenters] 62/300 p0021-sonnet-4-6 ok F2 S3 C4 | $0.0671 | spend $140.51 | eta 10 min
+[judge_compare_presenters] 63/300 p0021-sonnet-5 ok F3 S4 C4 | $0.0660 | spend $140.58 | eta 10 min
+[judge_compare_presenters] 64/300 p0022-opus-5-5 ok F5 S5 C4 | $0.0776 | spend $140.65 | eta 9 min
+[judge_compare_presenters] 65/300 p0023-opus-5-5 ok F5 S4 C5 | $0.0610 | spend $140.71 | eta 10 min
+[judge_compare_presenters] 66/300 p0022-sonnet-5 ok F5 S4 C4 | $0.0794 | spend $140.79 | eta 10 min
+[judge_compare_presenters] 67/300 p0022-sonnet-4-6 ok F4 S4 C5 | $0.0834 | spend $140.88 | eta 9 min
+[judge_compare_presenters] 68/300 p0023-sonnet-4-6 ok F4 S4 C4 | $0.0668 | spend $140.94 | eta 9 min
+[judge_compare_presenters] 69/300 p0023-sonnet-5 ok F4 S4 C3 | $0.0638 | spend $141.01 | eta 9 min
+[judge_compare_presenters] 70/300 p0024-opus-5-5 ok F5 S4 C4 | $0.0701 | spend $141.08 | eta 9 min
+[judge_compare_presenters] 71/300 p0025-opus-5-5 ok F5 S4 C4 | $0.0669 | spend $141.14 | eta 9 min
+[judge_compare_presenters] 72/300 p0024-sonnet-5 ok F4 S3 C4 | $0.0749 | spend $141.22 | eta 9 min
+[judge_compare_presenters] 73/300 p0024-sonnet-4-6 ok F4 S3 C4 | $0.0769 | spend $141.30 | eta 9 min
+[judge_compare_presenters] 74/300 p0025-sonnet-4-6 ok F4 S4 C4 | $0.0678 | spend $141.36 | eta 9 min
+[judge_compare_presenters] 75/300 p0026-opus-5-5 ok F5 S5 C4 | $0.0728 | spend $141.44 | eta 9 min
+[judge_compare_presenters] 76/300 p0025-sonnet-5 ok F3 S3 C4 | $0.0713 | spend $141.51 | eta 9 min
+[judge_compare_presenters] 77/300 p0026-sonnet-4-6 ok F4 S4 C4 | $0.0799 | spend $141.59 | eta 9 min
+[judge_compare_presenters] 78/300 p0027-opus-5-5 ok F5 S5 C4 | $0.0894 | spend $141.68 | eta 9 min
+[judge_compare_presenters] 79/300 p0026-sonnet-5 ok F4 S3 C4 | $0.0741 | spend $141.75 | eta 9 min
+[judge_compare_presenters] 80/300 p0027-sonnet-4-6 ok F4 S3 C4 | $0.0939 | spend $141.85 | eta 9 min
+[judge_compare_presenters] 81/300 p0027-sonnet-5 ok F5 S4 C3 | $0.0887 | spend $141.93 | eta 9 min
+[judge_compare_presenters] 82/300 p0028-opus-5-5 ok F5 S5 C4 | $0.0702 | spend $142.00 | eta 9 min
+[judge_compare_presenters] 83/300 p0028-sonnet-4-6 ok F4 S5 C4 | $0.0725 | spend $142.08 | eta 9 min
+[judge_compare_presenters] 84/300 p0029-opus-5-5 ok F5 S5 C4 | $0.0704 | spend $142.15 | eta 9 min
+[judge_compare_presenters] 85/300 p0028-sonnet-5 ok F5 S3 C3 | $0.0718 | spend $142.22 | eta 9 min
+[judge_compare_presenters] 86/300 p0029-sonnet-4-6 ok F3 S3 C4 | $0.0750 | spend $142.29 | eta 9 min
+[judge_compare_presenters] 87/300 p0029-sonnet-5 ok F4 S4 C4 | $0.0717 | spend $142.37 | eta 9 min
+[judge_compare_presenters] 88/300 p0030-opus-5-5 ok F5 S4 C4 | $0.0803 | spend $142.45 | eta 9 min
+[judge_compare_presenters] 89/300 p0030-sonnet-5 ok F4 S3 C4 | $0.0808 | spend $142.53 | eta 9 min
+[judge_compare_presenters] 90/300 p0030-sonnet-4-6 ok F4 S3 C4 | $0.0871 | spend $142.61 | eta 9 min
+[judge_compare_presenters] 91/300 p0031-opus-5-5 ok F5 S4 C4 | $0.0842 | spend $142.70 | eta 9 min
+[judge_compare_presenters] 92/300 p0031-sonnet-4-6 ok F4 S3 C4 | $0.0905 | spend $142.79 | eta 9 min
+[judge_compare_presenters] 93/300 p0031-sonnet-5 ok F4 S3 C4 | $0.0859 | spend $142.87 | eta 8 min
+[judge_compare_presenters] 94/300 p0032-opus-5-5 ok F5 S5 C4 | $0.0866 | spend $142.96 | eta 8 min
+[judge_compare_presenters] 95/300 p0032-sonnet-4-6 ok F3 S4 C4 | $0.0748 | spend $143.04 | eta 8 min
+[judge_compare_presenters] 96/300 p0032-sonnet-5 ok F4 S4 C4 | $0.0804 | spend $143.12 | eta 8 min
+[judge_compare_presenters] 97/300 p0033-opus-5-5 ok F5 S5 C4 | $0.0790 | spend $143.20 | eta 8 min
+[judge_compare_presenters] 98/300 p0033-sonnet-4-6 ok F3 S4 C4 | $0.0811 | spend $143.28 | eta 8 min
+[judge_compare_presenters] 99/300 p0034-opus-5-5 ok F5 S5 C4 | $0.0709 | spend $143.35 | eta 8 min
+[judge_compare_presenters] 100/300 p0033-sonnet-5 ok F4 S3 C4 | $0.0799 | spend $143.43 | eta 8 min
+[judge_compare_presenters] 101/300 p0035-opus-5-5 ok F5 S4 C5 | $0.0653 | spend $143.49 | eta 8 min
+[judge_compare_presenters] 102/300 p0034-sonnet-5 ok F5 S4 C5 | $0.0730 | spend $143.57 | eta 8 min
+[judge_compare_presenters] 103/300 p0034-sonnet-4-6 ok F5 S5 C4 | $0.0784 | spend $143.64 | eta 8 min
+[judge_compare_presenters] 104/300 p0035-sonnet-5 ok F5 S4 C4 | $0.0646 | spend $143.71 | eta 8 min
+[judge_compare_presenters] 105/300 p0035-sonnet-4-6 ok F4 S4 C4 | $0.0692 | spend $143.78 | eta 8 min
+[judge_compare_presenters] 106/300 p0036-opus-5-5 ok F4 S4 C4 | $0.0899 | spend $143.87 | eta 8 min
+[judge_compare_presenters] 107/300 p0036-sonnet-4-6 ok F4 S3 C4 | $0.0797 | spend $143.95 | eta 8 min
+[judge_compare_presenters] 108/300 p0036-sonnet-5 ok F5 S4 C4 | $0.0906 | spend $144.04 | eta 8 min
+[judge_compare_presenters] 109/300 p0037-opus-5-5 ok F5 S4 C4 | $0.0775 | spend $144.12 | eta 8 min
+[judge_compare_presenters] 110/300 p0037-sonnet-4-6 ok F4 S4 C3 | $0.0707 | spend $144.19 | eta 8 min
+[judge_compare_presenters] 111/300 p0038-opus-5-5 ok F5 S5 C4 | $0.0807 | spend $144.27 | eta 8 min
+[judge_compare_presenters] 112/300 p0037-sonnet-5 ok F4 S3 C4 | $0.0791 | spend $144.35 | eta 8 min
+[judge_compare_presenters] 113/300 p0038-sonnet-4-6 ok F4 S3 C4 | $0.0784 | spend $144.42 | eta 8 min
+[judge_compare_presenters] 114/300 p0039-opus-5-5 ok F5 S4 C4 | $0.0658 | spend $144.49 | eta 8 min
+[judge_compare_presenters] 115/300 p0038-sonnet-5 ok F4 S4 C3 | $0.0810 | spend $144.57 | eta 8 min
+[judge_compare_presenters] 116/300 p0039-sonnet-4-6 ok F3 S4 C4 | $0.0807 | spend $144.65 | eta 8 min
+[judge_compare_presenters] 117/300 p0039-sonnet-5 ok F4 S3 C4 | $0.0795 | spend $144.73 | eta 8 min
+[judge_compare_presenters] 118/300 p0040-opus-5-5 ok F5 S5 C4 | $0.0804 | spend $144.81 | eta 7 min
+[judge_compare_presenters] 119/300 p0040-sonnet-5 ok F4 S4 C4 | $0.0766 | spend $144.89 | eta 8 min
+[judge_compare_presenters] 120/300 p0040-sonnet-4-6 ok F4 S3 C4 | $0.0766 | spend $144.96 | eta 7 min
+[judge_compare_presenters] 121/300 p0041-opus-5-5 ok F5 S5 C4 | $0.0768 | spend $145.04 | eta 7 min
+[judge_compare_presenters] 122/300 p0041-sonnet-4-6 ok F4 S4 C4 | $0.0769 | spend $145.12 | eta 7 min
+[judge_compare_presenters] 123/300 p0041-sonnet-5 ok F4 S4 C4 | $0.0772 | spend $145.20 | eta 7 min
+[judge_compare_presenters] 124/300 p0042-opus-5-5 ok F5 S4 C3 | $0.0627 | spend $145.26 | eta 7 min
+[judge_compare_presenters] 125/300 p0042-sonnet-4-6 ok F4 S4 C3 | $0.0629 | spend $145.32 | eta 7 min
+[judge_compare_presenters] 126/300 p0042-sonnet-5 ok F4 S4 C4 | $0.0692 | spend $145.39 | eta 7 min
+[judge_compare_presenters] 127/300 p0043-opus-5-5 ok F5 S5 C4 | $0.0682 | spend $145.46 | eta 7 min
+[judge_compare_presenters] 128/300 p0043-sonnet-5 ok F3 S3 C4 | $0.0680 | spend $145.53 | eta 7 min
+[judge_compare_presenters] 129/300 p0043-sonnet-4-6 ok F4 S4 C4 | $0.0739 | spend $145.60 | eta 7 min
+[judge_compare_presenters] 130/300 p0044-opus-5-5 ok F5 S5 C4 | $0.0682 | spend $145.67 | eta 7 min
+[judge_compare_presenters] 131/300 p0044-sonnet-5 ok F5 S4 C4 | $0.0764 | spend $145.75 | eta 7 min
+[judge_compare_presenters] 132/300 p0044-sonnet-4-6 ok F4 S4 C4 | $0.0761 | spend $145.82 | eta 7 min
+[judge_compare_presenters] 133/300 p0045-opus-5-5 ok F5 S3 C4 | $0.0794 | spend $145.90 | eta 7 min
+[judge_compare_presenters] 134/300 p0045-sonnet-4-6 ok F4 S3 C4 | $0.0815 | spend $145.98 | eta 7 min
+[judge_compare_presenters] 135/300 p0045-sonnet-5 ok F5 S3 C4 | $0.0793 | spend $146.06 | eta 7 min
+[judge_compare_presenters] 136/300 p0046-opus-5-5 ok F5 S4 C4 | $0.0749 | spend $146.14 | eta 7 min
+[judge_compare_presenters] 137/300 p0046-sonnet-5 ok F5 S4 C4 | $0.0732 | spend $146.21 | eta 7 min
+[judge_compare_presenters] 138/300 p0046-sonnet-4-6 ok F4 S4 C4 | $0.0762 | spend $146.29 | eta 7 min
+[judge_compare_presenters] 139/300 p0047-opus-5-5 ok F5 S5 C5 | $0.0672 | spend $146.35 | eta 7 min
+[judge_compare_presenters] 140/300 p0047-sonnet-5 ok F3 S4 C4 | $0.0638 | spend $146.42 | eta 7 min
+[judge_compare_presenters] 141/300 p0047-sonnet-4-6 ok F4 S4 C4 | $0.0671 | spend $146.48 | eta 7 min
+[judge_compare_presenters] 142/300 p0048-opus-5-5 ok F5 S5 C4 | $0.0696 | spend $146.55 | eta 7 min
+[judge_compare_presenters] 143/300 p0048-sonnet-5 ok F5 S5 C4 | $0.0667 | spend $146.62 | eta 7 min
+[judge_compare_presenters] 144/300 p0048-sonnet-4-6 ok F4 S3 C4 | $0.0796 | spend $146.70 | eta 6 min
+[judge_compare_presenters] 145/300 p0049-opus-5-5 ok F5 S5 C5 | $0.0677 | spend $146.77 | eta 6 min
+[judge_compare_presenters] 146/300 p0049-sonnet-5 ok F3 S3 C4 | $0.0705 | spend $146.84 | eta 6 min
+[judge_compare_presenters] 147/300 p0049-sonnet-4-6 ok F3 S4 C4 | $0.0748 | spend $146.91 | eta 6 min
+[judge_compare_presenters] 148/300 p0050-opus-5-5 ok F5 S4 C4 | $0.0732 | spend $146.99 | eta 6 min
+[judge_compare_presenters] 149/300 p0050-sonnet-5 ok F5 S4 C4 | $0.0712 | spend $147.06 | eta 6 min
+[judge_compare_presenters] 150/300 p0051-opus-5-5 ok F5 S5 C5 | $0.0673 | spend $147.12 | eta 6 min
+[judge_compare_presenters] 151/300 p0050-sonnet-4-6 ok F4 S4 C4 | $0.0781 | spend $147.20 | eta 6 min
+[judge_compare_presenters] 152/300 p0051-sonnet-4-6 ok F3 S4 C4 | $0.0696 | spend $147.27 | eta 6 min
+[judge_compare_presenters] 153/300 p0051-sonnet-5 ok F3 S4 C4 | $0.0688 | spend $147.34 | eta 6 min
+[judge_compare_presenters] 154/300 p0052-opus-5-5 ok F5 S4 C4 | $0.0734 | spend $147.41 | eta 6 min
+[judge_compare_presenters] 155/300 p0052-sonnet-5 ok F5 S1 C1 | $0.0659 | spend $147.48 | eta 6 min
+[judge_compare_presenters] 156/300 p0052-sonnet-4-6 ok F3 S4 C4 | $0.0770 | spend $147.56 | eta 6 min
+[judge_compare_presenters] 157/300 p0053-opus-5-5 ok F5 S5 C4 | $0.0654 | spend $147.62 | eta 6 min
+[judge_compare_presenters] 158/300 p0053-sonnet-4-6 ok F4 S5 C4 | $0.0566 | spend $147.68 | eta 6 min
+[judge_compare_presenters] 159/300 p0053-sonnet-5 ok F5 S4 C4 | $0.0669 | spend $147.75 | eta 6 min
+[judge_compare_presenters] 160/300 p0054-opus-5-5 ok F4 S5 C4 | $0.0820 | spend $147.83 | eta 6 min
+[judge_compare_presenters] 161/300 p0054-sonnet-4-6 ok F4 S3 C4 | $0.0831 | spend $147.91 | eta 6 min
+[judge_compare_presenters] 162/300 p0054-sonnet-5 ok F4 S5 C4 | $0.0804 | spend $147.99 | eta 6 min
+[judge_compare_presenters] 163/300 p0055-opus-5-5 ok F5 S4 C4 | $0.0685 | spend $148.06 | eta 6 min
+[judge_compare_presenters] 164/300 p0055-sonnet-4-6 ok F4 S4 C4 | $0.0776 | spend $148.14 | eta 6 min
+[judge_compare_presenters] 165/300 p0055-sonnet-5 ok F5 S4 C3 | $0.0688 | spend $148.21 | eta 6 min
+[judge_compare_presenters] 166/300 p0056-opus-5-5 ok F5 S5 C4 | $0.0758 | spend $148.28 | eta 6 min
+[judge_compare_presenters] 167/300 p0056-sonnet-4-6 ok F3 S4 C4 | $0.0776 | spend $148.36 | eta 5 min
+[judge_compare_presenters] 168/300 p0056-sonnet-5 ok F4 S4 C4 | $0.0751 | spend $148.44 | eta 5 min
+[judge_compare_presenters] 169/300 p0057-opus-5-5 ok F5 S4 C4 | $0.0752 | spend $148.51 | eta 5 min
+[judge_compare_presenters] 170/300 p0057-sonnet-4-6 ok F3 S3 C4 | $0.0763 | spend $148.59 | eta 5 min
+[judge_compare_presenters] 171/300 p0057-sonnet-5 ok F4 S4 C4 | $0.0772 | spend $148.66 | eta 5 min
+[judge_compare_presenters] 172/300 p0058-opus-5-5 ok F5 S4 C4 | $0.0712 | spend $148.74 | eta 5 min
+[judge_compare_presenters] 173/300 p0058-sonnet-4-6 ok F4 S4 C4 | $0.0761 | spend $148.81 | eta 5 min
+[judge_compare_presenters] 174/300 p0059-opus-5-5 ok F5 S4 C5 | $0.0638 | spend $148.87 | eta 5 min
+[judge_compare_presenters] 175/300 p0058-sonnet-5 ok F5 S5 C4 | $0.0739 | spend $148.95 | eta 5 min
+[judge_compare_presenters] 176/300 p0059-sonnet-4-6 ok F4 S5 C4 | $0.0717 | spend $149.02 | eta 5 min
+[judge_compare_presenters] 177/300 p0059-sonnet-5 ok F5 S4 C4 | $0.0663 | spend $149.09 | eta 5 min
+[judge_compare_presenters] 178/300 p0060-opus-5-5 ok F5 S4 C4 | $0.0749 | spend $149.16 | eta 5 min
+[judge_compare_presenters] 179/300 p0060-sonnet-4-6 ok F4 S3 C4 | $0.0754 | spend $149.24 | eta 5 min
+[judge_compare_presenters] 180/300 p0061-opus-5-5 ok F5 S5 C4 | $0.0579 | spend $149.29 | eta 5 min
+[judge_compare_presenters] 181/300 p0060-sonnet-5 ok F5 S4 C4 | $0.0739 | spend $149.37 | eta 5 min
+[judge_compare_presenters] 182/300 p0061-sonnet-4-6 ok F4 S4 C3 | $0.0621 | spend $149.43 | eta 5 min
+[judge_compare_presenters] 183/300 p0061-sonnet-5 ok F4 S3 C3 | $0.0610 | spend $149.49 | eta 5 min
+[judge_compare_presenters] 184/300 p0062-opus-5-5 ok F5 S5 C5 | $0.0689 | spend $149.56 | eta 5 min
+[judge_compare_presenters] 185/300 p0062-sonnet-4-6 ok F5 S5 C4 | $0.0692 | spend $149.63 | eta 5 min
+[judge_compare_presenters] 186/300 p0062-sonnet-5 ok F5 S4 C4 | $0.0707 | spend $149.70 | eta 5 min
+[judge_compare_presenters] 187/300 p0063-opus-5-5 ok F5 S5 C4 | $0.0759 | spend $149.78 | eta 5 min
+[judge_compare_presenters] 188/300 p0063-sonnet-4-6 ok F4 S3 C3 | $0.0705 | spend $149.85 | eta 5 min
+[judge_compare_presenters] 189/300 p0064-opus-5-5 ok F5 S5 C4 | $0.0799 | spend $149.93 | eta 5 min
+[judge_compare_presenters] 190/300 p0063-sonnet-5 ok F4 S4 C4 | $0.0681 | spend $149.99 | eta 5 min
+[judge_compare_presenters] 191/300 p0064-sonnet-5 ok F5 S4 C4 | $0.0806 | spend $150.08 | eta 5 min
+[judge_compare_presenters] 192/300 p0064-sonnet-4-6 ok F4 S4 C4 | $0.0852 | spend $150.16 | eta 4 min
+[judge_compare_presenters] 193/300 p0065-opus-5-5 ok F5 S5 C4 | $0.0666 | spend $150.23 | eta 4 min
+[judge_compare_presenters] 194/300 p0065-sonnet-4-6 ok F4 S4 C4 | $0.0688 | spend $150.30 | eta 4 min
+[judge_compare_presenters] 195/300 p0065-sonnet-5 ok F4 S5 C4 | $0.0669 | spend $150.36 | eta 4 min
+[judge_compare_presenters] 196/300 p0066-opus-5-5 ok F5 S5 C4 | $0.0839 | spend $150.45 | eta 4 min
+[judge_compare_presenters] 197/300 p0066-sonnet-4-6 ok F2 S3 C4 | $0.0889 | spend $150.54 | eta 4 min
+[judge_compare_presenters] 198/300 p0067-opus-5-5 ok F4 S4 C4 | $0.0716 | spend $150.61 | eta 4 min
+[judge_compare_presenters] 199/300 p0066-sonnet-5 ok F4 S4 C4 | $0.0889 | spend $150.70 | eta 4 min
+[judge_compare_presenters] 200/300 p0067-sonnet-5 ok F4 S3 C4 | $0.0694 | spend $150.77 | eta 4 min
+[judge_compare_presenters] 201/300 p0067-sonnet-4-6 ok F4 S3 C4 | $0.0724 | spend $150.84 | eta 4 min
+[judge_compare_presenters] 202/300 p0068-opus-5-5 ok F4 S4 C4 | $0.0781 | spend $150.92 | eta 4 min
+[judge_compare_presenters] 203/300 p0068-sonnet-4-6 ok F3 S4 C4 | $0.0796 | spend $151.00 | eta 4 min
+[judge_compare_presenters] 204/300 p0069-opus-5-5 ok F5 S4 C5 | $0.0671 | spend $151.06 | eta 4 min
+[judge_compare_presenters] 205/300 p0068-sonnet-5 ok F3 S3 C4 | $0.0785 | spend $151.14 | eta 4 min
+[judge_compare_presenters] 206/300 p0069-sonnet-4-6 ok F3 S4 C4 | $0.0690 | spend $151.21 | eta 4 min
+[judge_compare_presenters] 207/300 p0069-sonnet-5 ok F5 S4 C4 | $0.0678 | spend $151.28 | eta 4 min
+[judge_compare_presenters] 208/300 p0070-opus-5-5 ok F5 S4 C4 | $0.0823 | spend $151.36 | eta 4 min
+[judge_compare_presenters] 209/300 p0070-sonnet-5 ok F5 S4 C4 | $0.0714 | spend $151.43 | eta 4 min
+[judge_compare_presenters] 210/300 p0070-sonnet-4-6 ok F4 S4 C4 | $0.0917 | spend $151.52 | eta 4 min
+[judge_compare_presenters] 211/300 p0071-opus-5-5 ok F5 S5 C4 | $0.0660 | spend $151.59 | eta 4 min
+[judge_compare_presenters] 212/300 p0071-sonnet-4-6 ok F4 S4 C4 | $0.0689 | spend $151.66 | eta 4 min
+[judge_compare_presenters] 213/300 p0072-opus-5-5 ok F5 S5 C4 | $0.0760 | spend $151.73 | eta 4 min
+[judge_compare_presenters] 214/300 p0071-sonnet-5 ok F5 S4 C4 | $0.0660 | spend $151.80 | eta 4 min
+[judge_compare_presenters] 215/300 p0072-sonnet-5 ok F5 S4 C4 | $0.0668 | spend $151.87 | eta 4 min
+[judge_compare_presenters] 216/300 p0072-sonnet-4-6 ok F3 S5 C4 | $0.0694 | spend $151.94 | eta 3 min
+[judge_compare_presenters] 217/300 p0073-opus-5-5 ok F5 S4 C4 | $0.0701 | spend $152.01 | eta 3 min
+[judge_compare_presenters] 218/300 p0073-sonnet-5 ok F4 S3 C4 | $0.0717 | spend $152.08 | eta 3 min
+[judge_compare_presenters] 219/300 p0073-sonnet-4-6 ok F4 S3 C4 | $0.0740 | spend $152.15 | eta 3 min
+[judge_compare_presenters] 220/300 p0074-opus-5-5 ok F5 S5 C4 | $0.0858 | spend $152.24 | eta 3 min
+[judge_compare_presenters] 221/300 p0074-sonnet-4-6 ok F3 S4 C4 | $0.0903 | spend $152.33 | eta 3 min
+[judge_compare_presenters] 222/300 p0074-sonnet-5 ok F4 S4 C4 | $0.0913 | spend $152.42 | eta 3 min
+[judge_compare_presenters] 223/300 p0075-opus-5-5 ok F5 S4 C5 | $0.0725 | spend $152.49 | eta 3 min
+[judge_compare_presenters] 224/300 p0075-sonnet-4-6 ok F3 S4 C4 | $0.0740 | spend $152.57 | eta 3 min
+[judge_compare_presenters] 225/300 p0076-opus-5-5 ok F5 S4 C4 | $0.0660 | spend $152.63 | eta 3 min
+[judge_compare_presenters] 226/300 p0075-sonnet-5 ok F4 S3 C4 | $0.0742 | spend $152.71 | eta 3 min
+[judge_compare_presenters] 227/300 p0076-sonnet-4-6 ok F4 S4 C4 | $0.0781 | spend $152.78 | eta 3 min
+[judge_compare_presenters] 228/300 p0077-opus-5-5 ok F5 S5 C4 | $0.0779 | spend $152.86 | eta 3 min
+[judge_compare_presenters] 229/300 p0076-sonnet-5 ok F5 S3 C3 | $0.0741 | spend $152.94 | eta 3 min
+[judge_compare_presenters] 230/300 p0077-sonnet-5 ok F5 S5 C4 | $0.0772 | spend $153.01 | eta 3 min
+[judge_compare_presenters] 231/300 p0078-opus-5-5 ok F5 S4 C4 | $0.0675 | spend $153.08 | eta 3 min
+[judge_compare_presenters] 232/300 p0077-sonnet-4-6 ok F4 S5 C4 | $0.0863 | spend $153.17 | eta 3 min
+[judge_compare_presenters] 233/300 p0078-sonnet-4-6 ok F3 S4 C4 | $0.0740 | spend $153.24 | eta 3 min
+[judge_compare_presenters] 234/300 p0078-sonnet-5 ok F4 S3 C4 | $0.0707 | spend $153.31 | eta 3 min
+[judge_compare_presenters] 235/300 p0079-opus-5-5 ok F5 S4 C4 | $0.0733 | spend $153.39 | eta 3 min
+[judge_compare_presenters] 236/300 p0079-sonnet-5 ok F4 S3 C4 | $0.0743 | spend $153.46 | eta 3 min
+[judge_compare_presenters] 237/300 p0079-sonnet-4-6 ok F4 S4 C4 | $0.0782 | spend $153.54 | eta 3 min
+[judge_compare_presenters] 238/300 p0080-sonnet-4-6 ok F4 S4 C4 | $0.0767 | spend $153.61 | eta 3 min
+[judge_compare_presenters] 239/300 p0080-opus-5-5 ok F5 S5 C4 | $0.0757 | spend $153.69 | eta 3 min
+[judge_compare_presenters] 240/300 p0080-sonnet-5 ok F5 S4 C4 | $0.0797 | spend $153.77 | eta 2 min
+[judge_compare_presenters] 241/300 p0081-opus-5-5 ok F4 S3 C4 | $0.0841 | spend $153.85 | eta 2 min
+[judge_compare_presenters] 242/300 p0081-sonnet-4-6 ok F4 S4 C4 | $0.0880 | spend $153.94 | eta 2 min
+[judge_compare_presenters] 243/300 p0081-sonnet-5 ok F3 S3 C4 | $0.0758 | spend $154.02 | eta 2 min
+[judge_compare_presenters] 244/300 p0082-opus-5-5 ok F5 S4 C4 | $0.0696 | spend $154.09 | eta 2 min
+[judge_compare_presenters] 245/300 p0082-sonnet-4-6 ok F3 S4 C4 | $0.0734 | spend $154.16 | eta 2 min
+[judge_compare_presenters] 246/300 p0083-opus-5-5 ok F5 S5 C4 | $0.0720 | spend $154.23 | eta 2 min
+[judge_compare_presenters] 247/300 p0082-sonnet-5 ok F4 S4 C4 | $0.0743 | spend $154.31 | eta 2 min
+[judge_compare_presenters] 248/300 p0083-sonnet-4-6 ok F4 S4 C4 | $0.0771 | spend $154.38 | eta 2 min
+[judge_compare_presenters] 249/300 p0084-opus-5-5 ok F5 S5 C5 | $0.0679 | spend $154.45 | eta 2 min
+[judge_compare_presenters] 250/300 p0083-sonnet-5 ok F4 S4 C4 | $0.0720 | spend $154.52 | eta 2 min
+[judge_compare_presenters] 251/300 p0084-sonnet-4-6 ok F3 S4 C4 | $0.0695 | spend $154.59 | eta 2 min
+[judge_compare_presenters] 252/300 p0085-opus-5-5 ok F4 S3 C4 | $0.0674 | spend $154.66 | eta 2 min
+[judge_compare_presenters] 253/300 p0084-sonnet-5 ok F4 S3 C4 | $0.0721 | spend $154.73 | eta 2 min
+[judge_compare_presenters] 254/300 p0085-sonnet-4-6 ok F3 S4 C3 | $0.0786 | spend $154.81 | eta 2 min
+[judge_compare_presenters] 255/300 p0085-sonnet-5 ok F3 S3 C3 | $0.0406 | spend $154.85 | eta 2 min
+[judge_compare_presenters] 256/300 p0086-opus-5-5 ok F5 S5 C4 | $0.0880 | spend $154.94 | eta 2 min
+[judge_compare_presenters] 257/300 p0086-sonnet-4-6 ok F3 S4 C4 | $0.0942 | spend $155.03 | eta 2 min
+[judge_compare_presenters] 258/300 p0086-sonnet-5 ok F5 S4 C4 | $0.0912 | spend $155.13 | eta 2 min
+[judge_compare_presenters] 259/300 p0087-opus-5-5 ok F5 S5 C4 | $0.0689 | spend $155.19 | eta 2 min
+[judge_compare_presenters] 260/300 p0087-sonnet-4-6 ok F3 S3 C4 | $0.0686 | spend $155.26 | eta 2 min
+[judge_compare_presenters] 261/300 p0088-opus-5-5 ok F5 S5 C4 | $0.0806 | spend $155.34 | eta 2 min
+[judge_compare_presenters] 262/300 p0087-sonnet-5 ok F3 S4 C4 | $0.0730 | spend $155.42 | eta 2 min
+[judge_compare_presenters] 263/300 p0088-sonnet-4-6 ok F4 S4 C4 | $0.0893 | spend $155.51 | eta 2 min
+[judge_compare_presenters] 264/300 p0089-opus-5-5 ok F5 S5 C4 | $0.0603 | spend $155.57 | eta 1 min
+[judge_compare_presenters] 265/300 p0088-sonnet-5 ok F4 S4 C3 | $0.0846 | spend $155.65 | eta 1 min
+[judge_compare_presenters] 266/300 p0089-sonnet-5 ok F4 S3 C4 | $0.0661 | spend $155.72 | eta 1 min
+[judge_compare_presenters] 267/300 p0089-sonnet-4-6 ok F3 S4 C4 | $0.0685 | spend $155.79 | eta 1 min
+[judge_compare_presenters] 268/300 p0090-opus-5-5 ok F5 S5 C4 | $0.0698 | spend $155.86 | eta 1 min
+[judge_compare_presenters] 269/300 p0090-sonnet-4-6 ok F4 S5 C4 | $0.0676 | spend $155.92 | eta 1 min
+[judge_compare_presenters] 270/300 p0090-sonnet-5 ok F5 S5 C4 | $0.0662 | spend $155.99 | eta 1 min
+[judge_compare_presenters] 271/300 p0091-opus-5-5 ok F5 S4 C4 | $0.0674 | spend $156.06 | eta 1 min
+[judge_compare_presenters] 272/300 p0091-sonnet-5 ok F4 S4 C4 | $0.0705 | spend $156.13 | eta 1 min
+[judge_compare_presenters] 273/300 p0092-opus-5-5 ok F5 S5 C4 | $0.0657 | spend $156.19 | eta 1 min
+[judge_compare_presenters] 274/300 p0091-sonnet-4-6 ok F3 S4 C4 | $0.0726 | spend $156.27 | eta 1 min
+[judge_compare_presenters] 275/300 p0092-sonnet-4-6 ok F5 S4 C4 | $0.0706 | spend $156.34 | eta 1 min
+[judge_compare_presenters] 276/300 p0092-sonnet-5 ok F4 S3 C4 | $0.0696 | spend $156.41 | eta 1 min
+[judge_compare_presenters] 277/300 p0093-opus-5-5 ok F5 S4 C4 | $0.0758 | spend $156.48 | eta 1 min
+[judge_compare_presenters] 278/300 p0093-sonnet-4-6 ok F5 S4 C4 | $0.0786 | spend $156.56 | eta 1 min
+[judge_compare_presenters] 279/300 p0093-sonnet-5 ok F5 S4 C4 | $0.0945 | spend $156.65 | eta 1 min
+[judge_compare_presenters] 280/300 p0094-opus-5-5 ok F5 S5 C4 | $0.0785 | spend $156.73 | eta 1 min
+[judge_compare_presenters] 281/300 p0095-opus-5-5 ok F5 S5 C4 | $0.0704 | spend $156.80 | eta 1 min
+[judge_compare_presenters] 282/300 p0094-sonnet-5 ok F5 S4 C4 | $0.0787 | spend $156.88 | eta 1 min
+[judge_compare_presenters] 283/300 p0094-sonnet-4-6 ok F4 S4 C4 | $0.0806 | spend $156.96 | eta 1 min
+[judge_compare_presenters] 284/300 p0095-sonnet-5 ok F5 S4 C4 | $0.0714 | spend $157.03 | eta 1 min
+[judge_compare_presenters] 285/300 p0095-sonnet-4-6 ok F4 S3 C4 | $0.0746 | spend $157.11 | eta 1 min
+[judge_compare_presenters] 286/300 p0096-opus-5-5 ok F5 S4 C4 | $0.0984 | spend $157.21 | eta 1 min
+[judge_compare_presenters] 287/300 p0097-opus-5-5 ok F5 S5 C4 | $0.0785 | spend $157.29 | eta 1 min
+[judge_compare_presenters] 288/300 p0096-sonnet-4-6 ok F4 S4 C4 | $0.1025 | spend $157.39 | eta 0 min
+[judge_compare_presenters] 289/300 p0096-sonnet-5 ok F4 S4 C4 | $0.1000 | spend $157.49 | eta 0 min
+[judge_compare_presenters] 290/300 p0098-opus-5-5 ok F5 S5 C4 | $0.0660 | spend $157.55 | eta 0 min
+[judge_compare_presenters] 291/300 p0097-sonnet-5 ok F4 S4 C4 | $0.0677 | spend $157.62 | eta 0 min
+[judge_compare_presenters] 292/300 p0097-sonnet-4-6 ok F4 S4 C4 | $0.0694 | spend $157.69 | eta 0 min
+[judge_compare_presenters] 293/300 p0098-sonnet-4-6 ok F4 S5 C4 | $0.0723 | spend $157.76 | eta 0 min
+[judge_compare_presenters] 294/300 p0098-sonnet-5 ok F4 S4 C4 | $0.0685 | spend $157.83 | eta 0 min
+[judge_compare_presenters] 295/300 p0099-opus-5-5 ok F5 S4 C4 | $0.0869 | spend $157.92 | eta 0 min
+[judge_compare_presenters] 296/300 p0099-sonnet-5 ok F5 S4 C4 | $0.0879 | spend $158.01 | eta 0 min
+[judge_compare_presenters] 297/300 p0099-sonnet-4-6 ok F3 S3 C4 | $0.0921 | spend $158.10 | eta 0 min
+[judge_compare_presenters] 298/300 p0100-opus-5-5 ok F5 S5 C4 | $0.0720 | spend $158.17 | eta 0 min
+[judge_compare_presenters] 299/300 p0100-sonnet-5 ok F4 S4 C4 | $0.0724 | spend $158.24 | eta 0 min
+[judge_compare_presenters] 300/300 p0100-sonnet-4-6 ok F4 S4 C4 | $0.0788 | spend $158.32 | eta 0 min
+wrote /workshop/DatathonAWS/docs/eval_report.md
+uploaded 5 files to s3://datathon-alphaforge-654654326432/runs/eval/
+/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 5 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:292: UserWarning: resource_tracker: '/mp-j1soxjnw': [Errno 2] No such file or directory
+  warnings.warn('resource_tracker: %r: %s' % (name, e))
+/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:292: UserWarning: resource_tracker: '/mp-v9zexznh': [Errno 2] No such file or directory
+  warnings.warn('resource_tracker: %r: %s' % (name, e))
+/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:292: UserWarning: resource_tracker: '/mp-lev7bux4': [Errno 2] No such file or directory
+  warnings.warn('resource_tracker: %r: %s' % (name, e))
+/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:292: UserWarning: resource_tracker: '/mp-x4g751vd': [Errno 2] No such file or directory
+  warnings.warn('resource_tracker: %r: %s' % (name, e))
+/home/participant/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:292: UserWarning: resource_tracker: '/mp-ed_j6ltq': [Errno 2] No such file or directory
+  warnings.warn('resource_tracker: %r: %s' % (name, e))
+=== 2026-11-16T02:22:35Z secret scan
+secret scan: ["reports/eval/baseline.log: ['data…']"]
+=== 2026-11-16T02:22:35Z done
