@@ -41,6 +41,14 @@ Extra checks in the code:
 - Citations point to worker or user steps.
 - No promise or prediction of returns ("guaranteed", "will go up / rise / double", "safe bet",
   "garanti", "sans risque", "va monter", ...), unless negated ("not guaranteed", "n'est pas garanti").
+- Comparisons match their numbers: a comparative word (lower, higher, less, smaller, deeper, exceeds, below,
+  above, safer, riskier, better, worse, lowest, highest, best, worst, and the French equivalents) next to two
+  numbers of the same metric must agree with their order ("17.0% lower than 15.7%" fails). Drawdowns and
+  losses compare by size. Only fires when the pairing is clear (same clause, same metric, both percentages).
+- Suitability statuses are copied exactly: a status word (pass / info / flag / conflict; conforme /
+  information / signalement / conflit) must be a status the trace gives for the target and rule it is written
+  next to (the cited check_suitability steps, or the target named in the clause). Negated words ("zero
+  flags"), verbs ("conflicts with") and names ("Information Technology") are not statuses.
 
 An optional LLM check (Haiku 4.5) is not implemented; the deterministic checks cover the same rules.
 
@@ -54,4 +62,4 @@ An optional LLM check (Haiku 4.5) is not implemented; the deterministic checks c
 - `reviewer.py`
 - Pipeline retry counters (`MAX_REVIEW_RETRIES = 2`, `MAX_ANSWER_RETRIES = 1`)
 - Tests: deliberately incomplete worker output → `fail` → retry → "incomplete" note after 2
-  (`tests/test_pipeline.py`); number, citation and prediction checks (`tests/test_reviewer.py`)
+  (`tests/test_pipeline.py`); number, citation, prediction, comparison and status checks (`tests/test_reviewer.py`)

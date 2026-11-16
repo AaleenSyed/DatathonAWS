@@ -58,7 +58,10 @@ redirect to `/chat`. Each chat page creates a new conversation (conversations li
 | `src/PersonaPicker.tsx` | Cards with the translated description and the assumed limits from `GET /personas` |
 | `src/AppBar.tsx` | Wordmark, Simple/Detailed switch (chat page), EN/FR switch, light/dark switch |
 | `src/view.tsx` | Simple/Detailed mode (`localStorage.viewMode`): default of "Show full analysis" and "Show the evidence" |
-| `src/Chat.tsx` | Conversation state, WebSocket events, branches (edit / regenerate), live stage line |
+| `src/registry/blocks/chat/` | Chat blocks from the chat-ui skill: `ChatContainer`, `ChatMessage` (user / assistant / system), `ChatInput` (Enter sends, Shift+Enter = new line, send turns into stop), `TypingIndicator`. Written locally: `ui.inference.sh/r/chat.json` returns 404 |
+| `src/components/ui/button.ts`, `src/lib/utils.ts` | shadcn-style `buttonVariants` and `cn()` |
+| `src/index.css` | Tailwind v4 (theme + utilities, no Preflight) around `styles.css`; shadcn token names (`bg-primary`, `text-muted-foreground`…) mapped to the noir palette, so both themes work |
+| `src/Chat.tsx` | Conversation state, WebSocket events, branches (edit / regenerate), live stage line; renders with the chat blocks |
 | `src/Answer.tsx` | Markdown answer (`react-markdown` + `remark-gfm`); claim tags become chips |
 | `src/cite.ts` | Claim-tag parsing, same regexes as `server/explainer.py` (`TAG`, `STEP_NUMS`, `MAX_RANGE`) |
 | `src/Explainer.tsx` | The `ExplainerPayload` panel: cards, charts, profile check, market, claims, review, limits, run |

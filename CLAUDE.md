@@ -68,6 +68,9 @@ User (persona + request)
        ethics (LATER)   → curated esg_evidence.csv + AgentCore Web Search, cited URLs
   → REVIEWER: checks the work; on FAIL sends the task back to the worker/boss with reasons
        (max 2 retries, then proceed with an explicit "incomplete" note)
+  → COMPARISONS (Python, comparisons.py): per metric, ranks of every sector group and asset plus
+       ready-made comparison sentences, recorded as the compare_metrics step; the presenter copies them
+       and never compares numbers itself
   → PRESENTER (LLM, Sonnet 4.6, streamed): writes the final answer using ONLY worker outputs
 ```
 - Boss: Strands Agent whose tools are the worker functions (wrapped with @tool). It keeps the

@@ -303,3 +303,114 @@ def test_predictions_fail(text):
 ])
 def test_negated_or_historical_wording_passes(text):
     assert reviewer.check_answer(text, answer_trace())["verdict"] == "pass"
+
+
+# ---------- comparisons must match the order of their numbers (eval: "17.0% vol lower than 15.7%") ----------
+
+@pytest.mark.parametrize("text,lang", [
+    # the eval finding, verbatim
+    ("- Consumer Staples annualized volatility is 17.0%, lower than Financials' 15.7%, and its 2022 drawdown was "
+     "-13.7%, within Robert's -15.0% limit. [fact: step 17, 18, 32]", "en"),
+    ("Consumer Staples has the lowest volatility (17.0%), Financials 2nd (15.7%).", "en"),
+    ("Consumer Staples (17.0%) has lower volatility than Financials (15.7%).", "en"),
+    ("TLT (16.1%) is safer than XBB.TO (6.6%) on annualized volatility.", "en"),
+    ("NVDA had a smaller 2022 drawdown (-59.2%) than Consumer Staples (-13.7%).", "en"),
+    ("XBB.TO's volatility of 6.6% exceeds Mateo's 15.0% limit.", "en"),
+    ("Financials has the best 12-month momentum (19.0%), Health Care 2nd (51.8%).", "en"),
+    ("Consumer Staples affiche une volatilité de 17,0 %, inférieure à celle de Financials (15,7 %).", "fr"),
+    ("Consumer Staples a la volatilité la plus faible (17,0 %), Financials 2e (15,7 %).", "fr"),
+])
+def test_wrong_comparison_fails(text, lang):
+    assert reviewer.wrong_comparisons(text, lang), text
+    v = reviewer.check_answer(text, answer_trace(), lang=lang)
+    assert v["verdict"] == "fail" and any("comparisons contradict" in r and "compare_metrics" in r
+                                          for r in v["reasons"])
+
+
+@pytest.mark.parametrize("text,lang", [
+    ("Utilities has the lowest annualized volatility among the sector groups analyzed (14.7%), Financials 2nd "
+     "(15.7%), Consumer Staples 3rd (17.0%), Information Technology the highest (30.1%).", "en"),
+    ("NVDA has a higher annualized volatility (51.1%) than Consumer Staples (17.0%).", "en"),
+    ("NVDA has a deeper maximum drawdown (-63.5%) than Consumer Staples (-16.3%).", "en"),
+    ("NVDA has a lower 2022 return (-46.9%) than Consumer Staples (8.4%).", "en"),
+    ("Consumer Staples had a smaller 2022 drawdown (-13.7%) than Financials (-22.2%).", "en"),
+    ("NVDA's 51.1% volatility exceeds Robert's 10.0% limit.", "en"),
+    ("TLT reached -31.8% and XBB.TO -15.3% in 2022, both exceeding the -15.0% limit.", "en"),  # drawdown limit
+    ("Utilities fell -7.9% (maximum drawdown -24.0%), far less severe than AAPL's -21.4%.", "en"),
+    ("Bonds members range from very low volatility (ZST.TO at 0.6%) to higher risk (TLT at 16.1%).", "en"),
+    ("Volatility 14.7% is within Mateo's 15.0% limit, and it trades above its 200-day average with 12-month "
+     "momentum of 18.4%.", "en"),
+    ("Keep at most 15.0% in crypto; anything above the 15.0% cap is a conflict.", "en"),
+    ("Utilities affiche une volatilité de 14,7 %, la plus basse des secteurs analysés, et une baisse maximale "
+     "de -24,0 %.", "fr"),
+    ("En 2022, le secteur a reculé de 43,9 % au pire point, soit moins que les -59,2 % de NVDA.", "fr"),
+    ("If the weight were 20.0%, it would be higher than the 15.0% cap. [scenario]", "en"),
+])
+def test_correct_or_unclear_comparison_passes(text, lang):
+    assert reviewer.wrong_comparisons(text, lang) == [], text
+
+
+# ---------- suitability statuses copied exactly (eval: pass relabeled as info) ----------
+
+def status_trace():
+    """Robert: Bonds (bonds/cash minimum pass, volatility flag because of TLT), Consumer Staples (volatility flag,
+    bonds/cash minimum info, 2022 drawdown pass)."""
+    t = RunTrace("robert", "q", AS_OF)
+
+    def check(rule, status, value=None, limit=None):
+        return {"rule": rule, "status": status, "value": value, "limit": limit, "explanation": ""}
+    t.add("worker:suitability", "check_suitability", {"target": "Bonds"}, ok({
+        "target": "Bonds", "members": ["XBB.TO", "TLT"], "overall": "flag", "checks": [
+            check("crypto_max", "pass", 0.0, 0.0),
+            check("vol_max", "flag", {"XBB.TO": 0.066, "TLT": 0.161}, 0.10),
+            check("bonds_cash_min", "pass", None, 0.5),
+            check("stress_2022_max_drawdown", "flag", {"XBB.TO": -0.153, "TLT": -0.318}, -0.15)]}))
+    t.add("worker:suitability", "check_suitability", {"target": "Consumer Staples"}, ok({
+        "target": "Consumer Staples", "members": ["ATD.TO", "PG"], "overall": "flag", "checks": [
+            check("crypto_max", "pass", 0.0, 0.0),
+            check("vol_max", "flag", {"Consumer Staples": 0.170}, 0.10),
+            check("bonds_cash_min", "info", None, 0.5),
+            check("stress_2022_max_drawdown", "pass", {"Consumer Staples": -0.137}, -0.15)]}))
+    return t
+
+
+@pytest.mark.parametrize("text", [
+    # eval b0003: Bonds counting toward the minimum is a pass, not info
+    "- **Info — bonds/cash minimum**: Bonds counts toward the required 50.0% bonds/cash minimum. [fact: step 1]",
+    # eval b0010 (French): Bonds is flag / pass, never "information"
+    "- Bonds — **information** : le portefeuille doit comporter au moins 50,0 % en obligations et encaisse ; "
+    "Bonds compte dans ce minimum. [fact: step 1]",
+    "- Consumer Staples: volatility info, 17.0% vs 10.0%.",                        # uncited: nearest target
+    "- **Pass — volatility**: TLT at 16.1% vs the 10.0% limit. [fact: step 1]",   # member TLT is above the limit
+    "- Consumer Staples: 2022 drawdown flag, -13.7% vs -15.0% [fact: step 2]",
+    "- **Conflict** — Consumer Staples: 17.0% volatility vs Robert's 10.0% limit. [fact: step 2]",
+])
+def test_relabeled_status_fails(text):
+    assert reviewer.wrong_statuses(text, status_trace()), text
+
+
+@pytest.mark.parametrize("text", [
+    "- **Pass — bonds/cash minimum**: Bonds counts toward the required 50.0% bonds/cash minimum. [fact: step 1]",
+    "- **Flag — volatility**: TLT at 16.1% exceeds Robert's 10.0% limit. [fact: step 1]",
+    "- XBB.TO passes the volatility limit at 6.6%. [fact: step 1]",                 # member within the limit
+    "- **Info — bonds/cash minimum**: the portfolio still needs at least 50.0% in bonds/cash alongside "
+    "Consumer Staples. [fact: step 2]",
+    "- Consumer Staples: volatility flag, 17.0% vs 10.0% [fact: step 2]; bonds/cash minimum still needed, info, "
+    "50.0% [fact: step 2]; 2022 drawdown pass, -13.7% within -15.0% [fact: step 2].",
+    "- Consumer Staples: crypto 0% (pass), volatility 17.0% vs 10.0% limit (flag), bonds/cash minimum (info) "
+    "[fact: step 2].",
+    "- Signalement — Consumer Staples : volatilité de 17,0 % vs limite de 10,0 %. [fact: step 2]",
+    "NVDA conflicts with Robert's profile.",                                      # verb, not the status
+    "Bonds has zero conflicts and no ESG flags. [fact: step 1]",                   # negated
+    "Historically, sectors like Information Technology have tended to do well. [assumption]",  # part of a name
+    "At a 60.0% weight, Consumer Staples would be a conflict. [fact: step 2] [scenario]",
+])
+def test_status_copied_or_not_a_status_passes(text):
+    assert reviewer.wrong_statuses(text, status_trace()) == [], text
+
+
+def test_check_answer_reports_relabeled_status():
+    v = reviewer.check_answer("- **Info — bonds/cash minimum**: Bonds counts toward the 50.0% bonds/cash "
+                              "minimum. [fact: step 1]", status_trace())
+    assert v["verdict"] == "fail"
+    assert any("statuses differ from the trace" in r and "'Info'" in r and "pass" in r for r in v["reasons"])

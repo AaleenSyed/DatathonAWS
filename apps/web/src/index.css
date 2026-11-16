@@ -1,0 +1,51 @@
+/* Tailwind CSS v4 + shadcn/ui-style design tokens (chat-ui skill), on top of the app's own styles.
+   No Preflight: styles.css keeps its element styles. Layer order theme < legacy < utilities, so a utility class
+   (e.g. className="bg-muted" on a chat block) always wins over the older class-based styles. */
+@layer theme, legacy, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "./styles.css" layer(legacy);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* `dark:` follows the theme switch (data-theme on <html>), not only the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* shadcn token names, mapped to the brand palette defined in styles.css (light and dark). */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--on-primary);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--accent-soft);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--conflict);
+  --color-destructive-foreground: var(--conflict-ink);
+  --color-border: var(--line);
+  --color-input: var(--control-border);
+  --color-ring: var(--focus);
+  /* Body text is a little softer than headings in noir. */
+  --color-body: var(--text);
+
+  --font-sans: var(--font);
+  --font-serif: var(--serif);
+  --font-mono: var(--mono);
+
+  --radius-sm: 8px;
+  --radius-md: var(--r-sm);   /* 12px */
+  --radius-lg: 14px;
+  --radius-xl: var(--radius); /* 16px: cards */
+  --radius-2xl: 22px;
+
+  --animate-typing: typing 1.2s ease-in-out infinite;
+  @keyframes typing {
+    0%, 60%, 100% { opacity: .35; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3px); }
+  }
+}

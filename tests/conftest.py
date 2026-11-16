@@ -27,3 +27,11 @@ def router_llm_off(monkeypatch):
     Live tests (RUN_LIVE=1) keep the real router."""
     if os.getenv("RUN_LIVE") != "1":
         monkeypatch.setenv("ROUTER_LLM", "0")
+
+
+@pytest.fixture(autouse=True)
+def _no_real_guardrail(monkeypatch):
+    """Unit tests never call the real Bedrock Guardrail, even when .env sets GUARDRAIL_ID (pipeline.py loads .env).
+    Tests that need it set their own fake ID; live tests (RUN_LIVE=1) keep the real one."""
+    if os.getenv("RUN_LIVE") != "1":
+        monkeypatch.delenv("GUARDRAIL_ID", raising=False)

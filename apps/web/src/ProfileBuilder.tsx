@@ -157,7 +157,7 @@ export function ProfileBuilder({ onStart, onBack }: { onStart: (id: string) => v
         }
       />
       {health?.agentMode === "demo" && <p className="banner">{t("app.demo")}</p>}
-      <main className="picker builder">
+      <main id="main" tabIndex={-1} className="picker builder">
         <p className="eyebrow">{t("pf.eyebrow")}</p>
         <h1>{t("pf.title")}</h1>
         <p className="lead">{t("pf.lead")}</p>

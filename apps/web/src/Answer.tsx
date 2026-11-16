@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ClaimKind, TraceStep } from "@alphaforge/api-client";
@@ -47,7 +47,10 @@ export const Answer = memo(function Answer({
   id,
   tone,
   streaming,
+  afterSummary,
 }: {
+  /** Shown right under the summary card, before "Show full analysis" (the recommended sector cards). */
+  afterSummary?: ReactNode;
   content: string;
   trace: TraceStep[];
   onCite: (steps: number[]) => void;
@@ -106,6 +109,7 @@ export const Answer = memo(function Answer({
           {parts.summary}
         </ReactMarkdown>
       </div>
+      {afterSummary}
       {parts.rest && (
         <>
           <button

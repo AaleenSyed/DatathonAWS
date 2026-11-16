@@ -1,5 +1,6 @@
 """Chat pipeline: ROUTER (rules, then Haiku: intent + chat reply) -> BOSS (Strands agent on Bedrock) -> worker tools
--> REVIEWER (max 2 retries) -> PRESENTER (streamed) -> answer check (max 1 retry) -> run trace saved locally + S3.
+-> REVIEWER (max 2 retries) -> comparison facts (comparisons.py: ranks and comparison sentences, computed in Python)
+-> PRESENTER (streamed) -> answer check (max 1 retry) -> run trace saved locally + S3.
 
 ChatSession keeps the boss agent (and so the conversation) across turns for one persona.
 boss / presenter are injectable for tests.
@@ -16,6 +17,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 import agent_tools
+import comparisons
 import guardrail
 import reviewer
 import router
@@ -182,6 +184,14 @@ class ChatSession:
         trace.add("reviewer", "review_work", {"attempt": attempt}, verdict, duration_ms=_ms_since(t0))
         return verdict
 
+    def _add_comparisons(self, trace, plan):
+        """Ranks and comparison sentences computed in Python (comparisons.py), recorded as a worker step the
+        presenter copies and cites: the LLM never orders numbers itself."""
+        t0 = time.perf_counter()
+        out = comparisons.build(trace, plan, as_of=self.as_of, window_start=agent_tools.WINDOW_START)
+        names = {k: list((plan or {}).get(k) or []) for k in ("requested_targets", "recommended_sectors")}
+        trace.add("worker:comparisons", "compare_metrics", names, out, duration_ms=_ms_since(t0))
+
     def _guard(self, trace, content: str, source: str) -> bool:
         """Apply the Bedrock Guardrail to the question (INPUT) or the final answer (OUTPUT). True = blocked.
         Logged in the trace only when the guardrail is configured; the logged text is PII-redacted and the
@@ -299,6 +309,7 @@ class ChatSession:
             verdict = self._review_work(trace, plan, question, retries)
         notes = [] if verdict["verdict"] == "pass" else [
             "INCOMPLETE ANALYSIS after 2 reviewer retries: " + "; ".join(verdict["reasons"])]
+        self._add_comparisons(trace, plan)
 
         answer, check, feedback = "", {"verdict": "fail", "reasons": ["not written"]}, None
         for attempt in range(MAX_ANSWER_RETRIES + 1):
