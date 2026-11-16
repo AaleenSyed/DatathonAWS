@@ -85,7 +85,7 @@ for `data/macro_extra.csv`, or set `DATA_SOURCE=s3` and `DATA_BUCKET` to read th
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m pytest -q                                   # 269 tests
+python -m pytest -q                                   # 535 tests
 
 # Backend (terminal 1)
 uvicorn server.app:app --port 8000                    # real agent on Bedrock
@@ -113,6 +113,27 @@ Settings (`.env`, never committed):
 | `ROUTER_MODEL`, `ROUTER_LLM` | Intent router model (default Haiku 4.5); `ROUTER_LLM=0` turns its LLM step off (rules only) |
 | `TOOL_CACHE`, `WARM_UP` | `0` disables the per-process worker cache / the start-up warm-up |
 | `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | Set both to require Cognito sign-in tokens |
+
+## Evaluation
+
+`scripts/eval/` runs the real Bedrock pipeline (guardrail on) and uses Claude Opus 5.5 as an independent judge.
+Full results: [`docs/eval_report.md`](docs/eval_report.md); raw files in `reports/eval/baseline/` and
+`s3://$DATA_BUCKET/runs/eval/baseline/`.
+
+| Baseline (600 questions, 6 profiles, ~20% French) | Result |
+|---|---|
+| Answer check passed (final / first draft) | 99.7% / 95.7% |
+| Recommends a group with a suitability conflict | 0% |
+| Normal questions wrongly blocked by the guardrail | 0% |
+| Latency p50 / first text p50 | 17.1 s / 4.7 s |
+| Estimated cost per answer | $0.073 |
+| Judge (1–5): faithfulness / suitability / clarity | 3.83 / 3.84 / 3.92 |
+| Red team (200 adversarial prompts) | 57% blocked by the guardrail, 43% refused, 0% answered |
+
+The judge's low scores came from wrong comparisons and relabelled statuses in the presenter's text; comparisons
+are now computed in Python (`comparisons.py`) and checked by the reviewer (see `docs/technical.md`, section 6.1).
+
+Run it: `bash scripts/eval/run_all.sh <label> <concurrency> <budget_usd>` (resumes if interrupted).
 
 ## Web app
 

@@ -43,6 +43,8 @@ off-topic question) get a short conversational reply instead of a full report.
 
 ## 3. Architecture
 
+![How an answer is made](pipeline-simple.en.png)
+
 ```
 Browser (React, EN/FR)
   │  WebSocket / REST (contract v0.3.1: contracts/openapi + asyncapi)
