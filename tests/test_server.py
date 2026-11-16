@@ -407,7 +407,8 @@ def test_short_replies_stay_out_of_history_and_rotate(client, runner):
     assert runner.calls[1]["history"] == [{"question": "Hello", "answer": m1["content"], "intent": "smalltalk"}]
     assert m2["final"] is not None
     assert runner.calls[2]["history"][-1] == {"question": NVDA_Q, "answer": m2["content"]}
-    assert m4["content"] != m1["content"]
+    # 3 wordings: turn 4 wraps to turn 1's wording only if short-reply turns are counted (else turn 3)
+    assert m4["content"] == m1["content"]
 
 
 @needs_data
