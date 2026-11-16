@@ -170,9 +170,10 @@ uses **Claude Opus 5.5 as an independent judge** of each answer. Full results:
 prompt injection): **57% blocked by the guardrail, 43% refused by the app, 0% answered.** All 40 prompt injections
 were blocked. The 3 flagged "rule breaks" were false alarms: the judge confirmed the bot refused in each case.
 
-**Model choice for the presenter** (same questions, judged by Opus 5.5): Opus 5.5 writes the best answers but takes
-about 3–4× longer to the first text and costs about twice as much; Sonnet 4.6 stays the default for a responsive
-chat. Results: `reports/eval/baseline/compare_presenters.csv`.
+**Model choice for the presenter** (same questions, judged by Opus 5.5; smoke run plus a partial baseline run):
+Opus 5.5 writes the best answers but takes about 3–4× longer to the first text and costs about twice as much;
+Sonnet 4.6 stays the default for a responsive chat. Results: `reports/eval/smoke/compare_presenters.csv` and
+`reports/eval/baseline/raw/compare_presenters.jsonl`.
 
 ### 6.1 What the evaluation found, and what we fixed
 
