@@ -1,3 +1,4 @@
+import re
 """Intent router: rules, LLM path with a fake classifier (never Bedrock), fixed texts."""
 import pytest
 
@@ -293,11 +294,22 @@ def test_reply_problem():
 
 def test_profile_text():
     t = router.profile_text(PERSONAS["robert"])
-    assert "Robert" in t and "NVDA" not in t and "limits" not in t and "0.1" not in t
+    assert "Robert" in t and "NVDA" not in t and "limits" not in t and "short" in t
     assert str(PERSONAS["robert"]["risk_tolerance"]) in t
-    c = router.profile_text({"name": "Custom investor", "age": None, "occupation": None, "risk_tolerance": "moderate",
-                             "horizon_years": "5-10", "goal": "Balanced growth", "preferences": []})
+    c = router.profile_text({"name": "Custom investor", "age": 30, "occupation": "nurse 2", "risk_tolerance": "moderate",
+                             "horizon_years": "5-10", "goal": "Balanced growth 5%", "preferences": ["ESG 100%"]})
     assert "None" not in c and "age" not in c
+    for p in (*PERSONAS.values(), {"horizon_years": "unknown", "goal": "x"}):
+        assert not re.search(r"\d", router.profile_text(p))
+    assert "long" in router.profile_text(PERSONAS["amira"]) and "medium" in router.profile_text(PERSONAS["mateo"])
+
+
+@pytest.mark.parametrize("q", ["Is now a bad time?", "Est-ce le bon moment?"])
+def test_timing_question_is_rule_analysis(q):
+    def boom(*a, **k):
+        raise AssertionError("LLM called")
+    r = route(q, [], classify=boom)
+    assert r["intent"] == "analysis" and r["method"] == "rule"
 
 
 def test_system_prompt():

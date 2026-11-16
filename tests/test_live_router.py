@@ -67,6 +67,10 @@ def test_live_report():
         print(f"{'ok  ' if good else 'FAIL'} | {sorted(allowed)} | {r['intent']} | {r['method']} | "
               f"{r['confidence']} | {r['llm_ms'] and round(r['llm_ms'])} | {r['reply'][:80]!r}")
         if r["reply"]:
+            assert len(r["reply"].split()) <= 90, f"{q!r}: reply too long"
+            if ctx is FR:
+                assert not re.search(r"(?:tu|te|ton|tes|pis)", r["reply"], re.I), f"{q!r}: informal French: {r['reply']!r}"
+                print("FR reply:", r["reply"])
             assert problem is None, f"{q!r}: reply rejected by the code check: {problem}"
     print(f"accuracy: {ok}/{len(CASES)} ({ok / len(CASES):.0%})")
     print(f"hidden answers: {hidden}")

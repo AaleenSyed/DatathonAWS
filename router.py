@@ -96,7 +96,7 @@ stock stocks share shares etf bond bonds risk risky volatility return returns di
 diversification growth crypto bitcoin market markets secteur secteurs industrie investir investissement placement
 placements portefeuille action actions obligation obligations risque risquee rendement epargne retraite croissance
 diversifier bourse fnb cryptomonnaie buy buying sell selling money afford acheter vendre argent""".split())
-    + r"|good idea|worth it|bonne idee|vaut la peine|(?<!ca )(?<!cela )marche)\b")
+    + r"|good idea|worth it|bad time|good time|right time|best time|bon moment|mauvais moment|le moment|bonne idee|vaut la peine|(?<!ca )(?<!cela )marche)\b")
 
 
 DEFINE = re.compile(
@@ -173,12 +173,22 @@ def reply_problem(reply: str, as_of: str = "") -> str | None:
     return ("names an asset: " + ", ".join(names[:3])) if names else None
 
 
+def _nodigits(x) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"\s*\d[\d.,%+-]*\s*", " ", str(x))).strip()
+
+
 def profile_text(persona: dict) -> str:
-    keys = ("name", "age", "occupation", "risk_tolerance", "horizon_years", "goal")
-    lines = [f"{k}: {persona[k]}" for k in keys if persona.get(k) is not None]
+    """Profile for the prompt, words only: the router must never see (or echo) ages or year counts."""
+    keys = ("name", "occupation", "risk_tolerance", "goal")
+    lines = [f"{k}: {_nodigits(persona[k])}" for k in keys if persona.get(k) is not None]
+    nums = re.findall(r"\d+", str(persona.get("horizon_years") or ""))
+    if nums:
+        y = int(nums[-1])  # upper end of a range: "5-10" -> medium, "3-5" -> short, "15+" -> long
+        lines.append("horizon: " + ("short (a few years)" if y <= 5 else "medium (several years)" if y <= 12
+                                    else "long (well over a decade)"))
     prefs = [re.sub(r"\s*\([^)]*\)", "", str(p)) for p in persona.get("preferences") or []]  # drops "(e.g. NVDA, TSLA)"
     if prefs:
-        lines.append("preferences: " + "; ".join(prefs))
+        lines.append("preferences: " + _nodigits("; ".join(prefs)))
     return "\n".join(lines) or "(unknown)"
 
 
@@ -200,12 +210,12 @@ def build_prompt(question: str, context: dict) -> str:
 
 @functools.lru_cache(maxsize=1)
 def _model():
-    """One shared BedrockModel (boto client is thread-safe); the Agent is built per call. Short timeouts:
-    a slow Bedrock must not stall a greeting (route() falls back). Deliberately 2 attempts, not CLAUDE.md's 5."""
+    """One shared BedrockModel (boto client is thread-safe); the Agent is built per call. Short timeouts
+    (read 6 s: a reply of about 5 s was seen live): a slow Bedrock must not stall a greeting (route() falls back). Deliberately 2 attempts, not CLAUDE.md's 5."""
     from botocore.config import Config
     from strands.models import BedrockModel
     return BedrockModel(model_id=ROUTER_MODEL, region_name="us-east-1", max_tokens=ROUTER_MAX_TOKENS,
-                        boto_client_config=Config(connect_timeout=2, read_timeout=3,
+                        boto_client_config=Config(connect_timeout=2, read_timeout=6,
                                                   retries={"total_max_attempts": 2, "mode": "standard"}))
 
 
