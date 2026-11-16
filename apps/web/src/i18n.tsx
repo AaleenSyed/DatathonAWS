@@ -562,6 +562,7 @@ const CODES: Record<string, CodeMap> = {
     "worker:risk_analyst": { en: "Risk analyst", fr: "Analyse du risque" },
     "worker:suitability": { en: "Suitability check", fr: "Vérification de la convenance" },
     "worker:market_context": { en: "Market context", fr: "Contexte de marché" },
+    "worker:comparisons": { en: "Comparisons", fr: "Comparaisons" },
     reviewer: { en: "Reviewer", fr: "Réviseur" },
     presenter: { en: "Presenter (LLM)", fr: "Présentateur (LLM)" },
     pipeline: { en: "Pipeline", fr: "Pipeline" },

@@ -1,5 +1,6 @@
 """Pipeline tests with a fake boss and fake presenter (no Bedrock): real tools, reviewer, retries and trace."""
 import json
+import re
 
 import pytest
 
@@ -107,6 +108,36 @@ def test_answer_numbers_all_in_trace(tmp_path):
     import reviewer
     r = session(tmp_path).ask(Q)
     assert reviewer.check_answer(r["answer"], r["trace"])["verdict"] == "pass"
+
+
+class ComparingPresenter:
+    """First draft compares two numbers the wrong way round (the eval finding); the rewrite copies the fact."""
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, persona, question, history, trace, plan, notes, feedback=None):
+        self.calls.append(feedback)
+        step = next(s for s in trace.steps if s["action"] == "compare_metrics")
+        fact = next(p for p in step["output"]["data"]["pairs"] if p["metric"] == "annualized volatility")
+        nvda, staples = re.findall(r"\d+\.\d%", fact["sentence"])
+        if len(self.calls) == 1:
+            return f"Consumer Staples' annualized volatility is {staples}, higher than NVDA's {nvda}. " \
+                   f"[fact: step {step['step']}]"
+        return f"{fact['sentence']} [fact: step {step['step']}]"
+
+
+def test_comparison_facts_reach_the_presenter_and_wrong_order_is_rewritten(tmp_path):
+    presenter = ComparingPresenter()
+    r = session(tmp_path, presenter=presenter).ask(Q)
+    steps = r["trace"].steps
+    cmp = next(s for s in steps if s["action"] == "compare_metrics")
+    assert cmp["actor"] == "worker:comparisons" and cmp["output"]["status"] == "ok"
+    assert cmp["input"] == {"requested_targets": ["NVDA"], "recommended_sectors": ["Consumer Staples"]}
+    assert cmp["step"] < next(s["step"] for s in steps if s["action"] == "write_answer")
+    assert sum(s["action"] == "compare_metrics" for s in steps) == 1  # once per turn, reused by the rewrite
+    assert len(presenter.calls) == 2 and "compare_metrics" in presenter.calls[1]
+    assert r["answer_verdict"]["verdict"] == "pass"
+    assert r["answer"].startswith("NVDA has a higher annualized volatility (")
 
 
 def test_tool_error_is_recorded_not_raised(tmp_path):
