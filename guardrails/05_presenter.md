@@ -16,7 +16,15 @@ Write the final answer from worker outputs only. Model from `PRESENTER_MODEL` (`
 - Include limitations. The disclaimer is added by code if missing (`texts.py`, EN/FR):
   *"Educational simulation for a fictional persona (Name). Not personalized financial advice."*
 
+- Take every comparison or rank from the `compare_metrics` step (`comparisons.py`: ranks and ready-made
+  sentences computed in Python, e.g. "Utilities has the lowest annualized volatility ... (14.7%), Financials
+  2nd (15.7%)"); a value vs a persona limit is stated as the suitability check gives it.
+- Copy each suitability status exactly as the trace gives it for that target and rule.
 ## Must not
+- Compare or rank numbers itself.
+- Relabel a status (a pass is never "info", a flag never "info", an info never a "conflict").
+- Add concepts or claims that are not in the trace (e.g. "survivorship bias", "recoverable" losses, what
+  credit spreads tend to favour). Limitations come from the trace warnings and periods only.
 - Address the real user as the investor ("you should buy…"). Speak about the persona.
 - Promise or predict returns ("will go up", "guaranteed", "safe bet").
 - Give position sizes or trade instructions beyond the persona's documented limits.
@@ -28,6 +36,7 @@ Write the final answer from worker outputs only. Model from `PRESENTER_MODEL` (`
 
 ## Output checks
 - Every number appears in the trace and no return is promised or predicted (Reviewer `check_answer`).
+- Comparative words match the order of their numbers, and status words match the trace (Reviewer `check_answer`).
 - Disclaimer present (code).
 - Citations point to real worker/user steps (Reviewer). That *every* claim is tagged is prompt-only.
 - Output Bedrock Guardrail passes (when configured).
@@ -48,3 +57,4 @@ Write the final answer from worker outputs only. Model from `PRESENTER_MODEL` (`
 ## Not yet enforced in code (prompt only)
 - Keeping the "sector = 1 asset, not diversified" warning, the limitations section, and speaking about the
   persona rather than the user.
+- No concepts or claims outside the trace (the reviewer checks numbers, comparisons and statuses, not ideas).

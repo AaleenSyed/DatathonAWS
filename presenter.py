@@ -18,7 +18,7 @@ from texts import lang_or_default, text as ui_text
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 PRESENTER_MODEL = os.getenv("PRESENTER_MODEL", "global.anthropic.claude-sonnet-4-6")
 MAX_TOKENS = int(os.getenv("PRESENTER_MAX_TOKENS", "1500"))
-ALWAYS = {"list_sectors", "cycle_phase", "fear_hope", "rank_sectors"}
+ALWAYS = {"list_sectors", "cycle_phase", "fear_hope", "rank_sectors", "compare_metrics"}
 _client = None
 
 
