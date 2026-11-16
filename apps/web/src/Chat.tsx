@@ -249,12 +249,6 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
             <span className="persona-name">{t("chat.profile", { name })}</span>
           </>
         }
-        right={
-          <span className={`status status-${status}`} role="status">
-            <span className="dot" aria-hidden="true" />
-            <span className="status-text">{t(`status.${status}` as Key)}</span>
-          </span>
-        }
       />
       <main id="main" tabIndex={-1} className="flex min-h-0 flex-1 flex-col">
         <h1 className="sr-only">{t("chat.title", { name })}</h1>
@@ -487,7 +481,8 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
           )}
           <ChatInput
             onSubmit={sendMessage}
-            placeholder={t("chat.placeholder")}
+            // No connection indicator in the header: while the socket is not open the (disabled) field says why.
+            placeholder={status === "open" ? t("chat.placeholder") : t(`status.${status}` as Key)}
             label={t("chat.inputLabel")}
             disabled={status !== "open" || !conversationId}
             isGenerating={generating}

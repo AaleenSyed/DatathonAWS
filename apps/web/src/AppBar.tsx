@@ -122,8 +122,19 @@ function ViewToggle() {
 }
 
 /** Top bar shared by every page: skip link, then a header with the wordmark (or custom left content) and the view,
- *  language and theme switches. The `main` element of each page has id="main" (the skip link's target). */
-export function AppBar({ left, right, showView = false }: { left?: ReactNode; right?: ReactNode; showView?: boolean }) {
+ *  language and theme switches. The theme switch is only on the persona picker (`showTheme`); the choice is saved
+ *  and applies everywhere. The `main` element of each page has id="main" (the skip link's target). */
+export function AppBar({
+  left,
+  right,
+  showView = false,
+  showTheme = false,
+}: {
+  left?: ReactNode;
+  right?: ReactNode;
+  showView?: boolean;
+  showTheme?: boolean;
+}) {
   const { t } = useI18n();
   return (
     <>
@@ -137,7 +148,7 @@ export function AppBar({ left, right, showView = false }: { left?: ReactNode; ri
             {right}
             {showView && <ViewToggle />}
             <LanguageToggle />
-            <ThemeToggle />
+            {showTheme && <ThemeToggle />}
           </div>
         </nav>
       </header>
