@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "./i18n";
-import { useViewMode, type ViewMode } from "./view";
+import { ANSWER_SCALES, useAnswerScale, useViewMode, type ViewMode } from "./view";
 
 // Must match index.html. No saved choice = follow prefers-color-scheme; the switch saves "light" or "dark".
 const THEME_KEY = "colorTheme";
@@ -121,6 +121,40 @@ function ViewToggle() {
   );
 }
 
+/** A− / A+: text size of the assistant's answers, 60% to 150%. The current size is in each button's name. */
+function TextSizeToggle() {
+  const { t, lang } = useI18n();
+  const [scale, setScale] = useAnswerScale();
+  const i = ANSWER_SCALES.indexOf(scale as (typeof ANSWER_SCALES)[number]);
+  const pct = `${Math.round(scale * 100)}${lang === "fr" ? " %" : "%"}`;
+  const step = (d: number) => {
+    const next = ANSWER_SCALES[i + d];
+    if (next !== undefined) setScale(next);
+  };
+  return (
+    <div className="segmented text-size" role="group" aria-label={t("size.label")}>
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        disabled={i <= 0}
+        aria-label={t("size.smaller", { pct })}
+        title={t("size.smaller", { pct })}
+      >
+        A<span aria-hidden="true">−</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => step(1)}
+        disabled={i >= ANSWER_SCALES.length - 1}
+        aria-label={t("size.larger", { pct })}
+        title={t("size.larger", { pct })}
+      >
+        A<span aria-hidden="true">+</span>
+      </button>
+    </div>
+  );
+}
+
 /** Top bar shared by every page: skip link, then a header with the wordmark (or custom left content) and the view,
  *  language and theme switches. The theme switch is only on the persona picker (`showTheme`); the choice is saved
  *  and applies everywhere. The `main` element of each page has id="main" (the skip link's target). */
@@ -147,6 +181,7 @@ export function AppBar({
           <div className="appbar-right">
             {right}
             {showView && <ViewToggle />}
+            {showView && <TextSizeToggle />}
             <LanguageToggle />
             {showTheme && <ThemeToggle />}
           </div>
