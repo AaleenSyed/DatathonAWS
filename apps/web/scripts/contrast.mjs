@@ -93,5 +93,41 @@ check("light", "dusty olive on white: large text / icons only", L["--dusty-olive
 check("light", "grape text on celadon", L["--dusty-grape"], L["--celadon"], 4.5);
 check("light", "near-black text on willow green", "#1B1630", L["--willow-green"], 4.5);
 
+
+// New answer elements: profile check (Verdict.tsx) and stock cards (StockCards.tsx), on the page and inside the
+// celadon bubble (light theme re-points the surfaces there).
+const surfaces = {
+  light: { ...themes.light },
+  dark: { ...themes.dark },
+  "light bubble": { ...themes.light, ...bubble },
+};
+for (const [name, t] of Object.entries(surfaces)) {
+  const v = (k) => t[k];
+  // Stock card on --card-bg
+  check(name, "stock card: ring number", v("--ink"), v("--card-bg"), 4.5);
+  check(name, "stock card: name", v("--ink"), v("--card-bg"), 4.5);
+  check(name, "stock card: ticker", v("--muted"), v("--card-bg"), 4.5);
+  check(name, "stock card: label text", v("--text"), v("--card-bg"), 4.5);
+  check(name, "stock card: band label under 15%", v("--pass-ink"), v("--card-bg"), 4.5);
+  check(name, "stock card: band label 15 to 30%", v("--caution-ink"), v("--card-bg"), 4.5);
+  check(name, "stock card: band label over 30%", v("--conflict-ink"), v("--card-bg"), 4.5);
+  check(name, "stock card: ring arc under 15%", v("--pass"), v("--card-bg"), 3);
+  check(name, "stock card: ring arc 15 to 30%", v("--caution"), v("--card-bg"), 3);
+  check(name, "stock card: ring arc over 30%", v("--conflict"), v("--card-bg"), 3);
+  // Profile check panel on --surface-2
+  check(name, "profile check: fits", v("--pass-ink"), v("--surface-2"), 4.5);
+  check(name, "profile check: flagged", v("--caution-ink"), v("--surface-2"), 4.5);
+  check(name, "profile check: conflict / blocked", v("--conflict-ink"), v("--surface-2"), 4.5);
+  check(name, "profile check: body text", v("--ink-2"), v("--surface-2"), 4.5);
+  check(name, "profile check: rule names", v("--text"), v("--surface-2"), 4.5);
+  check(name, "profile check: section label", v("--muted"), v("--surface-2"), 4.5);
+  check(name, "profile check: sector name on its card", v("--ink"), v("--card-bg"), 4.5);
+}
+// Lettered logo badges: white text on each BADGE_BG colour in StockCards.tsx.
+const cards = readFileSync(fileURLToPath(new URL("../src/StockCards.tsx", import.meta.url)), "utf8");
+const badges = [...(cards.match(/BADGE_BG = \[([^\]]+)\]/)?.[1] ?? "").matchAll(/#[0-9a-fA-F]{6}/g)].map((m) => m[0]);
+if (!badges.length) throw new Error("BADGE_BG not found in StockCards.tsx");
+for (const bg of badges) check("both", `stock badge: white letters on ${bg}`, "#FFFFFF", bg, 4.5);
+
 console.log(failed ? `\n${failed} pair(s) below the minimum` : "\nAll pairs meet their minimum");
 process.exit(failed ? 1 : 0);

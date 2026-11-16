@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { LanguageProvider } from "./i18n";
+import { Starfield } from "./Starfield";
 import { ViewModeProvider } from "./view";
 // Self-hosted fonts (SIL Open Font License), bundled by Vite: no request to a font CDN.
 import "@fontsource-variable/inter";
@@ -12,6 +13,7 @@ import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
+    <Starfield />
     <LanguageProvider>
       <ViewModeProvider>
         <App />
