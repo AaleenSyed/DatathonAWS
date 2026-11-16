@@ -16,3 +16,16 @@ def assert_plain(obj, path="result"):
     if path == "result":
         json.dumps(obj, allow_nan=False)
     return obj
+
+
+import os
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_real_guardrail(monkeypatch):
+    """Unit tests never call the real Bedrock Guardrail, even when .env sets GUARDRAIL_ID (pipeline.py loads .env).
+    Tests that need it set their own fake ID; live tests (RUN_LIVE=1) keep the real one."""
+    if os.getenv("RUN_LIVE") != "1":
+        monkeypatch.delenv("GUARDRAIL_ID", raising=False)

@@ -9,9 +9,12 @@ import type {
   WsClientMessage,
   WsServerMessage,
 } from "@alphaforge/api-client";
+import { ChatContainer, ChatInput, ChatMessage, TypingIndicator } from "@/registry/blocks/chat";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { api, createChatSocket } from "./api";
 import { Answer } from "./Answer";
-import { AppBar, Footer } from "./AppBar";
+import { AgentAvatar, AppBar } from "./AppBar";
 import { Evidence, Recommended } from "./Explainer";
 import { refreshHealth, useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
@@ -83,7 +86,6 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
   const [views, setViews] = useState<Record<string, AnswerView>>({});
   const [status, setStatus] = useState<SocketStatus>("idle");
   const [error, setError] = useState<ErrorState | null>(null);
-  const [text, setText] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const socket = useRef(createChatSocket());
@@ -163,7 +165,8 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
     const p = pendingScroll.current;
     if (!p) return;
     pendingScroll.current = null;
-    document.getElementById(`msg-${p.id}`)?.scrollIntoView({ block: p.block, behavior: "smooth" });
+    const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(`msg-${p.id}`)?.scrollIntoView({ block: p.block, behavior: calm ? "auto" : "smooth" });
   }, [messages, progress]);
 
   // One stable callback per message, so memoized answers do not re-render while typing.
@@ -193,9 +196,11 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
     }
   }
 
-  function sendMessage(value = text.trim()) {
-    if (!value || !canAct) return;
-    if (send({ type: "message.send", conversationId: conversationId!, text: value, language: lang })) setText("");
+  /** false = not sent (the message bar keeps the text). */
+  function sendMessage(text: string): boolean {
+    const value = text.trim();
+    if (!value || !canAct) return false;
+    return send({ type: "message.send", conversationId: conversationId!, text: value, language: lang });
   }
 
   function saveEdit(messageId: string) {
@@ -225,30 +230,32 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
     if (err) setError({ key: "chat.errBranch" });
   }
 
+  const demo = health?.agentMode === "demo";
+  const suggestions = SUGGESTIONS.map((i) => t(`sug.${custom ? "custom" : personaId}.${i}` as Key));
+  // The latest question and answer keep their buttons visible; older ones show them on hover / focus.
+  const lastId = path[path.length - 1]?.id;
+  const lastUserId = [...path].reverse().find((m) => m.role === "user")?.id;
+
   return (
     <div className={`page chat-page view-${mode}`}>
       <AppBar
         showView
         left={
           <>
-            <button className="back" onClick={onBack}>
-              <span aria-hidden="true">←</span> {t("chat.back")}
+            {/* Under 480px the label is visually hidden (still the button's name): the arrow alone saves a row. */}
+            <button className="back" onClick={onBack} title={t("chat.back")}>
+              <span aria-hidden="true">←</span> <span className="back-text">{t("chat.back")}</span>
             </button>
             <span className="persona-name">{t("chat.profile", { name })}</span>
           </>
         }
-        right={
-          <span className={`status status-${status}`} role="status">
-            <span className="dot" aria-hidden="true" />
-            <span className="status-text">{t(`status.${status}` as Key)}</span>
-          </span>
-        }
       />
-      {health?.agentMode === "demo" && <p className="banner">{t("app.demo")}</p>}
-      <main className="chat">
-        <section className="messages" aria-live="polite">
+      <main id="main" tabIndex={-1} className="flex min-h-0 flex-1 flex-col">
+        <h1 className="sr-only">{t("chat.title", { name })}</h1>
+        <ChatContainer busy={generating} logLabel={t("chat.log", { name })}>
+          {demo && <ChatMessage role="system" content={t("app.demo")} />}
           {path.length === 0 && (
-            <div className="empty">
+            <div className="m-auto flex w-full max-w-3xl flex-col items-center gap-3 py-6 text-center">
               {custom ? (
                 <SparkAvatar large />
               ) : (
@@ -256,9 +263,40 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                   {name[0]}
                 </span>
               )}
-              <h2>{t(custom ? "pf.emptyTitle" : "chat.emptyTitle", { name })}</h2>
-              <p>{t(custom ? "pf.emptyHint" : "chat.emptyHint", { name })}</p>
+              <h2 className="text-[length:var(--step-3)] text-foreground">
+                {t(custom ? "pf.emptyTitle" : "chat.emptyTitle", { name })}
+              </h2>
+              <p className="max-w-[46ch] text-base text-muted-foreground">
+                {t(custom ? "pf.emptyHint" : "chat.emptyHint", { name })}
+              </p>
               {profile && <ProfileCard p={profile} compact />}
+              <div role="group" aria-labelledby="sug-label" className="mt-5 grid w-full gap-2.5 sm:grid-cols-3">
+                <p
+                  id="sug-label"
+                  className="text-sm font-semibold text-muted-foreground sm:col-span-3"
+                >
+                  {t("sug.label")}
+                </p>
+                {suggestions.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    disabled={!canAct}
+                    onClick={() => sendMessage(q)}
+                    className={
+                      "group/sug flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border " +
+                      "min-h-11 bg-card p-4 text-left text-[0.95rem] leading-snug text-body shadow-sm " +
+                      "transition-[border-color,color,transform] motion-safe:hover:-translate-y-0.5 hover:border-primary " +
+                      "hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                    }
+                  >
+                    <span>{q}</span>
+                    <span aria-hidden="true" className="text-muted-foreground group-hover/sug:text-foreground">
+                      ↗
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {path.map((m) => {
@@ -270,7 +308,80 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
             const prog = progress[m.id];
             const setView = (patch: Partial<AnswerView>) =>
               setViews((v) => ({ ...v, [m.id]: { ...(v[m.id] ?? DEFAULT_VIEW), ...patch } }));
-            const trace = m.role === "assistant" && (
+            const versions = siblings.length > 1 && (
+              <Versions
+                index={index}
+                total={siblings.length}
+                disabled={generating}
+                onPick={(i) => switchBranch(siblings[i])}
+              />
+            );
+
+            if (m.role === "user") {
+              const editing = editingId === m.id;
+              return (
+                <ChatMessage
+                  key={m.id}
+                  id={`msg-${m.id}`}
+                  role="user"
+                  className={cn("msg", editing && "w-full max-w-[min(100%,44rem)]")}
+                  srLabel={t("chat.youSaid")}
+                  meta={versions}
+                  bubbleClassName={editing ? "w-full border border-input bg-card p-3 text-foreground" : undefined}
+                  actionsVisible={m.id === lastUserId}
+                  actions={
+                    !editing && (
+                      <button
+                        type="button"
+                        className={buttonVariants({ variant: "ghost", size: "xs" })}
+                        disabled={!canAct}
+                        onClick={() => {
+                          setEditingId(m.id);
+                          setEditText(m.content);
+                        }}
+                      >
+                        <PencilIcon />
+                        {t("chat.edit")}
+                      </button>
+                    )
+                  }
+                >
+                  {editing ? (
+                    <div className="flex flex-col gap-2">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={3}
+                        autoFocus
+                        aria-label={t("chat.inputLabel")}
+                        className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-base text-foreground"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className={buttonVariants({ variant: "ghost", size: "sm" })}
+                          onClick={() => setEditingId(null)}
+                        >
+                          {t("chat.cancelEdit")}
+                        </button>
+                        <button
+                          type="button"
+                          className={buttonVariants({ size: "sm" })}
+                          onClick={() => saveEdit(m.id)}
+                          disabled={!canAct || !editText.trim()}
+                        >
+                          {t("chat.saveEdit")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.content}</p>
+                  )}
+                </ChatMessage>
+              );
+            }
+
+            const trace = (
               <Trace
                 trace={m.trace}
                 open={view.trace.open}
@@ -283,54 +394,36 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
             );
             const evidenceId = `evidence-${m.id}`;
             return (
-              <article key={m.id} id={`msg-${m.id}`} className={`msg ${m.role}${m.final ? " has-final" : ""}`}>
-                <div className="msg-head">
-                  <span className="msg-role">{m.role === "user" ? t("chat.you") : t("chat.agent")}</span>
-                  {siblings.length > 1 && (
-                    <span className="branches" aria-label={t("chat.versions")}>
-                      <button
-                        aria-label={t("chat.prev")}
-                        disabled={generating || index === 0}
-                        onClick={() => switchBranch(siblings[index - 1])}
-                      >
-                        ‹
-                      </button>
-                      <span>
-                        {index + 1}/{siblings.length}
-                      </span>
-                      <button
-                        aria-label={t("chat.next")}
-                        disabled={generating || index === siblings.length - 1}
-                        onClick={() => switchBranch(siblings[index + 1])}
-                      >
-                        ›
-                      </button>
-                    </span>
-                  )}
-                </div>
-
-                {m.role === "user" &&
-                  (editingId === m.id ? (
-                    <div className="edit">
-                      <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} />
-                      <div className="actions">
-                        <button onClick={() => saveEdit(m.id)} disabled={!canAct || !editText.trim()}>
-                          {t("chat.saveEdit")}
-                        </button>
-                        <button onClick={() => setEditingId(null)}>{t("chat.cancelEdit")}</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="user-text">{m.content}</p>
-                  ))}
-
-                {m.role === "assistant" && (
-                  <div className={m.final ? "msg-grid" : undefined}>
+              <ChatMessage
+                key={m.id}
+                id={`msg-${m.id}`}
+                role="assistant"
+                className="msg"
+                avatar={<AgentAvatar />}
+                name={name}
+                srLabel={t("chat.said", { name })}
+                meta={versions}
+                actionsVisible={m.id === lastId}
+                actions={
+                  m.status !== "streaming" && (
+                    <button
+                      type="button"
+                      className={buttonVariants({ variant: "ghost", size: "xs" })}
+                      disabled={!canAct}
+                      onClick={() => regenerate(m.id)}
+                    >
+                      <RefreshIcon />
+                      {t("chat.regenerate")}
+                    </button>
+                  )
+                }
+              >
+                  <div>
                     <div className="msg-main">
                       {m.status === "streaming" && (
                         <ProgressLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
                       )}
-                      {m.status === "streaming" && !m.content && <Skeleton />}
+                      {m.status === "streaming" && !m.content && <TypingIndicator label={t("chat.thinking")} />}
                       {m.content && (
                         <Answer
                           id={m.id}
@@ -341,6 +434,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                           onToggleFull={() => setView({ full: !showFull })}
                           tone={answerTone(m.final)}
                           streaming={m.status === "streaming"}
+                          afterSummary={m.final && <Recommended f={m.final} onCite={citeFor(m.id)} />}
                         />
                       )}
                       {m.status === "cancelled" && <small className="tag">{t("chat.stopped")}</small>}
@@ -349,7 +443,6 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                     </div>
                     {m.final && (
                       <aside className="msg-evidence">
-                        <Recommended f={m.final} onCite={citeFor(m.id)} />
                         <button
                           type="button"
                           className="toggle toggle-evidence"
@@ -375,74 +468,147 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                       </aside>
                     )}
                   </div>
-                )}
-
-
-                <div className="actions">
-                  {m.role === "user" && editingId !== m.id && (
-                    <button
-                      disabled={!canAct}
-                      onClick={() => {
-                        setEditingId(m.id);
-                        setEditText(m.content);
-                      }}
-                    >
-                      {t("chat.edit")}
-                    </button>
-                  )}
-                  {m.role === "assistant" && m.status !== "streaming" && (
-                    <button disabled={!canAct} onClick={() => regenerate(m.id)}>
-                      {t("chat.regenerate")}
-                    </button>
-                  )}
-                </div>
-              </article>
+              </ChatMessage>
             );
           })}
           {error && (
-            <p className="error" role="alert">
-              <span aria-hidden="true">⚠</span> {t(error.key, error.vars)}
-              {error.detail && <span lang="en">{`: ${error.detail}`}</span>}
-            </p>
+            <ChatMessage role="system" variant="destructive">
+              <p>
+                <span aria-hidden="true">⚠</span> {t(error.key, error.vars)}
+                {error.detail && <span lang="en">{`: ${error.detail}`}</span>}
+              </p>
+            </ChatMessage>
           )}
-        </section>
-        <form
-          className="composer"
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMessage();
-          }}
-        >
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t("chat.placeholder")}
-            aria-label={t("chat.inputLabel")}
-            disabled={generating}
-          />
-          {generating ? (
-            <button type="button" className="btn btn-secondary" onClick={cancel}>
-              {t("chat.stop")}
-            </button>
-          ) : (
-            <button type="submit" className="btn btn-primary" disabled={!canAct || !text.trim()}>
-              {t("chat.send")}
-            </button>
-          )}
-        </form>
-        <div className="suggestions" role="group" aria-label={t("sug.label")}>
-          {SUGGESTIONS.map((i) => {
-            const q = t(`sug.${custom ? "custom" : personaId}.${i}` as Key);
-            return (
-              <button key={i} type="button" className="suggestion" disabled={!canAct} onClick={() => sendMessage(q)}>
-                {q}
-              </button>
-            );
-          })}
-        </div>
-        <Footer />
+          <ChatInput
+            onSubmit={sendMessage}
+            // No connection indicator in the header: while the socket is not open the (disabled) field says why.
+            placeholder={status === "open" ? t("chat.placeholder") : t(`status.${status}` as Key)}
+            label={t("chat.inputLabel")}
+            disabled={status !== "open" || !conversationId}
+            isGenerating={generating}
+            onStop={cancel}
+            sendLabel={t("chat.send")}
+            stopLabel={t("chat.stop")}
+            hint={t("footer.text")}
+          >
+            {path.length > 0 && (
+              <SuggestionCarousel suggestions={suggestions} disabled={!canAct} onPick={sendMessage} />
+            )}
+          </ChatInput>
+        </ChatContainer>
       </main>
     </div>
+  );
+}
+
+/**
+ * Follow-up questions above the message bar, one at a time: the question, then a "→" button that shows the next one
+ * (wraps around). Asking a question also moves on, so the one just sent is not offered again right away.
+ * The question text is a polite live region, so screen readers hear the new question after pressing "→".
+ */
+function SuggestionCarousel({
+  suggestions,
+  disabled,
+  onPick,
+}: {
+  suggestions: string[];
+  disabled: boolean;
+  onPick: (q: string) => void;
+}) {
+  const { t } = useI18n();
+  const [index, setIndex] = useState(0);
+  const n = suggestions.length;
+  if (n === 0) return null;
+  const i = index % n;
+  const next = () => setIndex((i + 1) % n);
+  return (
+    <div role="group" aria-label={t("sug.label")} className="flex min-w-0 items-center gap-2">
+      <span aria-live="polite" className="flex min-w-0">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            onPick(suggestions[i]);
+            next();
+          }}
+          className={buttonVariants({
+            variant: "outline",
+            size: "sm",
+            // shrink (not the base shrink-0): a long question wraps inside the button instead of overflowing.
+            className: "h-auto min-h-9 min-w-0 shrink whitespace-normal py-2 text-left font-normal leading-snug text-body",
+          })}
+        >
+          {suggestions[i]}
+        </button>
+      </span>
+      {n > 1 && (
+        <button
+          type="button"
+          onClick={next}
+          aria-label={t("sug.next", { i: String(((i + 1) % n) + 1), n: String(n) })}
+          title={t("sug.next", { i: String(((i + 1) % n) + 1), n: String(n) })}
+          className={buttonVariants({ variant: "outline", size: "icon-sm", className: "size-9 text-foreground" })}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** "‹ 2/3 ›": switch between the versions of a message (edit / regenerate create new versions). */
+function Versions({
+  index,
+  total,
+  disabled,
+  onPick,
+}: {
+  index: number;
+  total: number;
+  disabled: boolean;
+  onPick: (index: number) => void;
+}) {
+  const { t } = useI18n();
+  const btn = buttonVariants({ variant: "ghost", size: "icon-sm", className: "text-base" });
+  return (
+    <span role="group" aria-label={t("chat.versions")} className="inline-flex items-center gap-0.5 text-xs text-muted-foreground tabular-nums">
+      <button type="button" className={btn} aria-label={t("chat.prev")} disabled={disabled || index === 0} onClick={() => onPick(index - 1)}>
+        ‹
+      </button>
+      <span>
+        {index + 1}/{total}
+      </span>
+      <button
+        type="button"
+        className={btn}
+        aria-label={t("chat.next")}
+        disabled={disabled || index === total - 1}
+        onClick={() => onPick(index + 1)}
+      >
+        ›
+      </button>
+    </span>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5" />
+    </svg>
   );
 }
 
@@ -480,18 +646,6 @@ function ProgressLine({
           </small>
         )}
       </p>
-    </div>
-  );
-}
-
-/** Grey placeholder lines until the first answer text arrives. */
-function Skeleton() {
-  return (
-    <div className="skeleton" aria-hidden="true">
-      <span style={{ width: "38%" }} />
-      <span style={{ width: "92%" }} />
-      <span style={{ width: "84%" }} />
-      <span style={{ width: "66%" }} />
     </div>
   );
 }

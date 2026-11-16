@@ -47,7 +47,12 @@ function Steps({ steps, onCite }: { steps: number[]; onCite: OnCite }) {
 
 function TargetCard({ s, onCite, volLimit }: { s: TargetSummary; onCite: OnCite; volLimit: number | null }) {
   const { t, code, locale } = useI18n();
-  const metric = (label: string, value: number | null, key: "annualizedVol" | "maxDrawdown" | "totalReturn") => {
+  const metric = (
+    label: string,
+    value: number | null,
+    key: "annualizedVol" | "maxDrawdown" | "totalReturn",
+    bar?: ReactNode,
+  ) => {
     const r = s.range?.[key];
     return (
       <div className="metric">
@@ -57,6 +62,7 @@ function TargetCard({ s, onCite, volLimit }: { s: TargetSummary; onCite: OnCite;
             ? t("m.range", { min: pct(locale, r.min), minT: r.minTicker, max: pct(locale, r.max), maxT: r.maxTicker })
             : pct(locale, value)}
         </dd>
+        {bar && <dd className="metric-bar">{bar}</dd>}
       </div>
     );
   };
@@ -78,8 +84,12 @@ function TargetCard({ s, onCite, volLimit }: { s: TargetSummary; onCite: OnCite;
             </dd>
           </div>
         )}
-        {metric(t("m.vol"), s.annualizedVol, "annualizedVol")}
-        {!s.range && <VolBar value={s.annualizedVol} limit={volLimit} />}
+        {metric(
+          t("m.vol"),
+          s.annualizedVol,
+          "annualizedVol",
+          !s.range && <VolBar value={s.annualizedVol} limit={volLimit} />,
+        )}
         {metric(t("m.mdd"), s.maxDrawdown, "maxDrawdown")}
         {metric(t("m.ret"), s.totalReturn, "totalReturn")}
         {isNum(s.momentum12m) && (

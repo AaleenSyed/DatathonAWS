@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { useI18n } from "./i18n";
-import { useViewMode, type ViewMode } from "./view";
+import { ANSWER_SCALES, useAnswerScale, useViewMode, type ViewMode } from "./view";
 
-// Must match index.html. Dark ("noir") is the default; "light" is the off-white version of the same system.
+// Must match index.html. No saved choice = follow prefers-color-scheme; the switch saves "light" or "dark".
 const THEME_KEY = "colorTheme";
 
 /** Original mark: a four-point spark over a rising line (no real brand's logo). */
@@ -18,6 +19,20 @@ export function Wordmark() {
       <span className="wordmark-text">
         AlphaForge <span className="wordmark-ai">AI</span>
       </span>
+    </span>
+  );
+}
+
+/** The agent's avatar in the chat: the logo's spark in a circle. */
+export function AgentAvatar({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("avatar size-9 text-base shadow-sm", className)}
+    >
+      <svg viewBox="0 0 32 32" width="16" height="16">
+        <path d="M16 5c.8 5.4 3.6 8.2 9 9-5.4.8-8.2 3.6-9 9-.8-5.4-3.6-8.2-9-9 5.4-.8 8.2-3.6 9-9z" fill="currentColor" />
+      </svg>
     </span>
   );
 }
@@ -71,7 +86,7 @@ function LanguageToggle() {
     <button
       type="button"
       className="icon-btn lang-btn"
-      aria-label={label}
+      aria-label={`${t("lang.short")}: ${label}`}
       title={label}
       lang={lang === "fr" ? "en" : "fr"}
       onClick={() => setLang(lang === "fr" ? "en" : "fr")}
@@ -106,17 +121,72 @@ function ViewToggle() {
   );
 }
 
-/** Top bar shared by every page: wordmark (or custom left content), view, language and theme switches. */
-export function AppBar({ left, right, showView = false }: { left?: ReactNode; right?: ReactNode; showView?: boolean }) {
+/** A− / A+: text size of the assistant's answers, 60% to 150%. The current size is in each button's name. */
+function TextSizeToggle() {
+  const { t, lang } = useI18n();
+  const [scale, setScale] = useAnswerScale();
+  const i = ANSWER_SCALES.indexOf(scale as (typeof ANSWER_SCALES)[number]);
+  const pct = `${Math.round(scale * 100)}${lang === "fr" ? " %" : "%"}`;
+  const step = (d: number) => {
+    const next = ANSWER_SCALES[i + d];
+    if (next !== undefined) setScale(next);
+  };
   return (
-    <div className="appbar">
-      <div className="appbar-left">{left ?? <Wordmark />}</div>
-      <div className="appbar-right">
-        {right}
-        {showView && <ViewToggle />}
-        <LanguageToggle />
-        <ThemeToggle />
-      </div>
+    <div className="segmented text-size" role="group" aria-label={t("size.label")}>
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        disabled={i <= 0}
+        aria-label={t("size.smaller", { pct })}
+        title={t("size.smaller", { pct })}
+      >
+        A<span aria-hidden="true">−</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => step(1)}
+        disabled={i >= ANSWER_SCALES.length - 1}
+        aria-label={t("size.larger", { pct })}
+        title={t("size.larger", { pct })}
+      >
+        A<span aria-hidden="true">+</span>
+      </button>
     </div>
+  );
+}
+
+/** Top bar shared by every page: skip link, then a header with the wordmark (or custom left content) and the view,
+ *  language and theme switches. The theme switch is only on the persona picker (`showTheme`); the choice is saved
+ *  and applies everywhere. The `main` element of each page has id="main" (the skip link's target). */
+export function AppBar({
+  left,
+  right,
+  showView = false,
+  showTheme = false,
+}: {
+  left?: ReactNode;
+  right?: ReactNode;
+  showView?: boolean;
+  showTheme?: boolean;
+}) {
+  const { t } = useI18n();
+  return (
+    <>
+      <a className="skip-link" href="#main">
+        {t("a11y.skip")}
+      </a>
+      <header className="appbar">
+        <nav className="appbar-nav" aria-label={t("a11y.nav")}>
+          <div className="appbar-left">{left ?? <Wordmark />}</div>
+          <div className="appbar-right">
+            {right}
+            {showView && <ViewToggle />}
+            {showView && <TextSizeToggle />}
+            <LanguageToggle />
+            {showTheme && <ThemeToggle />}
+          </div>
+        </nav>
+      </header>
+    </>
   );
 }
