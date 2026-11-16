@@ -119,16 +119,31 @@ Settings (`.env`, never committed):
 React + Vite in `apps/web/`, talking to the FastAPI backend in `server/` over the contract in `contracts/`
 (OpenAPI for REST, AsyncAPI for the WebSocket). The details are in `apps/web/README.md`.
 
-- **Persona picker:** each card shows the goal, risk, horizon and the assumed limits from `personas.py`.
+- **Persona picker:** an animated character for each built-in persona (Amira, Mateo, Robert), with the goal, risk
+  and horizon; or build your own fictional profile with 7 questions. The limits are not shown on the cards, but
+  every request is still checked against them.
 - **Chat:** one-click demo questions; live progress (planning, analysing, reviewing, writing); the answer streams in.
+  The persona's character animates while it "talks". Follow-up suggestions appear above the message bar, one at a
+  time.
+- **Conversation:** greetings, questions about the assistant, concept explanations and off-topic messages get a
+  short reply from the intent router, without an evidence panel.
 - **Summary first:** every answer starts with a summary of at most 3 bullets, coloured by the profile check (green
   = fits, amber = caution, red = conflict). The full analysis and the evidence open on demand. A Simple /
   Detailed switch sets the default for every answer.
+- **Profile check:** a verdict badge at the top of each analysis ("Fits Robert's profile", "Flagged: above some of
+  Robert's limits", "Conflicts with Robert's profile") with the rules that did not pass, the sectors that fit
+  better, and a clear notice when the Bedrock Guardrail blocked the request or the answer.
+- **Stock cards:** every stock in the answer as a card with a volatility ring (under 15%, 15 to 30%, over 30%),
+  taken from the risk analyst's output in the trace, in CAD; a card opens its trace step. Stock and sector names
+  are bolded in the summary.
 - **Evidence:** sector cards, risk charts with the persona's limit, the profile check, market context, claims
   with short source labels, the reviewer's verdicts, worker warnings and the full trace with input/output JSON.
 - **Other features:**
   - English and Canadian French, switchable at any time; the next answer is written in the new language.
-  - Original "noir" theme (dark by default, light available), WCAG AA contrast.
+  - Original "noir" theme (dark by default, with an animated starfield; light available), WCAG AA contrast
+    checked by `apps/web/scripts/contrast.mjs`. Animations stop with "reduce motion".
+  - A- / A+ buttons scale the answer text from 60% to 150%, remembered per browser.
+  - Works down to 320 px wide with no horizontal scroll.
   - Edit and regenerate, with version arrows.
   - Reconnects without losing an answer in progress.
 
