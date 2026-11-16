@@ -10,13 +10,15 @@ from starlette.websockets import WebSocketDisconnect
 
 from contract import assert_valid
 from personas import PERSONAS
+import router
 from server import agent
 from server.app import create_app
 from server.auth import Authenticator, AuthError, TicketStore
 from server.config import Settings
+from texts import text_variant
 from workers import data_retriever as dr
 
-pytestmark = pytest.mark.skipif(not (dr.DATA_DIR / "macro_extra.csv").exists(),
+needs_data = pytest.mark.skipif(not (dr.DATA_DIR / "macro_extra.csv").exists(),
                                 reason="needs starter data + data/macro_extra.csv")
 NVDA_Q = "I want to put a big part of my savings in NVDA, good idea?"
 A, B = {"Authorization": "Bearer alice"}, {"Authorization": "Bearer bob"}
@@ -89,12 +91,14 @@ def turn(ws, conv, text, **extra):
 
 # ---------- REST ----------
 
+@needs_data
 def test_health_needs_no_auth(client):
     r = client.get("/health")
     assert r.status_code == 200 and r.json() == {"status": "ok", "agentMode": "demo", "authMode": "dev"}
     assert_valid(r.json(), "Health")
 
 
+@needs_data
 def test_dev_users_depend_on_token(client):
     anon, alice, bob = (client.get("/me", headers=h).json() for h in ({}, A, B))
     assert anon["id"] == "dev-user" and alice["id"] != bob["id"] and alice == client.get("/me", headers=A).json()
@@ -102,6 +106,7 @@ def test_dev_users_depend_on_token(client):
         assert_valid(u, "User")
 
 
+@needs_data
 def test_personas_come_from_personas_py(client):
     body = client.get("/personas", headers=A).json()
     assert_valid(body, "PersonaList")
@@ -112,6 +117,7 @@ def test_personas_come_from_personas_py(client):
     assert got["robert"]["limits"]["stress_2022_max_drawdown"] == -0.15
 
 
+@needs_data
 def test_conversation_crud_and_pagination(client):
     first = new_conv(client)
     assert_valid(first, "Conversation")
@@ -131,6 +137,7 @@ def test_conversation_crud_and_pagination(client):
     assert client.get(f"/conversations/{first['id']}", headers=A).status_code == 404
 
 
+@needs_data
 def test_conversations_are_private(client):
     conv = new_conv(client, headers=A)
     for method, path, body in [("get", "", None), ("get", "/messages", None), ("patch", "", {"title": "x"}),
@@ -148,12 +155,14 @@ def test_conversations_are_private(client):
     ("GET", "/conversations?limit=0", None),
     ("GET", "/conversations?cursor=abc", None),
 ])
+@needs_data
 def test_bad_requests_are_400(client, method, path, body):
     r = client.request(method, path, json=body, headers=A)
     assert r.status_code == 400 and r.json()["code"] == "invalid_request", r.text
     assert_valid(r.json(), "Error")
 
 
+@needs_data
 def test_patch_validation(client):
     conv = new_conv(client)
     for body in ({}, {"activeLeafId": "00000000-0000-0000-0000-000000000000"}, {"title": None}):
@@ -171,6 +180,7 @@ class FakeJwks:
         return self
 
 
+@needs_data
 def test_cognito_mode_verifies_id_tokens(runner):
     private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     settings = Settings(agent_mode="demo", cognito_pool_id="us-east-1_TEST", cognito_client_id="client123")
@@ -193,6 +203,7 @@ def test_cognito_mode_verifies_id_tokens(runner):
         assert_valid(r.json(), "Error")
 
 
+@needs_data
 def test_tickets_are_single_use_and_expire():
     now = [100.0]
     store = TicketStore(ttl=30, clock=lambda: now[0])
@@ -207,6 +218,7 @@ def test_tickets_are_single_use_and_expire():
         store.redeem(t2["ticket"])  # expired
 
 
+@needs_data
 def test_ws_rejects_bad_ticket(client):
     with pytest.raises(WebSocketDisconnect) as e:
         with client.websocket_connect("/ws?ticket=nope") as ws:
@@ -216,6 +228,7 @@ def test_ws_rejects_bad_ticket(client):
 
 # ---------- WebSocket ----------
 
+@needs_data
 def test_ping_and_invalid_messages(client):
     conv = new_conv(client)
     with open_ws(client) as ws:
@@ -231,6 +244,7 @@ def test_ping_and_invalid_messages(client):
         assert ws.receive_json()["code"] == "not_running"
 
 
+@needs_data
 def test_turn_streams_trace_and_ends_with_explanation(client, runner):
     conv = new_conv(client)
     with open_ws(client) as ws:
@@ -261,6 +275,7 @@ def test_turn_streams_trace_and_ends_with_explanation(client, runner):
     assert runner.calls[0]["persona"] == "robert" and runner.calls[0]["lang"] == "en"
 
 
+@needs_data
 def test_french_turn(client, runner):
     conv = new_conv(client, "mateo", language="fr")
     with open_ws(client) as ws:
@@ -273,6 +288,7 @@ def test_french_turn(client, runner):
     assert flagged == {"ENB.TO", "CNQ.TO", "XOM"}
 
 
+@needs_data
 def test_language_can_change_per_message(client, runner):
     conv = new_conv(client, "amira")
     with open_ws(client) as ws:
@@ -280,6 +296,7 @@ def test_language_can_change_per_message(client, runner):
     assert runner.calls[0]["lang"] == "fr" and msg["language"] == "fr"
 
 
+@needs_data
 def test_follow_up_edit_and_regenerate_use_the_branch_history(client, runner):
     conv = new_conv(client)
     with open_ws(client) as ws:
@@ -312,6 +329,7 @@ def test_follow_up_edit_and_regenerate_use_the_branch_history(client, runner):
     assert r.status_code == 200 and r.json()["activeLeafId"] == a2["id"]
 
 
+@needs_data
 def test_busy_then_cancel(tmp_path):
     runner = Runner(tmp_path, block=True)
     client = make_client(runner)
@@ -335,6 +353,7 @@ def test_busy_then_cancel(tmp_path):
     assert [m["status"] for m in items if m["role"] == "assistant"] == ["cancelled", "complete"]
 
 
+@needs_data
 def test_agent_failure_is_reported(tmp_path):
     client = make_client(Runner(tmp_path, fail=True))
     conv = new_conv(client)
@@ -345,9 +364,84 @@ def test_agent_failure_is_reported(tmp_path):
     assert events[-1]["message"]["status"] == "error"
 
 
+@needs_data
 def test_events_reach_every_socket_of_the_user(client):
     conv = new_conv(client)
     with open_ws(client) as ws1, open_ws(client) as ws2:
         events = turn(ws1, conv, NVDA_Q)
         mirrored = until_end(ws2)
     assert [e["type"] for e in mirrored] == [e["type"] for e in events]
+
+
+# ---------- intent router: short replies ----------
+
+def boom(*a, **k):
+    raise AssertionError("LLM called")
+
+
+@needs_data
+def test_greeting_gets_short_reply_without_evidence(client, runner):
+    conv = new_conv(client, "mateo", language="fr")
+    with open_ws(client) as ws:
+        events = turn(ws, conv, "Bonjour")
+    msg = events[-1]["message"]
+    assert msg["final"] is None and msg["status"] == "complete"
+    assert msg["content"] == text_variant("fr", "chat_hello", 1, name="Mateo")
+    assert [s["actor"] for s in msg["trace"]] == ["user", "router", "pipeline"]
+    stages = [e["stage"] for e in events if e["type"] == "generation.status"]
+    assert stages[-1] == "done" and "analyzing" not in stages
+    assert next(e["delta"] for e in events if e["type"] == "message.delta") == msg["content"]
+    stored = client.get(f"/conversations/{conv['id']}/messages", headers=A).json()
+    assert_valid(stored, "MessageList")
+    assert stored["items"][1] == msg and "_intent" not in stored["items"][1]
+
+
+@needs_data
+def test_short_replies_stay_out_of_history_and_rotate(client, runner):
+    conv = new_conv(client)
+    with open_ws(client) as ws:
+        m1 = turn(ws, conv, "Hello")[-1]["message"]
+        m2 = turn(ws, conv, NVDA_Q)[-1]["message"]
+        turn(ws, conv, "And what about bonds?")
+        m4 = turn(ws, conv, "hi")[-1]["message"]
+    assert runner.calls[1]["history"] == [{"question": "Hello", "answer": m1["content"], "intent": "smalltalk"}]
+    assert m2["final"] is not None
+    assert runner.calls[2]["history"][-1] == {"question": NVDA_Q, "answer": m2["content"]}
+    assert m4["content"] != m1["content"]
+
+
+@needs_data
+def test_greeting_does_not_wait_for_run_lock(tmp_path):
+    out = {}
+    agent.RUN_LOCK.acquire()
+    try:
+        t = threading.Thread(target=lambda: out.update(agent.run_turn("robert", "Bonjour", [], "fr", mode="demo",
+                                                                      runs_dir=tmp_path)))
+        t.start()
+        t.join(10)
+        assert not t.is_alive() and out["intent"] == "smalltalk"
+    finally:
+        agent.RUN_LOCK.release()
+
+
+@needs_data
+def test_demo_mode_never_calls_router_llm(tmp_path, monkeypatch):
+    monkeypatch.delenv("ROUTER_LLM", raising=False)
+    monkeypatch.setattr(router, "llm_classify", boom)
+    r = agent.run_turn("robert", "hmm, what do you think?", [], "en", mode="demo", runs_dir=tmp_path)
+    route = next(s for s in r["trace"].steps if s["action"] == "route")
+    assert r["intent"] == "analysis" and route["output"]["method"] == "default"
+    assert route["output"]["reason"] == "LLM step off"
+
+
+@needs_data
+def test_about_in_demo_mode(client, runner):
+    conv = new_conv(client)
+    with open_ws(client) as ws:
+        msg = turn(ws, conv, "How does this work?")[-1]["message"]
+    assert msg["final"] is None and msg["content"] == text_variant("en", "chat_about", 1, name="Robert")
+
+
+def test_stage_for_router():
+    assert agent.stage_for({"actor": "user", "action": "question"}) is None
+    assert agent.stage_for({"actor": "router", "action": "route"}) == "planning"

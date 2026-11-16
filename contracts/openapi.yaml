@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AlphaForge AI Chat API
-  version: 0.3.0
+  version: 0.3.1
   description: |
     REST API for the AlphaForge AI chat assistant (personas, conversations, history, auth helpers).
     Streaming chat runs over WebSocket and is described in `asyncapi.yaml`.
@@ -477,7 +477,9 @@ components:
           oneOf:
             - $ref: "#/components/schemas/ExplainerPayload"
             - type: "null"
-          description: Structured explanation attached to completed assistant messages.
+          description: >-
+            Structured explanation attached to completed assistant messages. Null for short replies (greeting,
+            question about the assistant, off-topic message): no analysis ran, the trace has only the user, router and pipeline steps.
         createdAt: { type: string, format: date-time }
 
     TraceStep:
@@ -489,11 +491,11 @@ components:
         actor:
           type: string
           description: Who did it.
-          examples: [user, boss, "worker:risk_analyst", "worker:suitability", "worker:market_context", "worker:data_retriever", reviewer, presenter, pipeline]
+          examples: [user, boss, "worker:risk_analyst", "worker:suitability", "worker:market_context", "worker:data_retriever", reviewer, presenter, pipeline, guardrail, router]
         action:
           type: string
           pattern: "^[a-zA-Z0-9_-]+$"
-          examples: [question, plan, analyze_asset, analyze_sector, stress_test_2022, check_suitability, cycle_phase, review_work, write_answer, check_answer, final_answer]
+          examples: [question, route, plan, analyze_asset, analyze_sector, stress_test_2022, check_suitability, cycle_phase, review_work, write_answer, check_answer, final_answer]
         input: { description: Arguments of the step (any JSON). }
         output:
           description: |
@@ -754,7 +756,7 @@ components:
       enum: [queued, planning, analyzing, reviewing, writing, checking, done]
       description: |
         queued = waiting for another run to finish; planning = boss is choosing tools; analyzing = workers ran;
-        reviewing = reviewer checks the work; writing = presenter writes; checking = reviewer checks the answer.
+        reviewing = reviewer checks the work; writing = presenter writes; checking = reviewer checks the answer. Short replies go straight to done (they may briefly show queued or planning first).
 
     # ---------------------------------------------------------------------
     # WebSocket payloads (used by asyncapi.yaml). Discriminated by `type`.

@@ -66,7 +66,7 @@ class RunTrace:
         return n
 
     def record_llm(self, role: str, kind: str, ms: float | None, **extra):
-        """One model call: role "boss" (kind "tool_turn" or "plan") or "presenter" (kind "answer")."""
+        """One model call: role "boss" (kind "tool_turn" or "plan"), "presenter" (kind "answer") or "router" (kind "classify")."""
         with self._lock:
             self.meta["llm_calls"].append({"role": role, "kind": kind, "ms": None if ms is None else round(ms),
                                            "at_ms": self.elapsed_ms(), **extra})
@@ -92,8 +92,10 @@ class RunTrace:
             "boss_ms": boss_ms,
             "reviewer_ms": dur(lambda s: s["actor"] == "reviewer"),
             "presenter_ms": dur(lambda s: s["actor"] == "presenter"),
+            "router_ms": dur(lambda s: s["actor"] == "router"),
             "first_text_ms": self.meta.get("first_text_ms"),
             "total_ms": self.elapsed_ms(),
+            "queued_ms": self.meta.get("queued_ms", 0),
             "llm_calls": len(self.meta["llm_calls"]),
             "boss_llm_calls": len(boss_llm),
             "boss_rounds": sum(s["actor"] == "boss" and not s["action"].endswith("_error") for s in self.steps),

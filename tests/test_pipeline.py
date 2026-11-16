@@ -5,9 +5,10 @@ import pytest
 
 import agent_tools as at
 import pipeline
+from texts import text_variant
 from workers import data_retriever as dr
 
-pytestmark = pytest.mark.skipif(not (dr.DATA_DIR / "macro_extra.csv").exists(),
+needs_data = pytest.mark.skipif(not (dr.DATA_DIR / "macro_extra.csv").exists(),
                                 reason="needs starter data + data/macro_extra.csv")
 Q = "I want to put a big part of my savings in NVDA, good idea?"
 PLAN = {"requested_targets": ["NVDA"], "recommended_sectors": ["Consumer Staples"],
@@ -54,11 +55,12 @@ class FakePresenter:
         return vol_text(trace)
 
 
-def session(tmp_path, persona="robert", boss=None, presenter=None, guard=None):
+def session(tmp_path, persona="robert", boss=None, presenter=None, guard=None, **kw):
     return pipeline.ChatSession(persona, boss=boss or FakeBoss(), presenter=presenter or FakePresenter(),
-                                runs_dir=tmp_path, guard=guard)
+                                runs_dir=tmp_path, guard=guard, **kw)
 
 
+@needs_data
 def test_happy_path_and_trace_saved(tmp_path):
     r = session(tmp_path).ask(Q)
     assert r["work_verdict"]["verdict"] == "pass" and r["answer_verdict"]["verdict"] == "pass"
@@ -71,6 +73,7 @@ def test_happy_path_and_trace_saved(tmp_path):
     assert at.CONTEXT["trace"] is None  # context cleared after the turn
 
 
+@needs_data
 def test_reviewer_catches_incomplete_work_and_retries(tmp_path):
     boss = FakeBoss(skip={("check_suitability", "NVDA")})
     r = session(tmp_path, boss=boss).ask(Q)
@@ -80,6 +83,7 @@ def test_reviewer_catches_incomplete_work_and_retries(tmp_path):
     assert "incomplete" not in r["answer"].lower()
 
 
+@needs_data
 def test_gives_up_after_two_retries_with_incomplete_note(tmp_path):
     boss = FakeBoss(skip={("check_suitability", "NVDA")}, forget_rounds=99)
     presenter = FakePresenter()
@@ -89,6 +93,7 @@ def test_gives_up_after_two_retries_with_incomplete_note(tmp_path):
     assert "analysis is incomplete" in r["answer"] and presenter.calls[0]["notes"]
 
 
+@needs_data
 def test_presenter_retry_on_unsupported_number(tmp_path):
     presenter = FakePresenter(bad_first=1)
     r = session(tmp_path, presenter=presenter).ask(Q)
@@ -96,6 +101,7 @@ def test_presenter_retry_on_unsupported_number(tmp_path):
     assert r["answer_verdict"]["verdict"] == "pass" and "9876.5%" not in r["answer"]
 
 
+@needs_data
 def test_presenter_never_fixes_gets_reviewer_note(tmp_path):
     presenter = FakePresenter(bad_first=99)
     r = session(tmp_path, presenter=presenter).ask(Q)
@@ -103,12 +109,14 @@ def test_presenter_never_fixes_gets_reviewer_note(tmp_path):
     assert "Reviewer note" in r["answer"] and r["answer_verdict"]["verdict"] == "fail"
 
 
+@needs_data
 def test_answer_numbers_all_in_trace(tmp_path):
     import reviewer
     r = session(tmp_path).ask(Q)
     assert reviewer.check_answer(r["answer"], r["trace"])["verdict"] == "pass"
 
 
+@needs_data
 def test_tool_error_is_recorded_not_raised(tmp_path):
     boss = FakeBoss(extra=[("analyze_sector", "Nope")])
     r = session(tmp_path, boss=boss).ask(Q)
@@ -116,6 +124,7 @@ def test_tool_error_is_recorded_not_raised(tmp_path):
     assert err and "unknown sector" in err[0]["output_summary"]
 
 
+@needs_data
 def test_boss_exception_is_recorded(tmp_path):
     def broken(prompt):
         raise RuntimeError("bedrock down")
@@ -124,6 +133,7 @@ def test_boss_exception_is_recorded(tmp_path):
     assert any(s["action"] == "plan_error" for s in r["trace"].steps)
 
 
+@needs_data
 def test_multi_turn_history(tmp_path):
     presenter = FakePresenter()
     s = session(tmp_path, presenter=presenter)
@@ -132,17 +142,20 @@ def test_multi_turn_history(tmp_path):
     assert r2["trace"].meta["turn"] == 2 and presenter.calls[-1]["history"][0]["question"] == Q
 
 
+@needs_data
 def test_persona_is_fixed_by_session(tmp_path):
     r = session(tmp_path, persona="amira").ask(Q)
     suit = [s for s in r["trace"].steps if s["action"] == "check_suitability"]
     assert suit and all(s["input"]["persona"] == "amira" for s in suit)
 
 
+@needs_data
 def test_unknown_persona():
     with pytest.raises(ValueError):
         pipeline.ChatSession("bob", boss=FakeBoss(), presenter=FakePresenter())
 
 
+@needs_data
 def test_no_stress_tool_before_end_of_2022(tmp_path):
     at.CONTEXT.update(trace=None, persona="robert", as_of="2022-06-30")
     try:
@@ -173,6 +186,7 @@ def saved_text(r):
     return open(r["saved"]["local"], encoding="utf-8").read()
 
 
+@needs_data
 def test_blocked_input_skips_boss_and_presenter(tmp_path):
     boss, presenter, guard = FakeBoss(), FakePresenter(), FakeGuard(block={"INPUT"})
     r = session(tmp_path, boss=boss, presenter=presenter, guard=guard).ask(PII_Q)
@@ -187,12 +201,14 @@ def test_blocked_input_skips_boss_and_presenter(tmp_path):
     assert "[EMAIL]" in body and at.CONTEXT["trace"] is None
 
 
+@needs_data
 def test_blocked_input_in_french(tmp_path):
     s = pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter(), runs_dir=tmp_path, lang="fr",
                              guard=FakeGuard(block={"INPUT"}))
     assert s.ask(Q)["answer"] == pipeline.text("fr", "guardrail_block", name="Robert")
 
 
+@needs_data
 def test_blocked_output_returns_polite_message(tmp_path):
     boss, guard = FakeBoss(), FakeGuard(block={"OUTPUT"})
     r = session(tmp_path, boss=boss, guard=guard).ask(Q)
@@ -205,6 +221,7 @@ def test_blocked_output_returns_polite_message(tmp_path):
     assert "Not personalized financial advice" in guard.calls[1][1]
 
 
+@needs_data
 def test_guardrail_off_when_id_unset(tmp_path, monkeypatch):
     import guardrail
     monkeypatch.delenv("GUARDRAIL_ID", raising=False)
@@ -217,6 +234,7 @@ def test_guardrail_off_when_id_unset(tmp_path, monkeypatch):
     assert not any(s["actor"] == "guardrail" for s in r["trace"].steps)
 
 
+@needs_data
 def test_guardrail_off_in_demo_mode(tmp_path, monkeypatch):
     import guardrail
     monkeypatch.setenv("GUARDRAIL_ID", "gr-123")
@@ -226,6 +244,7 @@ def test_guardrail_off_in_demo_mode(tmp_path, monkeypatch):
     assert not any(s["actor"] == "guardrail" for s in r["trace"].steps)
 
 
+@needs_data
 def test_guard_error_fails_open_and_is_logged(tmp_path):
     def broken(text, source):
         raise RuntimeError("throttled")
@@ -235,6 +254,7 @@ def test_guard_error_fails_open_and_is_logged(tmp_path):
     assert [s["output"]["status"] for s in logged] == ["error", "error"]
 
 
+@needs_data
 def test_no_raw_pii_in_trace_but_models_get_the_question(tmp_path):
     boss = FakeBoss()
     r = session(tmp_path, boss=boss).ask(PII_Q)
@@ -248,6 +268,7 @@ def test_no_raw_pii_in_trace_but_models_get_the_question(tmp_path):
 
 # ---------- prompt injection (guardrails/02_boss.md) ----------
 
+@needs_data
 def test_prompt_injection_cannot_change_persona_limits(tmp_path):
     import copy
     from personas import PERSONAS
@@ -265,8 +286,161 @@ def test_prompt_injection_cannot_change_persona_limits(tmp_path):
     assert r["trace"].meta["persona"] == "Robert"
 
 
+@needs_data
 def test_explainer_handles_blocked_turn(tmp_path):
     from server import explainer
     r = session(tmp_path, guard=FakeGuard(block={"INPUT"})).ask(Q)
     e = explainer.build(r, "robert", "en")
     assert e["review"]["incomplete"] is False and e["recommendedSectors"] == [] and e["claims"] is not None
+
+
+# ---------- intent router: short replies, history, fallbacks ----------
+
+def boom(*a, **k):
+    raise AssertionError("route called")
+
+
+def actions(r):
+    return [s["action"] for s in r["trace"].steps]
+
+
+def step(r, action):
+    return next(s for s in r["trace"].steps if s["action"] == action)
+
+
+def test_greeting_skips_boss_and_presenter(tmp_path):
+    boss, presenter = FakeBoss(), FakePresenter()
+    r = session(tmp_path, boss=boss, presenter=presenter, guard=FakeGuard()).ask("Bonjour!")
+    assert boss.calls == [] and presenter.calls == []
+    assert r["intent"] == "smalltalk"
+    assert r["answer"] == text_variant("en", "chat_hello", 1, name="Robert")
+    assert r["work_verdict"]["verdict"] == "skipped" and r["answer_verdict"]["verdict"] == "skipped"
+    assert r["plan"] == {}
+    assert actions(r) == ["question", "input_checked", "route", "final_answer"]
+    route = step(r, "route")
+    assert route["actor"] == "router" and route["output"]["intent"] == "smalltalk"
+    assert route["output"]["method"] == "rule"
+    assert step(r, "final_answer")["output"]["intent"] == "smalltalk"
+    assert json.loads(open(r["saved"]["local"], encoding="utf-8").read())["steps"]
+    assert "router_ms" in r["timing"]
+
+
+def test_short_reply_never_touches_tool_context(tmp_path):
+    sentinel = object()
+    at.CONTEXT["trace"] = sentinel
+    try:
+        session(tmp_path, guard=FakeGuard()).ask("hi")
+        assert at.CONTEXT["trace"] is sentinel
+    finally:
+        at.CONTEXT["trace"] = None
+
+
+class CountingLock:
+    entered = 0
+
+    def __enter__(self):
+        self.entered += 1
+
+    def __exit__(self, *a):
+        return False
+
+
+@needs_data
+def test_lock_held_only_for_analysis(tmp_path):
+    lock = CountingLock()
+    s = session(tmp_path, guard=FakeGuard(), lock=lock)
+    s.ask("hi")
+    assert lock.entered == 0
+    s.ask(Q)
+    assert lock.entered == 1
+
+
+@needs_data
+def test_non_analysis_turns_stay_out_of_history(tmp_path):
+    presenter = FakePresenter()
+    s = session(tmp_path, presenter=presenter, guard=FakeGuard())
+    s.ask("hi")
+    assert s.history == [] and s.chat_turns == 1
+    r = s.ask(Q)
+    assert presenter.calls[-1]["history"] == [] and r["trace"].meta["turn"] == 2
+    s.ask("thanks")
+    assert len(s.history) == 1
+    r = s.ask("And what about a smaller amount?")
+    hist = presenter.calls[-1]["history"]
+    assert len(hist) == 1 and hist[0]["question"] == Q and r["trace"].meta["turn"] == 4
+
+
+def test_history_intent_entries_are_filtered(tmp_path):
+    s = pipeline.ChatSession("robert", boss=FakeBoss(), presenter=FakePresenter(), runs_dir=tmp_path,
+                             guard=FakeGuard(), history=[{"question": "hi", "answer": "Hello", "intent": "smalltalk"},
+                                                         {"question": Q, "answer": "A"}])
+    assert s.history == [{"question": Q, "answer": "A"}] and s.chat_turns == 1
+    assert s.ask("thanks")["trace"].meta["turn"] == 3
+
+
+def test_fixed_replies_rotate(tmp_path):
+    s = session(tmp_path, guard=FakeGuard())
+    assert s.ask("hi")["answer"] != s.ask("hello")["answer"]
+
+
+def test_short_reply_in_french(tmp_path):
+    s = session(tmp_path, guard=FakeGuard(), lang="fr")
+    assert s.ask("Merci beaucoup!")["answer"] == text_variant("fr", "chat_thanks", 1, name="Robert")
+
+
+def test_blocked_input_is_never_routed(tmp_path):
+    r = session(tmp_path, route=boom, guard=FakeGuard(block={"INPUT"})).ask("hi")
+    assert actions(r) == ["question", "input_blocked", "final_answer"]
+
+
+@needs_data
+def test_router_exception_falls_back_to_pipeline(tmp_path):
+    def bad(q, h):
+        raise RuntimeError("x")
+    boss = FakeBoss()
+    r = session(tmp_path, boss=boss, route=bad, guard=FakeGuard()).ask(Q)
+    assert len(boss.calls) == 1 and r["work_verdict"]["verdict"] == "pass" and r["intent"] == "analysis"
+    out = step(r, "route")["output"]
+    assert out["method"] == "default" and "router error" in out["reason"]
+
+
+@needs_data
+def test_bad_intent_falls_back_to_pipeline(tmp_path):
+    boss = FakeBoss()
+    session(tmp_path, boss=boss, route=lambda q, h: {"intent": "explain"}, guard=FakeGuard()).ask(Q)
+    assert len(boss.calls) == 1
+
+
+@pytest.mark.parametrize("intent,key", [("off_topic", "chat_off_topic"), ("about", "chat_about")])
+def test_llm_route_is_recorded(tmp_path, intent, key):
+    boss = FakeBoss()
+    fake = lambda q, h: {"intent": intent, "method": "llm", "reason": "weather", "model": "m", "llm_ms": 12.0,
+                         "usage": {"inputTokens": 50, "outputTokens": 5}, "stop": "end_turn"}
+    r = session(tmp_path, boss=boss, route=fake, guard=FakeGuard()).ask("what is the weather?")
+    assert r["answer"] == text_variant("en", key, 1, name="Robert") and boss.calls == []
+    calls = r["trace"].meta["llm_calls"]
+    assert len(calls) == 1 and calls[0]["role"] == "router" and calls[0]["kind"] == "classify" and calls[0]["ms"] == 12
+    assert r["timing"]["inputTokens"] == 50
+
+
+@needs_data
+def test_analysis_turn_has_route_step(tmp_path):
+    r = session(tmp_path, guard=FakeGuard()).ask(Q)
+    assert actions(r)[:3] == ["question", "input_checked", "route"]
+    out = step(r, "route")["output"]
+    assert out["intent"] == "analysis" and out["method"] == "rule"
+    assert r["work_verdict"]["verdict"] == "pass" and r["answer_verdict"]["verdict"] == "pass"
+    assert r["intent"] == "analysis"
+
+
+@needs_data
+def test_route_gets_analysis_history(tmp_path):
+    seen = []
+
+    def spy(q, h):
+        seen.append(list(h))
+        return {"intent": "analysis"}
+    s = session(tmp_path, route=spy, guard=FakeGuard())
+    s.ask(Q)
+    s.ask("And what about a smaller amount?")
+    assert seen[1][-1]["question"] == Q

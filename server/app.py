@@ -399,11 +399,15 @@ def create_app(settings: Settings | None = None, runner=None, authenticator: Aut
                 del running[gen.conv_id]
         if gen.cancelled:
             return
-        try:
-            final = explainer.build(result, conv["personaId"], lang)
-        except Exception:
-            log.exception("explainer failed")
-            final = None
+        intent = result.get("intent", "analysis")
+        final = None
+        if intent == "analysis":
+            try:
+                final = explainer.build(result, conv["personaId"], lang)
+            except Exception:
+                log.exception("explainer failed")
+        else:
+            gen.assistant["_intent"] = intent  # private key (dropped by public()): keeps the turn out of the history
         gen.assistant.update(content=result["answer"], status="complete", final=jsonsafe(final),
                              trace=[to_trace_step(s) for s in result["trace"].steps])
         if conv["id"] in store.conversations:

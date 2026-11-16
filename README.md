@@ -100,6 +100,7 @@ Settings (`.env`, never committed):
 | `GUARDRAIL_ID`, `GUARDRAIL_VERSION` | Bedrock Guardrail; unset = off (also off in demo mode). Version defaults to `DRAFT` |
 | `AGENT_MODE` | `bedrock` (default) or `demo` |
 | `BOSS_MODEL`, `PRESENTER_MODEL` | Override the default models |
+| `ROUTER_MODEL`, `ROUTER_LLM` | Intent router model (default Haiku 4.5); `ROUTER_LLM=0` turns its LLM step off (rules only) |
 | `TOOL_CACHE`, `WARM_UP` | `0` disables the per-process worker cache / the start-up warm-up |
 | `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | Set both to require Cognito sign-in tokens |
 

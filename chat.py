@@ -56,11 +56,12 @@ def main():
         if q == "/persona":
             session, last = ChatSession(pick_persona()), None
             continue
-        print("...analyzing (boss -> workers -> reviewer -> presenter)")
+        print("...working")
         last = session.ask(q)
         print("\n" + last["answer"])
-        print(f"\n[work review: {last['work_verdict']['verdict']} | answer check: {last['answer_verdict']['verdict']}"
-              f" | trace: {last['saved']['local']}]")
+        if last.get("intent", "analysis") == "analysis":
+            print(f"\n[work review: {last['work_verdict']['verdict']} | answer check: {last['answer_verdict']['verdict']}"
+                  f" | trace: {last['saved']['local']}]")
 
 
 if __name__ == "__main__":

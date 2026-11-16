@@ -86,13 +86,17 @@ class Store:
         return out[::-1]
 
     def history_before(self, conv_id: str, user_msg: dict) -> list[dict]:
-        """Earlier completed turns [{"question", "answer"}] on the branch that leads to user_msg."""
+        """Earlier completed turns [{"question", "answer"}] on the branch that leads to user_msg.
+        Short-reply turns (greeting, about, off-topic) also carry "intent"; ChatSession filters them."""
         path = self.path_to(conv_id, user_msg["parentId"])
         turns = []
         for i in range(len(path) - 1):
             q, a = path[i], path[i + 1]
             if q["role"] == "user" and a["role"] == "assistant" and a["status"] == "complete" and a["content"]:
-                turns.append({"question": q["content"], "answer": a["content"]})
+                turn = {"question": q["content"], "answer": a["content"]}
+                if a.get("_intent"):
+                    turn["intent"] = a["_intent"]
+                turns.append(turn)
         return turns
 
 

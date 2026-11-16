@@ -1,4 +1,7 @@
 import json
+import os
+
+import pytest
 
 PLAIN = (dict, list, str, int, float, bool, type(None))
 
@@ -16,3 +19,11 @@ def assert_plain(obj, path="result"):
     if path == "result":
         json.dumps(obj, allow_nan=False)
     return obj
+
+
+@pytest.fixture(autouse=True)
+def router_llm_off(monkeypatch):
+    """Unit tests never call Bedrock for routing: unclear messages go to the pipeline (method "default").
+    Live tests (RUN_LIVE=1) keep the real router."""
+    if os.getenv("RUN_LIVE") != "1":
+        monkeypatch.setenv("ROUTER_LLM", "0")
