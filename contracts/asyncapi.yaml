@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: AlphaForge AI Chat WebSocket
-  version: 0.3.0
+  version: 0.3.1
   description: |
     Streaming chat protocol shared by web and mobile clients.
     All payload schemas live in `openapi.yaml` (`components/schemas/Ws*`) and are
@@ -16,6 +16,7 @@ info:
     `trace.step` (one per run-trace step, live), then `message.delta` events (the answer text as it is
     written; `reset: true` replaces the text so far) and `message.end` (the message with its `trace` and
     `final` explanation). A run takes 20-30 seconds; one run at a time per conversation (`busy` error otherwise).
+    A greeting, a question about the assistant, a general concept question, an off-topic message or a message the demo mode cannot place (no investing signal) gets a short conversational reply at once (written by Claude Haiku 4.5 on Bedrock and checked; a fixed text in demo mode or on error; it does not wait for a running analysis): trace steps user, router, pipeline, plus guardrail steps when the guardrail is configured, one message.delta, then message.end with final null.
     `generation.cancel` ends the message at once with status `cancelled`; the result of the run is discarded.
     Events of a conversation go to every open socket of the same user (reconnects keep receiving them).
     Send `ping` every 25 seconds; the server answers `pong`.

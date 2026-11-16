@@ -100,6 +100,7 @@ Settings (`.env`, never committed):
 | `GUARDRAIL_ID`, `GUARDRAIL_VERSION` | Bedrock Guardrail; unset = off (also off in demo mode). Version defaults to `DRAFT` |
 | `AGENT_MODE` | `bedrock` (default) or `demo` |
 | `BOSS_MODEL`, `PRESENTER_MODEL` | Override the default models |
+| `ROUTER_MODEL`, `ROUTER_LLM` | Intent router model (default Haiku 4.5); `ROUTER_LLM=0` turns its LLM step off (rules only) |
 | `TOOL_CACHE`, `WARM_UP` | `0` disables the per-process worker cache / the start-up warm-up |
 | `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | Set both to require Cognito sign-in tokens |
 
@@ -249,6 +250,7 @@ They form 13 sector groups:
   Every answer has a full trace for auditing.
 - **The guardrail fails open.** If the Bedrock Guardrail API errors, the answer still goes through and the trace
   records it. Persona-fit rules stay in the suitability worker either way.
+- **Conversational replies.** Replies to greetings, questions about the assistant and general concept explanations are written by Claude Haiku 4.5 without data; code rejects any such reply containing a digit, a % sign or an asset from the universe. Only analysis answers carry figures, each with source and period.
 - **Literal word matching.** Target words are matched literally: "I have little energy..." makes the reviewer
   require an Energy analysis. This costs extra tool calls, not a wrong answer.
 - **Member metrics:** inside a sector, they use the sector's common dates, so a member's volatility can differ

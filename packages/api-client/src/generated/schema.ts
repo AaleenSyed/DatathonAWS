@@ -385,7 +385,7 @@ export interface components {
             language: components["schemas"]["Language"];
             /** @description Every step of the run (assistant messages only; empty for user messages). */
             trace: components["schemas"]["TraceStep"][];
-            /** @description Structured explanation attached to completed assistant messages. */
+            /** @description Structured explanation attached to completed assistant messages. Null for short conversational replies (greeting, question about the assistant, general concept question, off-topic message, or a message the demo mode cannot place (no investing signal); written by Claude Haiku 4.5 on Bedrock and checked, a fixed text in demo mode or on error): no analysis ran, the trace has the user, router and pipeline steps, plus guardrail steps when the guardrail is configured. */
             final: components["schemas"]["ExplainerPayload"] | null;
             /** Format: date-time */
             createdAt: string;
@@ -405,10 +405,13 @@ export interface components {
              * @example reviewer
              * @example presenter
              * @example pipeline
+             * @example guardrail
+             * @example router
              */
             actor: string;
             /**
              * @example question
+             * @example route
              * @example plan
              * @example analyze_asset
              * @example analyze_sector
@@ -642,7 +645,7 @@ export interface components {
         };
         /**
          * @description queued = waiting for another run to finish; planning = boss is choosing tools; analyzing = workers ran;
-         *     reviewing = reviewer checks the work; writing = presenter writes; checking = reviewer checks the answer.
+         *     reviewing = reviewer checks the work; writing = presenter writes; checking = reviewer checks the answer. Short replies go straight to done (they may briefly show queued or planning first).
          * @enum {string}
          */
         GenerationStage: "queued" | "planning" | "analyzing" | "reviewing" | "writing" | "checking" | "done";
