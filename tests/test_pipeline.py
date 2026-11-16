@@ -365,7 +365,7 @@ def test_non_analysis_turns_stay_out_of_history(tmp_path):
     assert presenter.calls[-1]["history"] == [] and r["trace"].meta["turn"] == 2
     s.ask("thanks")
     assert len(s.history) == 1
-    r = s.ask("And what about a smaller amount?")
+    r = s.ask("And what about a smaller amount of money?")  # keyword: last turn is "thanks", not an analysis
     hist = presenter.calls[-1]["history"]
     assert len(hist) == 1 and hist[0]["question"] == Q and r["trace"].meta["turn"] == 4
 
@@ -466,6 +466,14 @@ def test_llm_reply_is_shown_and_guarded(tmp_path):
     fa = step(r, "final_answer")["output"]
     assert fa["intent"] == "smalltalk" and fa["reply_source"] == "llm"
     assert s.history == [] and s.turns[-1]["intent"] == "smalltalk"
+
+
+def test_unclear_demo_message_gets_fixed_text(tmp_path):
+    called = []
+    s = session(tmp_path, boss=lambda p: called.append("boss"), presenter=lambda *a, **k: called.append("presenter"))
+    r = s.ask("What color is the sky?")  # default route, LLM off via conftest
+    assert called == [] and r["answer"] == text_variant("en", "chat_unclear", 1, name="Robert")
+    assert step(r, "route")["output"]["intent"] == "unclear" and s.history == []
 
 
 @pytest.mark.parametrize("bad", ["Stocks made 7 last year.", "About ten % a year.", "word " * 121])

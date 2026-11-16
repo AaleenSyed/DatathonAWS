@@ -431,8 +431,16 @@ def test_demo_mode_never_calls_router_llm(tmp_path, monkeypatch):
     monkeypatch.setattr(router, "llm_classify", boom)
     r = agent.run_turn("robert", "hmm, what do you think?", [], "en", mode="demo", runs_dir=tmp_path)
     route = next(s for s in r["trace"].steps if s["action"] == "route")
-    assert r["intent"] == "analysis" and route["output"]["method"] == "default"
-    assert route["output"]["reason"] == "LLM step off"
+    assert r["intent"] == "unclear" and route["output"]["method"] == "rule"  # no report in demo mode
+    assert route["output"]["reason"] == "no investing signal (LLM off)"
+
+
+@needs_data
+def test_unclear_in_demo_mode(client, runner):
+    conv = new_conv(client)
+    with open_ws(client) as ws:
+        msg = turn(ws, conv, "What color is the sky?")[-1]["message"]
+    assert msg["final"] is None and msg["content"] == text_variant("en", "chat_unclear", 1, name="Robert")
 
 
 @needs_data

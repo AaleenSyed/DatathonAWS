@@ -32,7 +32,7 @@ PROMPTS = Path(__file__).resolve().parent / "prompts"
 ROUTER_MODEL = os.getenv("ROUTER_MODEL", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
 ROUTER_MAX_TOKENS = 500
 ROUTER_LIMITS = {"turns": 2}  # 1 expected
-INTENTS = ("analysis", "smalltalk", "about", "explain", "off_topic")
+INTENTS = ("analysis", "smalltalk", "about", "explain", "off_topic", "unclear")  # unclear: rule only (LLM off)
 CHAT_TURNS = 4          # last turns (analysis and short replies) shown to the router
 TURN_CHARS = 300        # per question and per answer
 QUESTION_CHARS = 1000
@@ -67,6 +67,10 @@ ABOUT = re.compile("|".join([
     r"where (?:do|does) (?:your|the|these|those) (?:data|numbers|figures|sources) come from",
     r"where do you get (?:your|the|these|those) (?:data|numbers|figures|sources)",
     r"what (?:data|sources) do you use",
+    r"what can you help (?:me )?with", r"how can you help(?: me)?", r"what do you help with",
+    r"what (?:kind of )?(?:things|questions) can i ask",
+    r"en quoi (?:peux tu|pouvez vous) m aider", r"comment (?:peux tu|pouvez vous) m aider",
+    r"(?:tu peux|vous pouvez) m aider (?:avec|pour) quoi",
     r"qui es tu", r"qui etes vous", r"(?:tu es|t es|vous etes) qui",
     r"c est quoi (?:alphaforge(?: ai)?|ce site|cette app(?:lication)?|cet outil|ce chatbot|ce robot)",
     r"qu est ce que (?:tu peux|tu sais|vous pouvez|vous savez) faire",
@@ -140,7 +144,7 @@ def reply_key(intent: str, question: str) -> str:
     """texts.py key of the fixed reply for a non-analysis intent."""
     if intent == "smalltalk":
         return "chat_thanks" if THANKS_BYE.search(normalize(question)) else "chat_hello"
-    return {"about": "chat_about", "off_topic": "chat_off_topic"}[intent]
+    return {"about": "chat_about", "off_topic": "chat_off_topic", "unclear": "chat_unclear"}[intent]
 
 
 def llm_enabled() -> bool:
@@ -255,6 +259,9 @@ def route(question: str, history: list[dict] | None = None, llm: bool = True, cl
         if not use_llm:
             if out["method"] == "rule":
                 return {**out, "reply_note": "LLM step off"}
+            if not (last and last.get("intent", "analysis") == "analysis"):  # no likely follow-up: don't run a report
+                return {**out, "intent": "unclear", "method": "rule", "reason": "no investing signal (LLM off)",
+                        "reply_note": "LLM step off"}
             return {**out, "reason": "LLM step off"}
         out["model"] = ROUTER_MODEL
         t0 = time.perf_counter()

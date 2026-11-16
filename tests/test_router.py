@@ -52,10 +52,35 @@ def test_mixed_with_ticker():
 @pytest.mark.parametrize("q", ["ok", "yes", "oui"])
 def test_not_rules(q):
     r = route(q, llm=False)
+    # no investing signal and no analysis before it: demo mode must not run a full report
+    assert (r["intent"], r["method"], r["reason"]) == ("unclear", "rule", "no investing signal (LLM off)")
+
+
+@pytest.mark.parametrize("q", ["What color is the sky?", "hmm, what do you think?", "tell me a joke"])
+def test_unclear_when_llm_off(q):
+    r = route(q, llm=False)
+    assert (r["intent"], r["method"], r["reply_note"]) == ("unclear", "rule", "LLM step off")
+
+
+@pytest.mark.parametrize("q", ["What can you help me with?", "How can you help me?", "En quoi pouvez-vous m'aider?"])
+def test_help_phrases_are_about(q):
+    assert route(q, llm=False)["intent"] == "about"
+
+
+def test_llm_off_follow_up_after_analysis_stays_analysis():
+    hist = [{"question": "Q1", "answer": "A1", "intent": "analysis"}]
+    r = route("and what if I just wait a while longer then", hist, llm=False)
     assert (r["intent"], r["method"], r["reason"]) == ("analysis", "default", "LLM step off")
 
 
-@pytest.mark.parametrize("intent", router.INTENTS)
+def test_unclear_never_from_llm_on():
+    seen = []
+    r = route("What color is the sky?", classify=lambda q, c: seen.append(q) or
+              {"intent": "off_topic", "confidence": "high", "reply": "x", "reason": "r"})
+    assert seen and r["intent"] == "off_topic"
+
+
+@pytest.mark.parametrize("intent", [i for i in router.INTENTS if i != "unclear"])  # rule-only intent
 def test_llm_each_intent(intent):
     seen = []
 
@@ -85,11 +110,11 @@ def test_llm_off_switches(monkeypatch):
     monkeypatch.setattr(router, "llm_classify", boom)
     q = "hmm, what do you think?"
     monkeypatch.setenv("ROUTER_LLM", "0")
-    assert route(q)["method"] == "default"
+    assert route(q)["reason"] == "no investing signal (LLM off)"
     monkeypatch.delenv("ROUTER_LLM")
     monkeypatch.setenv("AGENT_MODE", "demo")
-    assert route(q)["method"] == "default"
-    assert route(q, llm=False, classify=boom)["method"] == "default"
+    assert route(q)["reason"] == "no investing signal (LLM off)"
+    assert route(q, llm=False, classify=boom)["reason"] == "no investing signal (LLM off)"
 
 
 def test_build_prompt():
@@ -108,10 +133,11 @@ def test_reply_key():
     assert router.reply_key("smalltalk", "Bonjour") == "chat_hello"
     assert router.reply_key("about", "x") == "chat_about"
     assert router.reply_key("off_topic", "x") == "chat_off_topic"
+    assert router.reply_key("unclear", "x") == "chat_unclear"
 
 
 @pytest.mark.parametrize("lang", ["en", "fr"])
-@pytest.mark.parametrize("key", ["chat_hello", "chat_thanks", "chat_about", "chat_off_topic"])
+@pytest.mark.parametrize("key", ["chat_hello", "chat_thanks", "chat_about", "chat_off_topic", "chat_unclear"])
 def test_fixed_texts(lang, key):
     options = TEXT[lang][key]
     assert isinstance(options, tuple) and len(options) in (2, 3)
@@ -128,7 +154,7 @@ def test_fixed_texts(lang, key):
 
 def test_prompt_file():
     t = (router.PROMPTS / "router_system.txt").read_text(encoding="utf-8")
-    assert all(i in t for i in router.INTENTS)
+    assert all(i in t for i in router.INTENTS if i != "unclear")  # unclear is rule-only
     assert all(k in t for k in ("{{PROFILE}}", "{{AS_OF}}", "{{LANGUAGE}}"))
 
 

@@ -35,6 +35,10 @@ TEXT = {
             "I can't help with that one. I only cover investing questions for the fictional profile {name}: sectors, stocks in my data, risk and fit with the profile. Simulation only, not personal advice.",
             "Sorry, that's not something I cover. Ask me about a sector, a stock or a risk for {name}'s profile and I'll answer with data and sources.",
         ),
+        "chat_unclear": (
+            "I'm not sure I can help with that. I answer investing questions for the fictional profile {name}, for example: “Which sector fits my profile?” or “Is tech too risky for me?”",
+            "I didn't catch an investing question there. Ask me about a sector, a stock or a risk for the fictional profile {name}, for example: “Where should I look for growth?”",
+        ),
     },
     "fr": {
         "chat_offer": "_Explication générale seulement, sans chiffres tirés des données. Voulez-vous que je lance l’analyse pour le profil de {name}? Répondez oui._",
@@ -66,6 +70,10 @@ TEXT = {
             "Cela sort de ce que je peux faire. Je suis une simulation éducative sur l’investissement : les secteurs, les risques et leur adéquation avec le profil fictif {name}. Essayez une question comme « Où chercher de la croissance? »",
             "Je ne peux pas vous aider là-dessus. Je traite seulement les questions d’investissement pour le profil fictif {name} : secteurs, titres de mes données, risque et adéquation avec le profil. Simulation seulement, pas un conseil personnel.",
             "Désolé, ce sujet n’est pas couvert. Posez-moi une question sur un secteur, un titre ou un risque pour le profil de {name} et je répondrai avec données et sources.",
+        ),
+        "chat_unclear": (
+            "Je ne suis pas certain de pouvoir vous aider avec cela. Je réponds aux questions d’investissement pour le profil fictif {name}, par exemple : « Quel secteur convient à mon profil? » ou « La techno est-elle trop risquée pour moi? »",
+            "Je n’ai pas repéré de question d’investissement. Posez-moi une question sur un secteur, un titre ou un risque pour le profil fictif {name}, par exemple : « Où chercher de la croissance? »",
         ),
     },
 }

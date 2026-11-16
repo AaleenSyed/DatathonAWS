@@ -479,7 +479,7 @@ components:
             - type: "null"
           description: >-
             Structured explanation attached to completed assistant messages. Null for short conversational replies (greeting,
-            question about the assistant, general concept question, off-topic message; written by Claude Haiku 4.5 on Bedrock
+            question about the assistant, general concept question, off-topic message, or a message the demo mode cannot place (no investing signal); written by Claude Haiku 4.5 on Bedrock
             and checked, a fixed text in demo mode or on error): no analysis ran, the trace has the user, router and pipeline steps,
             plus guardrail steps when the guardrail is configured.
         createdAt: { type: string, format: date-time }

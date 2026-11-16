@@ -385,7 +385,7 @@ export interface components {
             language: components["schemas"]["Language"];
             /** @description Every step of the run (assistant messages only; empty for user messages). */
             trace: components["schemas"]["TraceStep"][];
-            /** @description Structured explanation attached to completed assistant messages. Null for short replies (greeting, question about the assistant, off-topic message): no analysis ran, the trace has only the user, router and pipeline steps. */
+            /** @description Structured explanation attached to completed assistant messages. Null for short conversational replies (greeting, question about the assistant, general concept question, off-topic message, or a message the demo mode cannot place (no investing signal); written by Claude Haiku 4.5 on Bedrock and checked, a fixed text in demo mode or on error): no analysis ran, the trace has the user, router and pipeline steps, plus guardrail steps when the guardrail is configured. */
             final: components["schemas"]["ExplainerPayload"] | null;
             /** Format: date-time */
             createdAt: string;
