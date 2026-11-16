@@ -8,6 +8,7 @@ LANGUAGES = ("en", "fr")
 TEXT = {
     "en": {
         "disclaimer": "_Educational simulation for a fictional persona ({name}). Not personalized financial advice._",
+        "chat_offer": "_General explanation only, with no figures from the data. Want me to run the analysis for {name}'s profile? Just say yes._",
         "incomplete": "> **Note:** the analysis is incomplete (see trace).",
         "reviewer_note": "> **Reviewer note:** {reasons}",
         "no_answer": "Sorry, the answer could not be written this time. The analysis is saved in the trace.",
@@ -36,6 +37,7 @@ TEXT = {
         ),
     },
     "fr": {
+        "chat_offer": "_Explication générale seulement, sans chiffres tirés des données. Voulez-vous que je lance l’analyse pour le profil de {name}? Répondez oui._",
         "disclaimer": "_Simulation éducative pour un profil fictif ({name}). Ne constitue pas un conseil financier "
                       "personnalisé._",
         "incomplete": "> **Note :** l’analyse est incomplète (voir la trace).",

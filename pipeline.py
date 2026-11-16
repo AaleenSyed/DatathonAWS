@@ -1,4 +1,4 @@
-"""Chat pipeline: ROUTER (rules, then Haiku) -> BOSS (Strands agent on Bedrock) -> worker tools
+"""Chat pipeline: ROUTER (rules, then Haiku: intent + chat reply) -> BOSS (Strands agent on Bedrock) -> worker tools
 -> REVIEWER (max 2 retries) -> PRESENTER (streamed) -> answer check (max 1 retry) -> run trace saved locally + S3.
 
 ChatSession keeps the boss agent (and so the conversation) across turns for one persona.
@@ -136,7 +136,7 @@ class ChatSession:
         streamed so far, the reviewer asked for a rewrite). Only the Bedrock presenter streams.
         guard: callable(text, source) -> {"action", ...} applying the Bedrock Guardrail (default guardrail.check,
         skipped when GUARDRAIL_ID is unset or AGENT_MODE=demo). Injectable for tests.
-        route: callable(question, history) -> router.route()-style dict (default router.route).
+        route: callable(question, history, context=...) -> router.route()-style dict (default router.route).
         lock: context manager held around the analysis only (server passes RUN_LOCK); guard, router and short
         replies run outside it."""
         key = str(persona).strip().lower()
@@ -145,7 +145,8 @@ class ChatSession:
         self.persona_key, self.persona, self.as_of = key, PERSONAS[key], as_of
         self.lang = lang_or_default(lang)
         turns = [dict(h) for h in (history or [])]
-        # short-reply turns ({"intent": "smalltalk" | "about" | "off_topic"}) never reach the boss / presenter
+        self.turns = turns  # every earlier turn, short replies included: the router's chat context
+        # short-reply turns ({"intent": "smalltalk" | "about" | "explain" | "off_topic"}) never reach the boss / presenter
         self.history: list[dict] = [h for h in turns if h.get("intent", "analysis") == "analysis"]
         self.chat_turns = len(turns) - len(self.history)  # still counted in the turn number (rotates fixed replies)
         self.boss = boss  # None: built on the first analysis turn (a greeting never builds it)
@@ -205,11 +206,13 @@ class ChatSession:
                                                      "answer_verdict": "blocked", "blocked_by": source})
         return answer
 
-    def _route(self, trace, question, safe_question):
-        """Classify the message. Returns (intent, trace.add args for the router/route step). Never raises."""
+    def _route(self, trace, question, safe_question) -> dict:
+        """Classify the message and get the chat reply. Returns {"intent", "reply", "question", "source", "step"}
+        (step = trace.add args for the router/route step). Never raises."""
         t0 = time.perf_counter()
+        ctx = {"persona": self.persona, "lang": self.lang, "as_of": self.as_of, "turns": self.turns}
         try:
-            r = dict(self.route(question, self.history) or {})
+            r = dict(self.route(question, self.history, context=ctx) or {})
         except Exception as e:
             r = {"reason": f"router error: {str(e)[:200]}"}
         if r.get("intent") not in router.INTENTS:
@@ -217,16 +220,43 @@ class ChatSession:
         if r.get("llm_ms") is not None:
             trace.record_llm("router", "classify", r["llm_ms"], stop=r.get("stop"))
         trace.record_usage("router", "classify", r.get("usage"))
-        out = {"intent": r["intent"], "method": r.get("method") or "default",
-               "reason": guardrail.redact_pii(str(r.get("reason") or ""))[:200], "model": r.get("model")}
-        return r["intent"], ("router", "route", {"question": safe_question[:500]}, out, _ms_since(t0))
+        intent, reply, note, rejected = r["intent"], "", r.get("reply_note"), None
+        if intent != "analysis":
+            reply = str(r.get("reply") or "").strip()
+            problem = router.reply_problem(reply, self.as_of) if reply else None
+            if problem:
+                note, rejected, reply = f"rejected: {problem}", reply, ""
+            if not reply and intent == "explain":  # a concept question with no safe reply gets the full analysis
+                intent, note = "analysis", f"explain without a usable reply ({note or 'no reply'}): analysis runs"
+        source = None if intent == "analysis" else "llm" if reply else "fixed"
+        out = {"intent": intent, "method": r.get("method") or "default",
+               "reason": guardrail.redact_pii(str(r.get("reason") or ""))[:200], "model": r.get("model"),
+               "confidence": r.get("confidence"), "reply_source": source, "reply_note": note}
+        if rejected:
+            out["rejected_reply"] = guardrail.redact_pii(rejected)[:300]
+        asked = r.get("question") if intent == "analysis" else None
+        if asked:
+            out["question_used"] = guardrail.redact_pii(str(asked))[:500]
+        return {"intent": intent, "reply": reply, "question": asked, "source": source,
+                "step": ("router", "route", {"question": safe_question[:500]}, out, _ms_since(t0))}
 
-    def _short_reply(self, trace, question, safe_question, intent, turn) -> dict:
-        """Fixed text (texts.py) for smalltalk / about / off_topic: no boss, no presenter, no tool context."""
-        answer = text_variant(self.lang, router.reply_key(intent, question), turn, name=self.persona["name"])
-        skipped = {"verdict": "skipped", "reasons": [f"{intent}: fixed reply, no analysis"]}
-        trace.add("pipeline", "final_answer", None, {"answer": answer, "intent": intent, "work_verdict": "skipped",
-                                                     "answer_verdict": "skipped"})
+    def _short_reply(self, trace, question, safe_question, intent, turn, reply="") -> dict:
+        """Reply for smalltalk / about / explain / off_topic: no boss, no presenter, no tool context.
+        reply: checked LLM text (router.reply_problem passed); "" = fixed text (texts.py)."""
+        name = self.persona["name"]
+        source = "llm" if reply else "fixed"
+        skipped = {"verdict": "skipped", "reasons": [f"{intent}: {source} reply, no analysis"]}
+        if reply:
+            answer = reply
+            if intent == "explain":
+                answer += "\n\n" + text(self.lang, "chat_offer", name=name) + "\n\n" + text(self.lang, "disclaimer", name=name)
+            if self._guard(trace, answer, "OUTPUT"):  # LLM output: same guardrail as the presenter's answer
+                check = {"verdict": "blocked", "reasons": ["reply blocked by the Bedrock Guardrail"]}
+                return self._finish(trace, safe_question, self._blocked(trace, "OUTPUT"), {}, skipped, check, intent=intent)
+        else:
+            answer = text_variant(self.lang, router.reply_key(intent, question), turn, name=name)
+        trace.add("pipeline", "final_answer", None, {"answer": answer, "intent": intent, "reply_source": source,
+                                                     "work_verdict": "skipped", "answer_verdict": "skipped"})
         return self._finish(trace, safe_question, answer, {}, skipped, skipped, intent=intent)
 
     def ask(self, question: str) -> dict:
@@ -239,14 +269,17 @@ class ChatSession:
         if self._guard(trace, question, "INPUT"):  # blocked: no router, no boss, no presenter
             blocked = {"verdict": "blocked", "reasons": ["input blocked by the Bedrock Guardrail"]}
             return self._finish(trace, safe_question, self._blocked(trace, "INPUT"), {}, blocked, blocked)
-        intent, route_step = self._route(trace, question, safe_question)
-        if intent != "analysis":
-            trace.add(*route_step)
-            return self._short_reply(trace, question, safe_question, intent, turn)
+        routed = self._route(trace, question, safe_question)
+        if routed["intent"] != "analysis":
+            trace.add(*routed["step"])
+            return self._short_reply(trace, question, safe_question, routed["intent"], turn, routed["reply"])
+        if routed["question"]:  # "yes" after an explain offer: analyze the earlier message (it passed the input guard on its own turn)
+            question = routed["question"]
+            safe_question = guardrail.redact_pii(question)
         t_wait = time.perf_counter()
         with self.lock:  # agent_tools.CONTEXT is process-wide: only touched while the lock is held
             trace.meta["queued_ms"] = round((time.perf_counter() - t_wait) * 1000)
-            trace.add(*route_step)  # added once the run really starts, so a queued run shows "queued" until then
+            trace.add(*routed["step"])  # added once the run really starts, so a queued run shows "queued" until then
             if self.boss is None:
                 self.boss = make_boss(self.persona_key, self.as_of, self.history)
             agent_tools.CONTEXT.update(trace=trace, persona=self.persona_key, as_of=self.as_of)
@@ -311,7 +344,9 @@ class ChatSession:
         saved = trace.save(self.runs_dir)
         if intent == "analysis":
             self.history.append({"question": question, "answer": answer})
+            self.turns.append({"question": question, "answer": answer})
         else:
             self.chat_turns += 1
+            self.turns.append({"question": question, "answer": answer, "intent": intent})
         return {"answer": answer, "plan": plan, "work_verdict": verdict, "answer_verdict": check,
                 "trace": trace, "saved": saved, "timing": trace.timing(), "intent": intent}

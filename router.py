@@ -1,14 +1,19 @@
-"""Intent router: classifies each user message before the pipeline. It never writes the reply.
+"""Intent router: classifies each user message before the pipeline and, for short replies, gets the chat text.
 
-Intents: analysis (default, follow-ups included), smalltalk, about, off_topic. Cheapest first:
-1. greeting / thanks / bye regex (EN + FR), full match on the normalized message -> smalltalk
-2. reviewer.extract_targets(question) non-empty -> analysis
-3. "who are you / what can you do / comment ça marche ..." -> about
-4. Claude Haiku 4.5 on Bedrock (ROUTER_MODEL): tiny Strands agent, no tools, structured output
-5. any error, bad output or doubt -> analysis
+Intents: analysis (default, follow-ups included), smalltalk, about, explain, off_topic. Order, cheapest first:
+0. "yes / oui" right after an explain reply -> analysis of the earlier question (rule)
+1. greeting / thanks / bye regex (EN + FR) -> smalltalk (rule)
+2. universe asset named, or investing keyword -> analysis (rule), unless the message is a definition question
+3. "who are you / what can you do / comment ca marche ..." -> about (rule)
+4. short message right after an analysis -> analysis (rule)
+5. Claude Haiku 4.5 on Bedrock (ROUTER_MODEL): one call returns intent, confidence and the reply text. When a
+   rule fixed the intent (smalltalk / about) the LLM only writes the reply; callers fall back to fixed texts.
+6. any error, bad output or doubt (confidence not high) -> analysis
+Replies must pass reply_problem() (no digit, %, universe asset, max length): the caller checks.
 Thread safety: runs outside server.agent.RUN_LOCK, so it must never touch agent_tools.CONTEXT.
 The LLM step is off with llm=False, ROUTER_LLM=0 or AGENT_MODE=demo.
 """
+import functools
 import os
 import re
 import time
@@ -20,15 +25,20 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 import reviewer
+from workers import data_retriever as dr
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 ROUTER_MODEL = os.getenv("ROUTER_MODEL", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
-ROUTER_MAX_TOKENS = 200
+ROUTER_MAX_TOKENS = 500
 ROUTER_LIMITS = {"turns": 2}  # 1 expected
-INTENTS = ("analysis", "smalltalk", "about", "off_topic")
-PREV_ANSWER_CHARS = 300
+INTENTS = ("analysis", "smalltalk", "about", "explain", "off_topic")
+CHAT_TURNS = 4          # last turns (analysis and short replies) shown to the router
+TURN_CHARS = 300        # per question and per answer
 QUESTION_CHARS = 1000
+REPLY_MAX_WORDS = 120
+FOLLOWUP_MAX_WORDS = 4
+LANG_NAME = {"en": "English", "fr": "Canadian French (fr-CA)"}
 
 # All patterns run on normalize(text): lower case, accents removed, punctuation -> one space.
 _GREET = (r"hi|hello|hey|heya|hiya|yo|howdy|greetings|good (?:morning|afternoon|evening|day)"
@@ -81,15 +91,33 @@ KEYWORDS = re.compile(r"\b(?:" + "|".join("""invest investing investment industr
 stock stocks share shares etf bond bonds risk risky volatility return returns dividend savings retirement diversify
 diversification growth crypto bitcoin market markets secteur secteurs industrie investir investissement placement
 placements portefeuille action actions obligation obligations risque risquee rendement epargne retraite croissance
-diversifier bourse fnb cryptomonnaie""".split()) + r"|(?<!ca )(?<!cela )marche)\b")
+diversifier bourse fnb cryptomonnaie buy buying sell selling money afford acheter vendre argent""".split())
+    + r"|good idea|worth it|bonne idee|vaut la peine|(?<!ca )(?<!cela )marche)\b")
+
+
+DEFINE = re.compile(
+    r"what does (.+) mean|what (?:is|s|are) (?:a |an |the )?(.+)|define (?:a |an |the )?(.+)"
+    r"|explain (?:what )?(?:a |an |the )?(.+?)(?: is| are| means)?"
+    r"|que (?:veut dire|signifie) (?:un |une |le |la |l |les )?(.+)"
+    r"|c est quoi (?:un |une |le |la |l |les |des )?(.+)"
+    r"|qu est ce qu (?:un|une) (.+)|qu est ce que (?:le |la |l |les )?(.+)"
+    r"|expliquez?(?: moi)? (?:ce qu est |ce que sont )?(?:un |une |le |la |l |les )?(.+)")  # use fullmatch
+PERSONAL = set("i me my mine we our us you your je j moi mon ma mes nous tu vous "
+               "this that these those it ce cet cette ces ca cela".split())
+_YES = (r"yes|yeah|yep|yup|sure|ok|okay|please|go ahead|do it|go for it|absolutely|of course"
+        r"|oui|ouais|d accord|vas y|allez y|svp|s il vous plait|s il te plait|bien sur")
+YES = re.compile(rf"(?:{_YES})(?: (?:{_YES})){{0,2}}")  # use fullmatch
 
 
 class RouteDecision(BaseModel):
-    """Intent of the user's new message."""
-    intent: Literal["analysis", "smalltalk", "about", "off_topic"] = Field(
+    """Intent of the user's new message and, when it is not analysis, the reply to show."""
+    intent: Literal["analysis", "smalltalk", "about", "explain", "off_topic"] = Field(
         description="analysis = investing question or follow-up (default when unsure); smalltalk = greeting, "
-                    "thanks, bye; about = question about the assistant; off_topic = unrelated to investing")
-    reason: str = Field(description="at most 12 words: why this intent")
+                    "thanks, bye; about = question about the assistant; explain = what a general investing "
+                    "term means; off_topic = unrelated to investing")
+    confidence: Literal["high", "medium", "low"] = Field(description="how sure you are of the intent")
+    reason: str = Field(description="at most 12 words, in English: why this intent")
+    reply: str = Field(description="the reply shown to the user; empty string when intent is analysis")
 
 
 def normalize(s) -> str:
@@ -119,61 +147,137 @@ def llm_enabled() -> bool:
     return os.getenv("ROUTER_LLM", "1") != "0" and os.getenv("AGENT_MODE", "bedrock").strip().lower() != "demo"
 
 
-def build_prompt(question: str, history: list[dict]) -> str:
-    prev = history[-1] if history else {}
-    return (f"Previous question: {str(prev.get('question') or '(none)')[:QUESTION_CHARS]}\n"
-            f"Previous answer (start): {str(prev.get('answer') or '(none)')[:PREV_ANSWER_CHARS]}\n"
-            f"NEW MESSAGE: {question[:QUESTION_CHARS]}")
+def _is_definition(n: str) -> bool:
+    m = DEFINE.fullmatch(n)
+    term = next(g for g in m.groups() if g).split() if m else []
+    return 1 <= len(term) <= 3 and not set(term) & PERSONAL
 
 
-def llm_classify(question: str, history: list[dict]) -> dict:
-    """One Bedrock call. Same method as pipeline.make_boss (Strands + structured_output_model), no tools,
-    no hooks. Returns {"intent", "reason", "usage", "stop"}. May raise; route() catches."""
+def _tickers(text: str) -> list[str]:
+    """Universe tickers named in text (ticker, company name, bitcoin / ethereum alias). [] when data is missing."""
+    known = {r["ticker"] for r in dr.get_universe().get("data", [])}
+    return [t for t in reviewer.extract_targets(text) if t in known]
+
+
+def reply_problem(reply: str, as_of: str = "") -> str | None:
+    """Why an LLM-written reply must not be shown (None = ok). Deterministic: every number must come from the workers."""
+    if len(reply.split()) > REPLY_MAX_WORDS:
+        return "too long"
+    if re.search(r"[\d%]", reply.replace(as_of, "") if as_of else reply):
+        return "contains a number"
+    names = _tickers(reply)
+    return ("names an asset: " + ", ".join(names[:3])) if names else None
+
+
+def profile_text(persona: dict) -> str:
+    keys = ("name", "age", "occupation", "risk_tolerance", "horizon_years", "goal")
+    lines = [f"{k}: {persona[k]}" for k in keys if persona.get(k) is not None]
+    prefs = [re.sub(r"\s*\([^)]*\)", "", str(p)) for p in persona.get("preferences") or []]  # drops "(e.g. NVDA, TSLA)"
+    if prefs:
+        lines.append("preferences: " + "; ".join(prefs))
+    return "\n".join(lines) or "(unknown)"
+
+
+def system_prompt(context: dict) -> str:
+    return ((PROMPTS / "router_system.txt").read_text(encoding="utf-8")
+            .replace("{{PROFILE}}", profile_text(context.get("persona") or {}))
+            .replace("{{AS_OF}}", str(context.get("as_of") or "unknown"))
+            .replace("{{LANGUAGE}}", LANG_NAME.get(context.get("lang"), LANG_NAME["en"])))
+
+
+def build_prompt(question: str, context: dict) -> str:
+    lines = []
+    for t in (context.get("turns") or [])[-CHAT_TURNS:]:
+        lines += [f"User: {str(t.get('question') or '')[:TURN_CHARS]}",
+                  f"Assistant ({t.get('intent', 'analysis')}): {str(t.get('answer') or '')[:TURN_CHARS]}"]
+    return ("CONVERSATION SO FAR (oldest first, context only):\n" + ("\n".join(lines) or "(none)")
+            + f"\n\nNEW MESSAGE: {question[:QUESTION_CHARS]}")
+
+
+@functools.lru_cache(maxsize=1)
+def _model():
+    """One shared BedrockModel (boto client is thread-safe); the Agent is built per call. Short timeouts:
+    a slow Bedrock must not stall a greeting (route() falls back). Deliberately 2 attempts, not CLAUDE.md's 5."""
     from botocore.config import Config
-    from strands import Agent
     from strands.models import BedrockModel
+    return BedrockModel(model_id=ROUTER_MODEL, region_name="us-east-1", max_tokens=ROUTER_MAX_TOKENS,
+                        boto_client_config=Config(connect_timeout=2, read_timeout=3,
+                                                  retries={"total_max_attempts": 2, "mode": "standard"}))
 
-    # shortcut: model + agent built per call (never shared between threads); cache the model if latency matters
-    model = BedrockModel(model_id=ROUTER_MODEL, region_name="us-east-1", max_tokens=ROUTER_MAX_TOKENS,
-                         boto_client_config=Config(retries={"max_attempts": 5, "mode": "adaptive"}))
-    agent = Agent(model=model, system_prompt=(PROMPTS / "router_system.txt").read_text(encoding="utf-8"),
-                  callback_handler=None)
-    r = agent(build_prompt(question, history), structured_output_model=RouteDecision, limits=ROUTER_LIMITS)
+
+def llm_classify(question: str, context: dict) -> dict:
+    """One Bedrock call (Strands + structured_output_model, no tools, no hooks). May raise; route() catches."""
+    from strands import Agent
+    agent = Agent(model=_model(), system_prompt=system_prompt(context), callback_handler=None)
+    r = agent(build_prompt(question, context), structured_output_model=RouteDecision, limits=ROUTER_LIMITS)
     u = getattr(getattr(r, "metrics", None), "accumulated_usage", None) or {}
     out = r.structured_output
-    return {"intent": out.intent if out else None, "reason": out.reason if out else "no structured output",
+    return {"intent": out.intent if out else None, "confidence": out.confidence if out else None,
+            "reason": out.reason if out else "no structured output", "reply": out.reply if out else "",
             "usage": {k: int(u.get(k) or 0) for k in ("inputTokens", "outputTokens")}, "stop": str(r.stop_reason)}
 
 
-def route(question: str, history: list[dict] | None = None, llm: bool = True, classify=None) -> dict:
-    """{"intent", "method": "rule" | "llm" | "default", "reason", "model", "llm_ms", "usage", "stop"}. Never raises.
-    classify: callable(question, history) -> {"intent", "reason", ...}; default llm_classify (injectable for tests)."""
+def route(question: str, history: list[dict] | None = None, llm: bool = True, classify=None,
+          context: dict | None = None) -> dict:
+    """{"intent", "method": "rule" | "llm" | "default", "reason", "model", "llm_ms", "usage", "stop",
+    "confidence", "reply", "reply_note", "question"}. Never raises.
+    history: earlier ANALYSIS turns (follow-up rules). context: {"persona", "lang", "as_of", "turns"} where turns =
+    all earlier turns, short replies included (entries carry "intent"). classify: callable(question, context) ->
+    {"intent", "confidence", "reason", "reply", ...}; default llm_classify (injectable for tests).
+    reply: raw LLM text ("" = use the fixed text); the caller must run reply_problem() on it.
+    question: set when the user accepted the offer after an explain reply (the earlier message to analyze)."""
     out = {"intent": "analysis", "method": "default", "reason": "", "model": None, "llm_ms": None, "usage": None,
-           "stop": None}
+           "stop": None, "confidence": None, "reply": "", "reply_note": None, "question": None}
     try:
+        ctx = {"persona": {}, "lang": "en", "as_of": "", "turns": history or [], **(context or {})}
+        last = ctx["turns"][-1] if ctx["turns"] else None
         n = normalize(question)
+        use_llm = llm and (classify is not None or llm_enabled())
+        if last and last.get("intent") == "explain" and YES.fullmatch(n):
+            return {**out, "method": "rule", "reason": "accepted the analysis offer",
+                    "question": str(last.get("question") or "") or None}
         if n and SMALLTALK.fullmatch(n) and not (history and n in ("ca va", "ca va bien")):
-            return {**out, "intent": "smalltalk", "method": "rule", "reason": "greeting / thanks / bye"}
-        targets = reviewer.extract_targets(question)
-        if targets:
-            return {**out, "method": "rule", "reason": "names: " + ", ".join(targets[:5])}
-        kw = KEYWORDS.search(n)
-        if kw:
-            return {**out, "method": "rule", "reason": f"investing keyword: {kw.group()}"}
-        if _is_about(n, history):
-            return {**out, "intent": "about", "method": "rule", "reason": "question about the assistant"}
-        if not llm or (classify is None and not llm_enabled()):
+            out.update(intent="smalltalk", method="rule", reason="greeting / thanks / bye")
+        else:
+            targets = reviewer.extract_targets(question)
+            known = {r["ticker"] for r in dr.get_universe().get("data", [])}
+            define = use_llm and _is_definition(n) and not any(t in known for t in targets)
+            if targets and not define:
+                return {**out, "method": "rule", "reason": "names: " + ", ".join(targets[:5])}
+            kw = KEYWORDS.search(n)
+            if kw and not define:
+                return {**out, "method": "rule", "reason": f"investing keyword: {kw.group()}"}
+            if _is_about(n, history):
+                out.update(intent="about", method="rule", reason="question about the assistant")
+            elif (not define and last and last.get("intent", "analysis") == "analysis"
+                  and 1 <= len(n.split()) <= FOLLOWUP_MAX_WORDS):
+                return {**out, "method": "rule", "reason": "short follow-up to an analysis"}
+        if not use_llm:
+            if out["method"] == "rule":
+                return {**out, "reply_note": "LLM step off"}
             return {**out, "reason": "LLM step off"}
         out["model"] = ROUTER_MODEL
         t0 = time.perf_counter()
         try:
-            r = (classify or llm_classify)(question, history or [])
+            r = (classify or llm_classify)(question, ctx) or {}
         finally:
             out["llm_ms"] = (time.perf_counter() - t0) * 1000
-        out.update(usage=r.get("usage"), stop=r.get("stop"))
-        if r.get("intent") in INTENTS:
-            return {**out, "intent": r["intent"], "method": "llm", "reason": str(r.get("reason") or "")}
-        out["reason"] = f"bad router output: {r.get('intent')!r}"
+        out.update(usage=r.get("usage"), stop=r.get("stop"), confidence=r.get("confidence"))
+        if r.get("intent") not in INTENTS:
+            raise ValueError(f"bad router output: {r.get('intent')!r}")
+        reply = "" if r["intent"] == "analysis" else str(r.get("reply") or "").strip()
+        if out["method"] == "rule":  # the rule's intent stands; the LLM only writes the reply
+            return {**out, "reply": reply, "reply_note": None if reply else "no reply from the LLM"}
+        reason = str(r.get("reason") or "")
+        if r["intent"] != "analysis" and r.get("confidence") != "high":
+            return {**out, "method": "llm",
+                    "reason": f"{r['intent']} with {r.get('confidence')} confidence -> analysis: {reason}"}
+        return {**out, "intent": r["intent"], "method": "llm", "reason": reason, "reply": reply,
+                "reply_note": None if reply or r["intent"] == "analysis" else "no reply from the LLM"}
     except Exception as e:
-        out["reason"] = f"router error: {str(e)[:200]}"
+        note = f"router error: {str(e)[:200]}"
+        if out["method"] == "rule":
+            out["reply_note"] = note   # greeting / about rule keeps its intent: fixed text
+        else:
+            out["reason"] = note       # anything else: analysis
     return out

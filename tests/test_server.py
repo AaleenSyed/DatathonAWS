@@ -446,3 +446,10 @@ def test_about_in_demo_mode(client, runner):
 def test_stage_for_router():
     assert agent.stage_for({"actor": "user", "action": "question"}) is None
     assert agent.stage_for({"actor": "router", "action": "route"}) == "planning"
+
+
+def test_warm_up_skips_router_model_when_llm_off(monkeypatch):
+    def boom():
+        raise AssertionError("router model built")
+    monkeypatch.setattr(router, "_model", boom)
+    agent.warm_up()

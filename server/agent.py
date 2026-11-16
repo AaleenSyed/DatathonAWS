@@ -2,7 +2,7 @@
 
 The pipeline keeps the active trace in a process-wide context (agent_tools.CONTEXT), so runs are serialized
 with RUN_LOCK: one analysis at a time; others wait (the server reports them as "queued"). The guard, the
-intent router and the short replies (greeting, about, off-topic) run outside the lock.
+intent router and the short replies (LLM-written or fixed) run outside the lock.
 """
 import functools
 import inspect
@@ -45,6 +45,11 @@ def warm_up():
     try:
         with RUN_LOCK:
             agent_tools.warm_up(as_of=pipeline.ANALYSIS_DATE)
+    except Exception:
+        pass
+    try:
+        if router.llm_enabled():
+            router._model()
     except Exception:
         pass
 

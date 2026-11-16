@@ -395,7 +395,7 @@ def test_blocked_input_is_never_routed(tmp_path):
 
 @needs_data
 def test_router_exception_falls_back_to_pipeline(tmp_path):
-    def bad(q, h):
+    def bad(q, h, **k):
         raise RuntimeError("x")
     boss = FakeBoss()
     r = session(tmp_path, boss=boss, route=bad, guard=FakeGuard()).ask(Q)
@@ -407,20 +407,21 @@ def test_router_exception_falls_back_to_pipeline(tmp_path):
 @needs_data
 def test_bad_intent_falls_back_to_pipeline(tmp_path):
     boss = FakeBoss()
-    session(tmp_path, boss=boss, route=lambda q, h: {"intent": "explain"}, guard=FakeGuard()).ask(Q)
+    session(tmp_path, boss=boss, route=lambda q, h, **k: {"intent": "bogus"}, guard=FakeGuard()).ask(Q)
     assert len(boss.calls) == 1
 
 
 @pytest.mark.parametrize("intent,key", [("off_topic", "chat_off_topic"), ("about", "chat_about")])
 def test_llm_route_is_recorded(tmp_path, intent, key):
     boss = FakeBoss()
-    fake = lambda q, h: {"intent": intent, "method": "llm", "reason": "weather", "model": "m", "llm_ms": 12.0,
+    fake = lambda q, h, **k: {"intent": intent, "method": "llm", "reason": "weather", "model": "m", "llm_ms": 12.0,
                          "usage": {"inputTokens": 50, "outputTokens": 5}, "stop": "end_turn"}
     r = session(tmp_path, boss=boss, route=fake, guard=FakeGuard()).ask("what is the weather?")
     assert r["answer"] == text_variant("en", key, 1, name="Robert") and boss.calls == []
     calls = r["trace"].meta["llm_calls"]
     assert len(calls) == 1 and calls[0]["role"] == "router" and calls[0]["kind"] == "classify" and calls[0]["ms"] == 12
     assert r["timing"]["inputTokens"] == 50
+    assert step(r, "route")["output"]["reply_source"] == "fixed"
 
 
 @needs_data
@@ -437,10 +438,108 @@ def test_analysis_turn_has_route_step(tmp_path):
 def test_route_gets_analysis_history(tmp_path):
     seen = []
 
-    def spy(q, h):
+    def spy(q, h, **k):
         seen.append(list(h))
         return {"intent": "analysis"}
     s = session(tmp_path, route=spy, guard=FakeGuard())
     s.ask(Q)
     s.ask("And what about a smaller amount?")
     assert seen[1][-1]["question"] == Q
+
+
+# ---------- conversational (LLM-written) replies ----------
+
+def llm_route(intent, reply, **extra):
+    return lambda q, h, **k: {"intent": intent, "method": "llm", "reason": "r", "model": "m", "llm_ms": 5.0,
+                              "reply": reply, **extra}
+
+
+def test_llm_reply_is_shown_and_guarded(tmp_path):
+    boss, presenter, guard = FakeBoss(), FakePresenter(), FakeGuard()
+    reply = "Hello Robert, happy to help."
+    s = session(tmp_path, boss=boss, presenter=presenter, guard=guard, route=llm_route("smalltalk", reply))
+    r = s.ask("hi")
+    assert r["answer"] == reply and boss.calls == [] and presenter.calls == []
+    assert [c[0] for c in guard.calls] == ["INPUT", "OUTPUT"] and guard.calls[1][1] == r["answer"]
+    assert actions(r) == ["question", "input_checked", "route", "output_checked", "final_answer"]
+    assert step(r, "route")["output"]["reply_source"] == "llm"
+    fa = step(r, "final_answer")["output"]
+    assert fa["intent"] == "smalltalk" and fa["reply_source"] == "llm"
+    assert s.history == [] and s.turns[-1]["intent"] == "smalltalk"
+
+
+@pytest.mark.parametrize("bad", ["Stocks made 7 last year.", "About ten % a year.", "word " * 121])
+def test_unsafe_reply_falls_back_to_fixed_text(tmp_path, bad):
+    guard = FakeGuard()
+    r = session(tmp_path, guard=guard, route=llm_route("off_topic", bad)).ask("what is the weather?")
+    assert r["answer"] == text_variant("en", "chat_off_topic", 1, name="Robert")
+    out = step(r, "route")["output"]
+    assert out["reply_source"] == "fixed" and out["reply_note"].startswith("rejected:") and "rejected_reply" in out
+    assert [c[0] for c in guard.calls] == ["INPUT"]
+
+
+@needs_data
+def test_reply_naming_an_asset_is_rejected(tmp_path):
+    r = session(tmp_path, guard=FakeGuard(), route=llm_route("off_topic", "NVDA is great.")).ask("weather?")
+    assert "names an asset" in step(r, "route")["output"]["reply_note"]
+
+
+def test_explain_reply_gets_offer_and_disclaimer(tmp_path):
+    boss = FakeBoss()
+    reply = "Volatility is how much a price moves."
+    r = session(tmp_path, boss=boss, guard=FakeGuard(), route=llm_route("explain", reply)).ask("hmm?")
+    expected = (reply + "\n\n" + pipeline.text("en", "chat_offer", name="Robert") + "\n\n"
+                + pipeline.text("en", "disclaimer", name="Robert"))
+    assert r["answer"] == expected and r["intent"] == "explain" and boss.calls == []
+
+
+@needs_data
+@pytest.mark.parametrize("reply", ["", "It is about 15."])
+def test_explain_without_safe_reply_runs_pipeline(tmp_path, reply):
+    boss = FakeBoss()
+    r = session(tmp_path, boss=boss, guard=FakeGuard(), route=llm_route("explain", reply)).ask(Q)
+    out = step(r, "route")["output"]
+    assert len(boss.calls) == 1 and r["intent"] == "analysis" and out["intent"] == "analysis"
+    assert "analysis runs" in out["reply_note"]
+
+
+def test_blocked_reply(tmp_path):
+    s = session(tmp_path, guard=FakeGuard(block={"OUTPUT"}), route=llm_route("smalltalk", "Hello there."))
+    r = s.ask("hi")
+    assert r["answer"] == pipeline.text("en", "guardrail_block", name="Robert")
+    assert r["answer_verdict"]["verdict"] == "blocked" and r["intent"] == "smalltalk" and s.history == []
+    assert actions(r)[-2:] == ["output_blocked", "final_answer"]
+
+
+@needs_data
+def test_route_context(tmp_path):
+    ctxs = []
+
+    def spy(q, h, **k):
+        ctxs.append(k["context"])
+        return {"intent": "smalltalk"} if q == "hi" else {"intent": "analysis"}
+    presenter = FakePresenter()
+    s = session(tmp_path, presenter=presenter, guard=FakeGuard(), route=spy)
+    s.ask("hi")
+    s.ask(Q)
+    c = ctxs[1]
+    assert c["persona"]["name"] == "Robert" and c["lang"] == "en" and c["as_of"] == pipeline.ANALYSIS_DATE
+    assert c["turns"][0]["question"] == "hi" and c["turns"][0]["intent"] == "smalltalk"
+    assert presenter.calls[-1]["history"] == []
+
+
+@needs_data
+def test_yes_after_explain_analyzes_previous_question(tmp_path):
+    boss = FakeBoss()
+    s = session(tmp_path, boss=boss, guard=FakeGuard(),
+                history=[{"question": Q, "answer": "expl", "intent": "explain"}])
+    r = s.ask("yes")
+    assert len(boss.calls) == 1 and boss.calls[0] == Q and r["intent"] == "analysis"
+    assert step(r, "route")["output"]["question_used"] == Q
+    assert s.history[-1]["question"] == Q
+
+
+def test_as_of_date_allowed_in_reply(tmp_path):
+    reply = f"My data ends on {pipeline.ANALYSIS_DATE}."
+    r = session(tmp_path, guard=FakeGuard(), route=llm_route("about", reply)).ask("until when?")
+    assert r["answer"] == reply
