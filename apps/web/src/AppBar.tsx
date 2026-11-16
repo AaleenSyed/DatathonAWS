@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "./i18n";
 import { useViewMode, type ViewMode } from "./view";
 
-// Must match index.html. Dark ("noir") is the default; "light" is the off-white version of the same system.
+// Must match index.html. No saved choice = follow prefers-color-scheme; the switch saves "light" or "dark".
 const THEME_KEY = "colorTheme";
 
 /** Original mark: a four-point spark over a rising line (no real brand's logo). */

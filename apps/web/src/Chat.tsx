@@ -242,8 +242,9 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
         showView
         left={
           <>
-            <button className="back" onClick={onBack}>
-              <span aria-hidden="true">←</span> {t("chat.back")}
+            {/* Under 480px the label is visually hidden (still the button's name): the arrow alone saves a row. */}
+            <button className="back" onClick={onBack} title={t("chat.back")}>
+              <span aria-hidden="true">←</span> <span className="back-text">{t("chat.back")}</span>
             </button>
             <span className="persona-name">{t("chat.profile", { name })}</span>
           </>
@@ -496,27 +497,69 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
             hint={t("footer.text")}
           >
             {path.length > 0 && (
-              <div
-                role="group"
-                aria-label={t("sug.label")}
-                className="flex flex-wrap gap-2"
-              >
-                {suggestions.map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    disabled={!canAct}
-                    onClick={() => sendMessage(q)}
-                    className={buttonVariants({ variant: "outline", size: "sm", className: "font-normal text-body" })}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
+              <SuggestionCarousel suggestions={suggestions} disabled={!canAct} onPick={sendMessage} />
             )}
           </ChatInput>
         </ChatContainer>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Follow-up questions above the message bar, one at a time: the question, then a "→" button that shows the next one
+ * (wraps around). Asking a question also moves on, so the one just sent is not offered again right away.
+ * The question text is a polite live region, so screen readers hear the new question after pressing "→".
+ */
+function SuggestionCarousel({
+  suggestions,
+  disabled,
+  onPick,
+}: {
+  suggestions: string[];
+  disabled: boolean;
+  onPick: (q: string) => void;
+}) {
+  const { t } = useI18n();
+  const [index, setIndex] = useState(0);
+  const n = suggestions.length;
+  if (n === 0) return null;
+  const i = index % n;
+  const next = () => setIndex((i + 1) % n);
+  return (
+    <div role="group" aria-label={t("sug.label")} className="flex min-w-0 items-center gap-2">
+      <span aria-live="polite" className="flex min-w-0">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            onPick(suggestions[i]);
+            next();
+          }}
+          className={buttonVariants({
+            variant: "outline",
+            size: "sm",
+            // shrink (not the base shrink-0): a long question wraps inside the button instead of overflowing.
+            className: "h-auto min-h-9 min-w-0 shrink whitespace-normal py-2 text-left font-normal leading-snug text-body",
+          })}
+        >
+          {suggestions[i]}
+        </button>
+      </span>
+      {n > 1 && (
+        <button
+          type="button"
+          onClick={next}
+          aria-label={t("sug.next", { i: String(((i + 1) % n) + 1), n: String(n) })}
+          title={t("sug.next", { i: String(((i + 1) % n) + 1), n: String(n) })}
+          className={buttonVariants({ variant: "outline", size: "icon-sm", className: "size-9 text-foreground" })}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

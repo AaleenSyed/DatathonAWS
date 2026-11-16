@@ -540,7 +540,11 @@ button.chip:hover { border-color: var(--accent); color: var(--ink); }
 @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
 
 @media (max-width: 560px) {
-  .status-text { display: none; }
+  /* "Connected" is the calm state: dot only (text kept for screen readers). Any problem state keeps its word,
+     so the meaning never rests on the dot's colour. */
+  .status-open .status-text {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
   .back { padding: 0 .7rem; }
   .btn { min-width: 72px; padding: 0 1rem; }
   .chart-row { grid-template-columns: minmax(70px, 34%) 1fr auto; }
@@ -584,7 +588,12 @@ a { color: var(--link); text-underline-offset: .2em; }
 
 /* Small screens (320px and up) */
 @media (max-width: 480px) {
-  .appbar-right { flex-wrap: wrap; }
+  .appbar { padding: .5rem .75rem; }
+  .appbar-right { flex-wrap: wrap; gap: .5rem; }
+  /* Chat header in two rows instead of three: icon-only back button, tighter view switch. */
+  .back:has(.back-text) { width: 44px; padding: 0; justify-content: center; }
+  .back-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .segmented button { padding: 0 .65rem; }
   .wordmark-text { font-size: 1.05rem; }
   .persona-name { font-size: 1rem; }
   .picker { padding-left: 1rem; padding-right: 1rem; }

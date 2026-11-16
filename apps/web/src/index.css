@@ -1,4 +1,4 @@
-/* Tailwind CSS v4 + shadcn/ui-style design tokens (chat-ui skill), on top of the app's own "noir" styles.
+/* Tailwind CSS v4 + shadcn/ui-style design tokens (chat-ui skill), on top of the app's own styles.
    No Preflight: styles.css keeps its element styles. Layer order theme < legacy < utilities, so a utility class
    (e.g. className="bg-muted" on a chat block) always wins over the older class-based styles. */
 @layer theme, legacy, utilities;
@@ -9,7 +9,7 @@
 /* `dark:` follows the theme switch (data-theme on <html>), not only the OS setting. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* shadcn token names, mapped to the noir palette defined in styles.css (light and dark). */
+/* shadcn token names, mapped to the brand palette defined in styles.css (light and dark). */
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--ink);
