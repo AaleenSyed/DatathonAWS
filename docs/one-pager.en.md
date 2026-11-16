@@ -25,20 +25,25 @@ assets, how it fits the persona's horizon and risk tolerance, what could go wron
 
 ## How it works
 1. **Bedrock Guardrail** filters the question (personal advice to the real user, trades, PII, prompt injection).
-2. **The boss** (Claude Haiku 4.5 on Bedrock, a Strands agent) picks which tools to call and makes a plan.
-3. **The workers** (deterministic Python, *no LLM*) compute everything: return, volatility, max drawdown,
+2. **The intent router** (rules, then Claude Haiku 4.5) decides whether the message needs an analysis. Greetings,
+   questions about the assistant, concept questions ("what does volatility mean?") and off-topic messages get a
+   short, natural reply in about 1.5 s, with no numbers. Investing questions and follow-ups continue.
+3. **The boss** (Claude Haiku 4.5 on Bedrock, a Strands agent) picks which tools to call and makes a plan.
+4. **The workers** (deterministic Python, *no LLM*) compute everything: return, volatility, max drawdown,
    2022 stress test, business cycle (FRED), fit with the persona's limits.
-4. **The reviewer** checks the work; on failure it sends the task back with reasons (max 2 retries).
-5. **The presenter** (Claude Sonnet 4.6, streamed) writes the answer from the worker results only; every
+5. **The reviewer** checks the work; on failure it sends the task back with reasons (max 2 retries).
+6. **The presenter** (Claude Sonnet 4.6, streamed) writes the answer from the worker results only; every
    number must appear in the cited step.
-6. **Output guardrail**, then the **full trace** is saved to Amazon S3.
+7. **Output guardrail**, then the **full trace** is saved to Amazon S3.
 
 ## What sets us apart
-- **The LLMs never compute.** Numbers come from tested code (269 tests); the AI reasons and explains.
+- **The LLMs never compute.** Numbers come from tested code (535 tests); the AI reasons and explains.
 - **Verifiable explainability.** Every claim is tagged `fact` (source + step), `assumption` or `scenario`,
   and opens the trace step that produced it.
 - **It can say no.** A request that conflicts with the profile is challenged, with the limits in numbers.
-- **Fast.** First text in 4–6 s, full answer in 13–17 s.
+- **It also just talks.** "Hi", "what can you help me with?" or "what is an ETF?" get a real reply, not a
+  20-second report. Live test: 29/29 messages routed correctly (EN/FR), no investing question missed.
+- **Fast.** Conversational reply in about 1.5 s; analysis: first text in 4–6 s, full answer in 13–17 s.
 
 ## AWS at the core
 Amazon Bedrock (Converse + ConverseStream, Claude Haiku 4.5 and Sonnet 4.6) · Bedrock Guardrails

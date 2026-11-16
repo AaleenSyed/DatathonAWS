@@ -25,6 +25,9 @@ in English or Canadian French. Each answer:
 - checks the request against the profile's limits and **says no, with numbers**, when it doesn't fit;
 - links every claim to the step of the run trace that produced it.
 
+Messages that do not need an analysis (a greeting, "what can you help me with?", "what does volatility mean?", an
+off-topic question) get a short conversational reply instead of a full report.
+
 ## 2. Design principles
 
 1. **The LLMs never calculate.** All the math is in plain Python workers with unit tests. Bedrock models only
@@ -35,17 +38,23 @@ in English or Canadian French. Each answer:
    the suitability worker. A sector with a conflict can never be recommended.
 4. **Full audit trail.** Every run writes a trace (actor, input, output, timing, verdicts) to Amazon S3.
 5. **Fast enough for a chat.** A summary-first, streamed answer: first text in about 5 s.
+6. **Analysis only when it is needed.** An intent router answers conversation directly and sends investing
+   questions to the full pipeline; when unsure, it chooses the analysis.
 
 ## 3. Architecture
 
 ```
 Browser (React, EN/FR)
-  │  WebSocket / REST (contract v0.3.0: contracts/openapi + asyncapi)
+  │  WebSocket / REST (contract v0.3.1: contracts/openapi + asyncapi)
   ▼
 FastAPI backend (server/)
   ▼
 Bedrock Guardrail ── input check (denied topics, PII, content, prompt attack)
   ▼
+INTENT ROUTER ── rules (ticker, sector, keyword, short follow-up), then Claude Haiku 4.5 on Bedrock
+  │      conversation (smalltalk · about · explain · off_topic) → short reply, checked in code + output
+  │      guardrail → answer (no boss, no presenter, final: null)
+  ▼      analysis ↓
 BOSS ── Claude Haiku 4.5 on Bedrock (Strands agent, Converse API)
   │      calls every tool it needs in one parallel turn, returns a plan
   ▼
@@ -53,6 +62,8 @@ WORKERS ── deterministic Python, no LLM
   │      data_retriever · risk_analyst · market_context · suitability
   ▼
 REVIEWER (work) ── coverage, sources, periods, limits, no look-ahead → back to boss (max 2)
+  ▼
+COMPARISONS ── Python ranks and comparison sentences (comparisons.py), reused verbatim by the presenter
   ▼
 PRESENTER ── Claude Sonnet 4.6 on Bedrock (ConverseStream), streamed, summary first
   ▼
@@ -69,9 +80,9 @@ The diagram and the service-by-service description are in [architecture-aws.en.m
 
 | Service | Role | Code |
 |---|---|---|
-| Amazon Bedrock, Converse (via Strands) | Boss agent, Claude Haiku 4.5 (`global.` inference profile) | `agent_tools.py`, `pipeline.py` |
+| Amazon Bedrock, Converse (via Strands) | Claude Haiku 4.5 (`global.` inference profile): intent router (classification + conversational reply, structured output) and boss agent | `router.py`, `agent_tools.py`, `pipeline.py` |
 | Amazon Bedrock, ConverseStream | Presenter, Claude Sonnet 4.6, streamed to the browser | `presenter.py` |
-| Amazon Bedrock Guardrails, ApplyGuardrail | Input and output filter; PII redacted before anything is written to the trace | `guardrail.py` |
+| Amazon Bedrock Guardrails, ApplyGuardrail | Input and output filter (analysis answers and conversational replies); PII redacted before anything is written to the trace | `guardrail.py` |
 | Amazon S3 | Data files (`data/`) and the full trace of every run (`runs/`), plus evaluation results (`runs/eval/`) | `workers/data_retriever.py`, `run_trace.py`, `scripts/eval/` |
 
 Region `us-east-1`. No other model provider is called; credentials come from the environment, never from the repo.
@@ -86,6 +97,7 @@ Region `us-east-1`. No other model provider is called; credentials come from the
 | `workers/risk_analyst.py` | Return, volatility, max drawdown, correlation, 2022 stress test, risk label, per asset and per sector |
 | `workers/market_context.py` | Business-cycle phase (FRED rules), fear vs hope, momentum and relative strength |
 | `workers/suitability.py` | Checks a ticker or sector against the profile: `pass` / `info` / `flag` / `conflict` per rule |
+| `router.py` | Intent router: rules first, then one Haiku call returning intent, confidence and the conversational reply; replies with a digit, `%` or asset name are rejected (fixed EN/FR text instead). Runs outside the server's run lock |
 | `agent_tools.py` | Workers exposed as Strands tools. Coarse tools (`assess_target`, `rank_sectors_for_persona`, `market_snapshot`) return compact results to the boss; the trace keeps the full output |
 | `reviewer.py` | Deterministic checks of the work and of the final answer |
 | `presenter.py` | Streamed answer with claim tags `[fact: step N]`, `[assumption]`, `[scenario]` |
@@ -128,6 +140,7 @@ Every file's source, URL, retrieval date, processing and terms are in `data/sour
 | Claim tags | Each sentence is tagged `fact` (with its step), `assumption` or `scenario`; the UI turns them into chips that open the trace |
 | Evidence panel | Built from the trace without an LLM, so it cannot hallucinate |
 | Run trace in S3 | Who did what, with which data, how long it took and what the reviewer decided |
+| Conversational reply check (`router.reply_problem`) | A chat reply written by Haiku is never shown if it contains a digit, a `%`, an asset from the universe or more than 120 words; the profile is given to Haiku in words only |
 | Bedrock Guardrail | Blocks personal advice to the real user, trades, PII and prompt attacks, on input and output |
 | Sanity check script | `scripts/sanity_check.py` recomputes 31 numbers independently |
 
@@ -163,8 +176,6 @@ chat. Results: `reports/eval/baseline/compare_presenters.csv`.
 
 ### 6.1 What the evaluation found, and what we fixed
 
-<!-- TEAM: keep this subsection only if the presenter-facts PR is merged. -->
-
 The judge's lowest scores came from three presenter mistakes that the number check could not catch, because both
 numbers were real:
 
@@ -182,12 +193,25 @@ Fix (`comparisons.py`, presenter prompt, reviewer):
 - On the 40 earlier judged answers, the new checks flag exactly the 4 the judge criticised for these reasons, and
   nothing else.
 
+### 6.2 Intent router (live, on Bedrock)
+
+`RUN_LIVE=1 pytest -s tests/test_live_router.py` sends 29 EN/FR messages to the real router (10 investing, 4 small
+talk, 6 about the assistant, 5 concept questions, 4 off-topic), plus a number-leak check and full chat sessions.
+
+| Metric | Result |
+|---|---|
+| Intents correct | 29/29 (100%) |
+| Investing questions answered as chat (hidden answers) | 0 |
+| Replies rejected by the code check | 0 |
+| Router latency, median / max | 1.4 s / 3.8 s |
+
 ## 7. Testing
 
 - Unit, pipeline, contract and server tests (`python -m pytest -q`), all passing; live Bedrock tests run only with
   `RUN_LIVE=1`.
 - Tests cover look-ahead, the risk labels, suitability rules, ranking, the answer check (including wrong
-  comparisons and statuses), guardrail handling and the API contract.
+  comparisons and statuses), guardrail handling, the API contract, and the intent router (rules in EN/FR, fallbacks,
+  reply checks, history and lock handling).
 - `scripts/benchmark.py` for latency, `scripts/eval/` for quality, safety and cost (section 6).
 
 ## 8. Performance and cost
@@ -196,6 +220,8 @@ Fix (`comparisons.py`, presenter prompt, reviewer):
   stays in the trace), running tool calls in parallel, using Haiku 4.5 for planning and streaming the presenter.
 - The answer opens with a summary of at most 3 bullets, so the user reads the verdict in about 5 s.
 - About **$0.07 per answer** on Bedrock on-demand prices.
+- Conversational replies take about 1.5 s (one Haiku call); obvious investing questions and short follow-ups skip
+  that call.
 
 ## 9. Limitations
 
@@ -207,6 +233,8 @@ Fix (`comparisons.py`, presenter prompt, reviewer):
 - **The answer check verifies numbers and citations, not units or meaning;** the judge evaluation and the trace
   cover the rest.
 - **The guardrail fails open** if its API errors; the trace records it and persona rules still apply.
+- **Conversational replies are written by Haiku without data.** The code check catches digits, `%` and asset
+  names, not numbers spelled out in words; French replies sometimes use "tu" instead of "vous".
 - **Prototype server:** one run at a time per process, conversations in memory, sign-in not configured, so it must
   not be exposed publicly as is.
 - **Persona limits are team assumptions**, not part of the brief.

@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1000" viewBox="0 0 1280 1000" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1120" viewBox="0 0 1280 1120" font-family="Segoe UI, Helvetica, Arial, sans-serif">
 <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7b8794"/></marker></defs>
-<rect width="1280" height="1000" fill="#ffffff"/>
+<rect width="1280" height="1120" fill="#ffffff"/>
 <text x="640" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#1f2933">AlphaForge AI — Architecture AWS</text>
 <text x="640" y="68" text-anchor="middle" font-size="14" fill="#52606d">Tous les appels LLM passent par Amazon Bedrock · région us-east-1</text>
-<rect x="180" y="92" width="640" height="750" rx="14" fill="none" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="8 6"/>
+<rect x="180" y="92" width="640" height="868" rx="14" fill="none" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="8 6"/>
 <text x="196" y="112" font-size="13" font-weight="600" fill="#52606d">Application — AWS Workshop Studio (us-east-1)</text>
-<rect x="860" y="212" width="390" height="630" rx="14" fill="#fffaf2" stroke="#e07b00" stroke-width="1.5" stroke-dasharray="8 6"/>
+<rect x="860" y="212" width="390" height="748" rx="14" fill="#fffaf2" stroke="#e07b00" stroke-width="1.5" stroke-dasharray="8 6"/>
 <text x="876" y="232" font-size="13" font-weight="600" fill="#e07b00">Services AWS — us-east-1</text>
 <rect x="20" y="125" width="130" height="70" rx="10" fill="#ffffff" stroke="#1f2933" stroke-width="1.6"/>
 <text x="85.0" y="156.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Utilisateur</text>
@@ -17,68 +17,78 @@
 <text x="410.0" y="276.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Backend FastAPI</text>
 <text x="410.0" y="294.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">REST + WebSocket · pipeline.py</text>
 <rect x="260" y="365" width="300" height="70" rx="10" fill="#efe7fb" stroke="#7c4dcc" stroke-width="1.6"/>
-<text x="410.0" y="396.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Agent patron (Strands)</text>
-<text x="410.0" y="414.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">choisit les outils, bâtit le plan</text>
-<rect x="260" y="480" width="300" height="100" rx="10" fill="#e6f4ea" stroke="#2f8f4e" stroke-width="1.6"/>
-<text x="410.0" y="517.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Travailleurs Python — sans LLM</text>
-<text x="410.0" y="535.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">risque · test de stress 2022 · cycle</text>
-<text x="410.0" y="553.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">conformité aux limites du persona</text>
-<rect x="260" y="625" width="300" height="70" rx="10" fill="#e6f4ea" stroke="#2f8f4e" stroke-width="1.6"/>
-<text x="410.0" y="656.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Réviseur (déterministe)</text>
-<text x="410.0" y="674.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">sources, périodes, limites, pas d'anticipation</text>
-<rect x="260" y="745" width="300" height="70" rx="10" fill="#efe7fb" stroke="#7c4dcc" stroke-width="1.6"/>
-<text x="410.0" y="776.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Présentateur</text>
-<text x="410.0" y="794.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">rédige à partir des seuls résultats</text>
-<rect x="600" y="590" width="200" height="34" rx="10" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.6"/>
-<text x="700.0" y="612.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Trace d'exécution</text>
+<text x="410.0" y="396.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Routeur d’intention</text>
+<text x="410.0" y="414.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">règles, puis Haiku : réponse directe ou analyse?</text>
+<rect x="260" y="485" width="300" height="70" rx="10" fill="#efe7fb" stroke="#7c4dcc" stroke-width="1.6"/>
+<text x="410.0" y="516.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Agent patron (Strands)</text>
+<text x="410.0" y="534.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">choisit les outils, bâtit le plan</text>
+<rect x="260" y="600" width="300" height="100" rx="10" fill="#e6f4ea" stroke="#2f8f4e" stroke-width="1.6"/>
+<text x="410.0" y="637.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Travailleurs Python — sans LLM</text>
+<text x="410.0" y="655.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">risque · test de stress 2022 · cycle</text>
+<text x="410.0" y="673.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">conformité · comparaisons</text>
+<rect x="260" y="745" width="300" height="70" rx="10" fill="#e6f4ea" stroke="#2f8f4e" stroke-width="1.6"/>
+<text x="410.0" y="776.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Réviseur (déterministe)</text>
+<text x="410.0" y="794.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">sources, périodes, limites, pas d'anticipation</text>
+<rect x="260" y="865" width="300" height="70" rx="10" fill="#efe7fb" stroke="#7c4dcc" stroke-width="1.6"/>
+<text x="410.0" y="896.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Présentateur</text>
+<text x="410.0" y="914.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">rédige à partir des seuls résultats</text>
+<rect x="600" y="718" width="200" height="34" rx="10" fill="#ffffff" stroke="#9aa5b1" stroke-width="1.6"/>
+<text x="700.0" y="740.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Trace d'exécution</text>
 <rect x="900" y="245" width="310" height="70" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
 <text x="1055.0" y="276.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon Bedrock Guardrails</text>
 <text x="1055.0" y="294.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">ApplyGuardrail : conseil, transactions, PII</text>
-<rect x="900" y="365" width="310" height="70" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
-<text x="1055.0" y="396.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon Bedrock · Converse</text>
-<text x="1055.0" y="414.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">Claude Haiku 4.5 (profil global.)</text>
-<rect x="900" y="480" width="310" height="130" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
-<text x="1055.0" y="532.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon S3</text>
-<text x="1055.0" y="550.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">data/  CSV prix, FX, macro</text>
-<text x="1055.0" y="568.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">runs/  trace JSON de chaque réponse</text>
-<rect x="900" y="745" width="310" height="70" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
-<text x="1055.0" y="776.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon Bedrock · ConverseStream</text>
-<text x="1055.0" y="794.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">Claude Sonnet 4.6, en continu</text>
-<rect x="900" y="875" width="310" height="60" rx="10" fill="#ffffff" stroke="#7b8794" stroke-width="1.6"/>
-<text x="1055.0" y="901.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">FRED (données macro publiques)</text>
-<text x="1055.0" y="919.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">fetch_fred_extra.py</text>
+<rect x="900" y="365" width="310" height="190" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
+<text x="1055.0" y="447.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon Bedrock · Converse</text>
+<text x="1055.0" y="465.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">Claude Haiku 4.5 (profil global.)</text>
+<text x="1055.0" y="483.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">routeur + patron</text>
+<rect x="900" y="600" width="310" height="130" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
+<text x="1055.0" y="652.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon S3</text>
+<text x="1055.0" y="670.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">data/  CSV prix, FX, macro</text>
+<text x="1055.0" y="688.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">runs/  trace JSON de chaque réponse</text>
+<rect x="900" y="865" width="310" height="70" rx="10" fill="#fff4e5" stroke="#e07b00" stroke-width="1.6"/>
+<text x="1055.0" y="896.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">Amazon Bedrock · ConverseStream</text>
+<text x="1055.0" y="914.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">Claude Sonnet 4.6, en continu</text>
+<rect x="900" y="990" width="310" height="60" rx="10" fill="#ffffff" stroke="#7b8794" stroke-width="1.6"/>
+<text x="1055.0" y="1016.0" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2933">FRED (données macro publiques)</text>
+<text x="1055.0" y="1034.0" text-anchor="middle" font-size="12.5" font-weight="400" fill="#52606d">fetch_fred_extra.py</text>
 <path d="M150,160.0 H258" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
 <text x="205" y="152.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">question</text>
 <path d="M410,195 V243" fill="none" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
 <path d="M410,315 V363" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<path d="M410,435 V478" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="500" y="462" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">appels d'outils (parallèles)</text>
-<path d="M410,580 V623" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="450" y="606" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">résultats</text>
-<path d="M410,695 V743" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="445" y="724" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">réussite</text>
-<path d="M260,660.0 H236 V400.0 H258" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="230" y="530.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 230 530.0)">échec → reprise (max 2)</text>
-<path d="M260,780.0 H200 V280.0 H258" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="196" y="530.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 196 530.0)">réponse en continu</text>
+<path d="M410,435 V483" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="450" y="466" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">analyse</text>
+<path d="M410,555 V598" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="500" y="582" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">appels d'outils (parallèles)</text>
+<path d="M410,700 V743" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="450" y="726" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">résultats</text>
+<path d="M410,815 V863" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="445" y="846" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">réussite</text>
+<path d="M260,780.0 H238 V520.0 H258" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="232" y="650.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 232 650.0)">échec → reprise (max 2)</text>
+<path d="M260,400.0 H220 V294.0 H258" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="214" y="347.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 214 347.0)">réponse directe</text>
+<path d="M260,900.0 H198 V266.0 H258" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="192" y="650.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 192 650.0)">réponse en continu</text>
 <path d="M560,280.0 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
-<text x="730" y="272.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">filtre question + réponse</text>
+<text x="730" y="272.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">filtre question, réponse, réponse directe</text>
 <path d="M560,400.0 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
-<text x="730" y="392.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">plan + appels d'outils</text>
-<path d="M900,515 H562" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="730" y="507" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">lecture des données</text>
-<path d="M800,607 H850 V580 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
-<text x="850" y="625" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">sauvegarde trace</text>
-<path d="M560,780.0 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
-<text x="730" y="772.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">réponse en continu</text>
-<path d="M1210,905 H1232 V545 H1212" fill="none" stroke="#7b8794" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#ah)"/>
-<text x="1232" y="725" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 1232 725)">téléversement</text>
-<rect x="180" y="958" width="22" height="16" rx="4" fill="#efe7fb" stroke="#7c4dcc" stroke-width="1.5"/>
-<text x="210" y="971" font-size="13" fill="#1f2933">Étape LLM (Bedrock)</text>
-<rect x="380" y="958" width="22" height="16" rx="4" fill="#e6f4ea" stroke="#2f8f4e" stroke-width="1.5"/>
-<text x="410" y="971" font-size="13" fill="#1f2933">Python déterministe</text>
-<rect x="580" y="958" width="22" height="16" rx="4" fill="#fff4e5" stroke="#e07b00" stroke-width="1.5"/>
-<text x="610" y="971" font-size="13" fill="#1f2933">Service AWS</text>
-<rect x="780" y="958" width="22" height="16" rx="4" fill="#eef2f7" stroke="#9aa5b1" stroke-width="1.5"/>
-<text x="810" y="971" font-size="13" fill="#1f2933">Application</text>
+<text x="730" y="392.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">intention + réponse directe</text>
+<path d="M560,520.0 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
+<text x="730" y="512.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">plan + appels d'outils</text>
+<path d="M900,635 H562" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="730" y="627" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">lecture des données</text>
+<path d="M800,735 H850 V705 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+<text x="850" y="768" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">sauvegarde trace</text>
+<path d="M560,900.0 H898" fill="none" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
+<text x="730" y="892.0" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4">réponse en continu</text>
+<path d="M1210,1020 H1232 V665 H1212" fill="none" stroke="#7b8794" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#ah)"/>
+<text x="1232" y="840" text-anchor="middle" font-size="12" fill="#52606d" paint-order="stroke" stroke="#ffffff" stroke-width="4" transform="rotate(-90 1232 840)">téléversement</text>
+<rect x="180" y="1078" width="22" height="16" rx="4" fill="#efe7fb" stroke="#7c4dcc" stroke-width="1.5"/>
+<text x="210" y="1091" font-size="13" fill="#1f2933">Étape LLM (Bedrock)</text>
+<rect x="380" y="1078" width="22" height="16" rx="4" fill="#e6f4ea" stroke="#2f8f4e" stroke-width="1.5"/>
+<text x="410" y="1091" font-size="13" fill="#1f2933">Python déterministe</text>
+<rect x="580" y="1078" width="22" height="16" rx="4" fill="#fff4e5" stroke="#e07b00" stroke-width="1.5"/>
+<text x="610" y="1091" font-size="13" fill="#1f2933">Service AWS</text>
+<rect x="780" y="1078" width="22" height="16" rx="4" fill="#eef2f7" stroke="#9aa5b1" stroke-width="1.5"/>
+<text x="810" y="1091" font-size="13" fill="#1f2933">Application</text>
 </svg>
