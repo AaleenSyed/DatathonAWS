@@ -4,6 +4,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { api } from "./api";
 import { AppBar, Footer } from "./AppBar";
+import { Character } from "./Character";
 import { useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
 import { PERSONAS } from "./personas";
@@ -127,9 +128,7 @@ export function PersonaPicker({ onPick, onBuild }: { onPick: (id: PersonaId) => 
                   )}
                 </span>
                 <span className="flex items-center gap-3 pr-8">
-                  <span className={`avatar avatar-${fallback.id}`} aria-hidden="true">
-                    {fallback.name[0]}
-                  </span>
+                  <Character persona={fallback.id} size={76} />
                   <span className="grid min-w-0 gap-0.5">
                     <strong id={`persona-${fallback.id}-title`} className="text-[1.2rem] font-semibold leading-tight">
                       {t("persona.nameAge", { name, age: p?.age ?? fallback.age })}

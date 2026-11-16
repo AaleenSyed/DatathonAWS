@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { api, createChatSocket } from "./api";
 import { Answer } from "./Answer";
 import { AgentAvatar, AppBar } from "./AppBar";
+import { Character } from "./Character";
 import { Evidence, Recommended } from "./Explainer";
 import { refreshHealth, useHealth } from "./health";
 import { useI18n, type Key } from "./i18n";
@@ -23,6 +24,7 @@ import { ProfileCard, SparkAvatar } from "./ProfileBuilder";
 import { answerTone } from "./Status";
 import { Trace } from "./Trace";
 import { useViewMode } from "./view";
+import { Verdict, blockedBy } from "./Verdict";
 
 interface Progress {
   stage: GenerationStage;
@@ -56,6 +58,8 @@ const PHASE_OF: Record<GenerationStage, number> = {
   queued: 0, planning: 0, analyzing: 1, reviewing: 2, writing: 3, checking: 3, done: 4,
 };
 const DEFAULT_VIEW: AnswerView = { trace: CLOSED_TRACE };
+// How long the persona's character "talks" after an answer arrives.
+const TALK_MS = 4000;
 
 export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () => void }) {
   const { t, lang, code } = useI18n();
@@ -91,6 +95,8 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
   const socket = useRef(createChatSocket());
   const pendingScroll = useRef<{ id: string; block: ScrollLogicalPosition } | null>(null);
   const lostConnection = useRef(false);
+  const [talkingId, setTalkingId] = useState<string | null>(null);
+  const talkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const langRef = useRef(lang);
   langRef.current = lang;
 
@@ -111,6 +117,11 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
         case "message.end":
           // Show the start of the answer, not the bottom of the explanation panel.
           pendingScroll.current = { id: m.message.id, block: "start" };
+          if (m.message.role === "assistant" && m.message.status === "complete") {
+            setTalkingId(m.message.id);
+            clearTimeout(talkTimer.current);
+            talkTimer.current = setTimeout(() => setTalkingId(null), TALK_MS);
+          }
           break;
         case "error":
           // agent_error is followed by message.end (status error); busy / invalid_message change nothing.
@@ -130,6 +141,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
       offStatus();
       offMsg();
       s.close();
+      clearTimeout(talkTimer.current);
     };
   }, [personaId]);
 
@@ -256,13 +268,7 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
           {demo && <ChatMessage role="system" content={t("app.demo")} />}
           {path.length === 0 && (
             <div className="m-auto flex w-full max-w-3xl flex-col items-center gap-3 py-6 text-center">
-              {custom ? (
-                <SparkAvatar large />
-              ) : (
-                <span className={`avatar avatar-lg avatar-${personaId}`} aria-hidden="true">
-                  {name[0]}
-                </span>
-              )}
+              {custom ? <SparkAvatar large /> : <Character persona={personaId} size={132} />}
               <h2 className="text-[length:var(--step-3)] text-foreground">
                 {t(custom ? "pf.emptyTitle" : "chat.emptyTitle", { name })}
               </h2>
@@ -399,7 +405,9 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                 id={`msg-${m.id}`}
                 role="assistant"
                 className="msg"
-                avatar={<AgentAvatar />}
+                avatar={
+                  custom ? <AgentAvatar /> : <Character persona={personaId} size={40} talking={talkingId === m.id} />
+                }
                 name={name}
                 srLabel={t("chat.said", { name })}
                 meta={versions}
@@ -424,6 +432,9 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                         <ProgressLine progress={prog} trace={m.trace} actorLabel={(a) => code("actor", a)} />
                       )}
                       {m.status === "streaming" && !m.content && <TypingIndicator label={t("chat.thinking")} />}
+                      {m.status !== "streaming" && (m.final || blockedBy(m.trace)) && (
+                        <Verdict f={m.final} trace={m.trace} name={name} onCite={citeFor(m.id)} />
+                      )}
                       {m.content && (
                         <Answer
                           id={m.id}
@@ -432,9 +443,11 @@ export function Chat({ personaId, onBack }: { personaId: PersonaId; onBack: () =
                           onCite={citeFor(m.id)}
                           showFull={showFull}
                           onToggleFull={() => setView({ full: !showFull })}
-                          tone={answerTone(m.final)}
+                          tone={blockedBy(m.trace) ? "neutral" : answerTone(m.final)}
                           streaming={m.status === "streaming"}
                           afterSummary={m.final && <Recommended f={m.final} onCite={citeFor(m.id)} />}
+                          final={m.final}
+                          hideStatus={m.status !== "streaming" && (!!m.final || !!blockedBy(m.trace))}
                         />
                       )}
                       {m.status === "cancelled" && <small className="tag">{t("chat.stopped")}</small>}

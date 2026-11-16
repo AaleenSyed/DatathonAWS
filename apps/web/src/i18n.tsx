@@ -254,6 +254,27 @@ const EN = {
   "tr.open": "Open in the trace",
   "cite.step": "step {n}",
   "cite.steps": "steps {n}",
+
+  // Profile check (Verdict.tsx) and stock cards (StockCards.tsx). Decision support wording: no advice.
+  "v.label": "Profile check",
+  "v.check": "Profile check",
+  "v.fits": "Fits {name}’s profile",
+  "v.flag": "Flagged: above some of {name}’s limits",
+  "v.conflict": "Conflicts with {name}’s profile",
+  "v.none": "No profile check in this answer",
+  "v.rec": "Sectors that fit {name}’s limits",
+  "v.instead": "Fits {name}’s limits better",
+  "v.blocked": "Request blocked",
+  "v.blockedInput": "The Bedrock Guardrail stopped this request before any analysis ran. Nothing was computed.",
+  "v.blockedOutput": "The Bedrock Guardrail stopped the written answer. The analysis ran, but its text is not shown.",
+  "stock.heading": "Stocks in this answer",
+  "stock.volLabel": "Annualized volatility",
+  "stock.band.low": "Under 15%",
+  "stock.band.mid": "15 to 30%",
+  "stock.band.high": "Over 30%",
+  "stock.noVol": "Volatility not computed in this run",
+  "stock.aria": "{name} ({ticker}): annualized volatility {vol}, {band}.",
+  "stock.note": "Volatility from the risk analyst’s output in the trace, in CAD. Select a card to open its trace step.",
 } as const;
 
 export type Key = keyof typeof EN;
@@ -507,6 +528,26 @@ const FR: Record<Key, string> = {
   "tr.open": "Ouvrir dans la trace",
   "cite.step": "étape {n}",
   "cite.steps": "étapes {n}",
+
+  "v.label": "Vérification du profil",
+  "v.check": "Vérification du profil",
+  "v.fits": "Convient au profil de {name}",
+  "v.flag": "Signalé\u00a0: dépasse certaines limites de {name}",
+  "v.conflict": "En conflit avec le profil de {name}",
+  "v.none": "Aucune vérification du profil dans cette réponse",
+  "v.rec": "Secteurs qui respectent les limites de {name}",
+  "v.instead": "Respecte mieux les limites de {name}",
+  "v.blocked": "Demande bloquée",
+  "v.blockedInput": "Le garde-fou Bedrock a arrêté cette demande avant toute analyse. Aucun calcul n’a été fait.",
+  "v.blockedOutput": "Le garde-fou Bedrock a arrêté la réponse rédigée. L’analyse a eu lieu, mais son texte n’est pas affiché.",
+  "stock.heading": "Actions mentionnées dans cette réponse",
+  "stock.volLabel": "Volatilité annualisée",
+  "stock.band.low": "Moins de 15\u00a0%",
+  "stock.band.mid": "De 15 à 30\u00a0%",
+  "stock.band.high": "Plus de 30\u00a0%",
+  "stock.noVol": "Volatilité non calculée dans cette analyse",
+  "stock.aria": "{name} ({ticker})\u00a0: volatilité annualisée de {vol}, {band}.",
+  "stock.note": "Volatilité tirée du résultat de l’analyste du risque dans la trace, en dollars canadiens. Sélectionnez une carte pour ouvrir son étape de la trace.",
 };
 
 // Backend codes -> display labels. Unknown codes are shown as sent.
