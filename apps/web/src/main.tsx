@@ -7,7 +7,8 @@ import { ViewModeProvider } from "./view";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/source-serif-4";
 import "@fontsource-variable/source-serif-4/wght-italic.css";
-import "./styles.css";
+// Tailwind (theme + utilities, no Preflight) wrapped around styles.css; see index.css.
+import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

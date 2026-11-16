@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { useI18n } from "./i18n";
 import { useViewMode, type ViewMode } from "./view";
 
@@ -18,6 +19,20 @@ export function Wordmark() {
       <span className="wordmark-text">
         AlphaForge <span className="wordmark-ai">AI</span>
       </span>
+    </span>
+  );
+}
+
+/** The agent's avatar in the chat: the logo's spark in a circle. */
+export function AgentAvatar({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("avatar size-9 text-base shadow-sm", className)}
+    >
+      <svg viewBox="0 0 32 32" width="16" height="16">
+        <path d="M16 5c.8 5.4 3.6 8.2 9 9-5.4.8-8.2 3.6-9 9-.8-5.4-3.6-8.2-9-9 5.4-.8 8.2-3.6 9-9z" fill="currentColor" />
+      </svg>
     </span>
   );
 }
@@ -71,7 +86,7 @@ function LanguageToggle() {
     <button
       type="button"
       className="icon-btn lang-btn"
-      aria-label={label}
+      aria-label={`${t("lang.short")}: ${label}`}
       title={label}
       lang={lang === "fr" ? "en" : "fr"}
       onClick={() => setLang(lang === "fr" ? "en" : "fr")}
@@ -106,17 +121,26 @@ function ViewToggle() {
   );
 }
 
-/** Top bar shared by every page: wordmark (or custom left content), view, language and theme switches. */
+/** Top bar shared by every page: skip link, then a header with the wordmark (or custom left content) and the view,
+ *  language and theme switches. The `main` element of each page has id="main" (the skip link's target). */
 export function AppBar({ left, right, showView = false }: { left?: ReactNode; right?: ReactNode; showView?: boolean }) {
+  const { t } = useI18n();
   return (
-    <div className="appbar">
-      <div className="appbar-left">{left ?? <Wordmark />}</div>
-      <div className="appbar-right">
-        {right}
-        {showView && <ViewToggle />}
-        <LanguageToggle />
-        <ThemeToggle />
-      </div>
-    </div>
+    <>
+      <a className="skip-link" href="#main">
+        {t("a11y.skip")}
+      </a>
+      <header className="appbar">
+        <nav className="appbar-nav" aria-label={t("a11y.nav")}>
+          <div className="appbar-left">{left ?? <Wordmark />}</div>
+          <div className="appbar-right">
+            {right}
+            {showView && <ViewToggle />}
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
+        </nav>
+      </header>
+    </>
   );
 }

@@ -7,12 +7,24 @@
     <title>AlphaForge AI</title>
     <script>
       // Set the theme and the page language before first paint. src/i18n.tsx keeps `lang` in sync after that.
+      // Theme: the saved choice (top-bar switch, "colorTheme") wins; otherwise follow prefers-color-scheme,
+      // and keep following it while the visitor has not chosen.
+      var mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+      var saved = null;
       try {
-        // Dark ("noir") is the default; the top-bar switch saves "light" or "dark" under "colorTheme".
-        var t = localStorage.getItem("colorTheme");
-        if (t !== "light" && t !== "dark") t = "dark";
-        document.documentElement.dataset.theme = t;
+        saved = localStorage.getItem("colorTheme");
       } catch (e) {}
+      if (saved !== "light" && saved !== "dark") saved = null;
+      document.documentElement.dataset.theme = saved || (mq && mq.matches ? "dark" : "light");
+      if (mq && !saved && mq.addEventListener) {
+        mq.addEventListener("change", function (e) {
+          var s = null;
+          try {
+            s = localStorage.getItem("colorTheme");
+          } catch (x) {}
+          if (s !== "light" && s !== "dark") document.documentElement.dataset.theme = e.matches ? "dark" : "light";
+        });
+      }
       try {
         var l = localStorage.getItem("lang");
         if (l !== "en" && l !== "fr") l = (navigator.language || "").toLowerCase().indexOf("fr") === 0 ? "fr" : "en";
